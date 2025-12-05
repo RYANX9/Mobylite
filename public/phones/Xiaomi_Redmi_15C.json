@@ -1,0 +1,206 @@
+{
+    "modelname": "Xiaomi Redmi 15C",
+    "released-hl": [
+        "Released 2025",
+        "September 18"
+    ],
+    "body-hl": [
+        "211g",
+        "8.2mm thickness"
+    ],
+    "os-hl": [
+        "Android 15",
+        "HyperOS 2"
+    ],
+    "storage-hl": [
+        "128GB/256GB storage",
+        "microSDXC"
+    ],
+    "displaysize-hl": "6.9\"",
+    "displayres-hl": "720x1600 pixels",
+    "camerapixels-hl": "50",
+    "videopixels-hl": "1080p",
+    "ramsize-hl": "4/8",
+    "chipset-hl": "Dimensity 6300",
+    "batsize-hl": "6000",
+    "battype-hl": "33W",
+    "comment": "Not to be confused with Xiaomi Redmi 15C 4G",
+    "nettech": [
+        "GSM",
+        "HSPA",
+        "LTE",
+        "5G"
+    ],
+    "net2g": [
+        "GSM 850",
+        "900",
+        "1800",
+        "1900"
+    ],
+    "net3g": [
+        "HSDPA 800",
+        "850",
+        "900",
+        "1700(AWS)",
+        "1900",
+        "2100"
+    ],
+    "net4g": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8",
+        "12",
+        "13",
+        "17",
+        "18",
+        "19",
+        "20",
+        "26",
+        "28",
+        "32",
+        "38",
+        "40",
+        "41",
+        "42",
+        "48",
+        "66",
+        "71"
+    ],
+    "net5g": [
+        "1",
+        "2",
+        "3",
+        "5",
+        "7",
+        "8",
+        "12",
+        "20",
+        "26",
+        "28",
+        "38",
+        "40",
+        "41",
+        "48",
+        "66",
+        "71",
+        "77",
+        "78 SA/NSA"
+    ],
+    "speed": [
+        "HSPA",
+        "LTE",
+        "5G"
+    ],
+    "year": [
+        "2025",
+        "September 18"
+    ],
+    "status": [
+        "Available. Released 2025",
+        "September 18"
+    ],
+    "dimensions": "173.2 x 81.1 x 8.2 mm (6.82 x 3.19 x 0.32 in)",
+    "weight": "211 g (7.44 oz)",
+    "sim": "Nano-SIM + Nano-SIM",
+    "bodyother": "IP64 dust tight and water resistant (water splashes)",
+    "displaytype": [
+        "IPS LCD",
+        "120Hz",
+        "810 nits (HBM)"
+    ],
+    "displaysize": [
+        "6.9 inches",
+        "114.9 cm 2 (~81.8% screen-to-body ratio)"
+    ],
+    "displayresolution": [
+        "720 x 1600 pixels",
+        "20:9 ratio (~254 ppi density)"
+    ],
+    "displayprotection": "Mohs level 6",
+    "os": [
+        "Android 15",
+        "HyperOS 2"
+    ],
+    "chipset": "Mediatek Dimensity 6300 (6 nm)",
+    "cpu": "Octa-core (2x2.4 GHz Cortex-A76 & 6x2.0 GHz Cortex-A55)",
+    "gpu": "Mali-G57 MC2",
+    "memoryslot": "microSDXC (dedicated slot)",
+    "internalmemory": [
+        "128GB 4GB RAM",
+        "256GB 4GB RAM",
+        "256GB 8GB RAM"
+    ],
+    "memoryother": "UFS 2.2",
+    "cam1modules": [
+        "50 MP",
+        "f/1.8",
+        "28mm (wide)",
+        "1/2.76\"",
+        "0.64µm",
+        "PDAF Auxiliary lens"
+    ],
+    "cam1features": [
+        "LED flash",
+        "HDR"
+    ],
+    "cam1video": "1080p@30fps",
+    "cam2modules": [
+        "8 MP",
+        "f/2.0",
+        "(wide)",
+        "1/4.0\"",
+        "1.12µm"
+    ],
+    "cam2features": "HDR",
+    "cam2video": "1080p@30fps",
+    "optionalother": "24-bit/192kHz Hi-Res audio",
+    "wlan": [
+        "Wi-Fi 802.11 a/b/g/n/ac",
+        "dual-band"
+    ],
+    "bluetooth": [
+        "5.4",
+        "A2DP",
+        "LE"
+    ],
+    "gps": [
+        "GPS",
+        "GLONASS",
+        "GALILEO",
+        "BDS"
+    ],
+    "nfc": "Yes (market/region dependent)",
+    "radio": "FM radio",
+    "usb": [
+        "USB Type-C 2.0",
+        "OTG"
+    ],
+    "sensors": [
+        "Fingerprint (side-mounted)",
+        "accelerometer",
+        "compass"
+    ],
+    "featuresother": "Virtual proximity sensing",
+    "batdescription1": "6000 mAh",
+    "colors": [
+        "Midnight Black",
+        "Mint Green",
+        "Dusk Purple"
+    ],
+    "models": [
+        "2508CRN2BC",
+        "2508CRN2BG",
+        "25062RN2DE"
+    ],
+    "price": [
+        "€ 149.90",
+        "£ 161.98"
+    ],
+    "title": "Xiaomi Redmi 15C",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/xiaomi-redmi-15c.jpg",
+    "_source_url": "https://www.gsmarena.com/xiaomi_redmi_15c_5g-14039.php"
+}

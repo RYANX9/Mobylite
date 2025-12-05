@@ -1,0 +1,203 @@
+{
+    "modelname": "Xiaomi Redmi Note 15 Pro+",
+    "released-hl": [
+        "Released 2025",
+        "August 21"
+    ],
+    "body-hl": [
+        "211g",
+        "7.9mm thickness"
+    ],
+    "os-hl": [
+        "Android 15",
+        "HyperOS 2"
+    ],
+    "storage-hl": [
+        "256GB/512GB/1TB storage",
+        "no card slot"
+    ],
+    "displaysize-hl": "6.83\"",
+    "displayres-hl": "1220x2772 pixels",
+    "camerapixels-hl": "50",
+    "videopixels-hl": "2160p",
+    "ramsize-hl": "12/16",
+    "chipset-hl": "Snapdragon 7s Gen 4",
+    "batsize-hl": "7000",
+    "battype-hl": "90W",
+    "nettech": [
+        "GSM",
+        "HSPA",
+        "LTE",
+        "5G"
+    ],
+    "net2g": [
+        "GSM 850",
+        "900",
+        "1800",
+        "1900"
+    ],
+    "net3g": [
+        "HSDPA 800",
+        "850",
+        "900",
+        "1700(AWS)",
+        "1900",
+        "2100"
+    ],
+    "net4g": [
+        "1",
+        "3",
+        "4",
+        "5",
+        "8",
+        "19",
+        "28",
+        "34",
+        "38",
+        "39",
+        "40",
+        "41",
+        "42",
+        "48",
+        "66"
+    ],
+    "net5g": [
+        "1",
+        "3",
+        "5",
+        "8",
+        "28",
+        "38",
+        "40",
+        "41",
+        "48",
+        "66",
+        "77",
+        "78 SA/NSA"
+    ],
+    "speed": [
+        "HSPA",
+        "LTE",
+        "5G"
+    ],
+    "year": [
+        "2025",
+        "August 21"
+    ],
+    "status": [
+        "Available. Released 2025",
+        "August 21"
+    ],
+    "dimensions": "163.3 x 78.3 x 7.9 mm (6.43 x 3.08 x 0.31 in)",
+    "weight": "211 g (7.44 oz)",
+    "sim": "Nano-SIM + Nano-SIM",
+    "bodyother": "IP68/IP69K dust tight and water resistant (high pressure water jets; immersible up to 1.5m for 30 min) Manufacturer-rated water-resistance (up to 2m for 24 hours)",
+    "displaytype": [
+        "AMOLED",
+        "68B colors",
+        "120Hz",
+        "3840Hz PWM",
+        "HDR10+",
+        "Dolby Vision",
+        "3200 nits (peak)"
+    ],
+    "displaysize": [
+        "6.83 inches",
+        "111.0 cm 2 (~86.8% screen-to-body ratio)"
+    ],
+    "displayresolution": "1220 x 2772 pixels (~443 ppi density)",
+    "displayprotection": "Xiaomi Dragon Crystal Glass",
+    "os": [
+        "Android 15",
+        "HyperOS 2"
+    ],
+    "chipset": "Qualcomm SM7635-AC Snapdragon 7s Gen 4 (4 nm)",
+    "cpu": "Octa-core (1x2.7 GHz Cortex-A720 & 3x2.4 GHz Cortex-A720 & 4x1.8 GHz Cortex-A520)",
+    "gpu": "Adreno 810",
+    "memoryslot": "No",
+    "internalmemory": [
+        "256GB 12GB RAM",
+        "512GB 12GB RAM",
+        "512GB 16GB RAM",
+        "1TB 16GB RAM"
+    ],
+    "memoryother": "UFS 2.2",
+    "cam1modules": [
+        "50 MP",
+        "f/1.6",
+        "(wide)",
+        "1/1.55\"",
+        "1.0µm",
+        "multi-directional PDAF",
+        "OIS 50 MP",
+        "f/2.2",
+        "(telephoto)",
+        "PDAF",
+        "2.5x optical zoom 8 MP",
+        "112˚ (ultrawide)"
+    ],
+    "cam1features": [
+        "LED flash",
+        "HDR",
+        "panorama"
+    ],
+    "cam1video": [
+        "4K@24/30fps",
+        "1080p@30/60/120fps",
+        "gyro-EIS",
+        "OIS"
+    ],
+    "cam2modules": [
+        "32 MP",
+        "(wide)"
+    ],
+    "cam2features": [
+        "HDR",
+        "panorama"
+    ],
+    "cam2video": "1080p@30/60fps",
+    "optionalother": "24-bit/192kHz Hi-Res & Hi-Res wireless audio",
+    "wlan": [
+        "Wi-Fi 802.11 a/b/g/n/ac/6",
+        "dual-band",
+        "Wi-Fi Direct"
+    ],
+    "bluetooth": [
+        "5.4",
+        "A2DP",
+        "LE",
+        "LHDC"
+    ],
+    "gps": [
+        "GPS (L1+L5)",
+        "GALILEO (E1+E5a)",
+        "QZSS (L1+L5)",
+        "BDS (B1l+B1C+B2a)",
+        "GLONASS"
+    ],
+    "nfc": "Yes",
+    "radio": "Unspecified",
+    "usb": [
+        "USB Type-C 2.0",
+        "OTG"
+    ],
+    "sensors": [
+        "Fingerprint (under display",
+        "optical)",
+        "accelerometer",
+        "gyro",
+        "compass",
+        "proximity"
+    ],
+    "featuresother": "Circle to Search",
+    "batdescription1": "Li-Ion 7000 mAh",
+    "colors": [
+        "Black",
+        "Purple",
+        "Blue",
+        "White"
+    ],
+    "title": "Xiaomi Redmi Note 15 Pro+",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/xiaomi-redmi-note-15-pro-plus-5g.jpg",
+    "_source_url": "https://www.gsmarena.com/xiaomi_redmi_note_15_pro+_5g_(china)-14091.php"
+}

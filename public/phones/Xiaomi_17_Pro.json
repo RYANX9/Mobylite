@@ -1,0 +1,266 @@
+{
+    "modelname": "Xiaomi 17 Pro",
+    "released-hl": [
+        "Released 2025",
+        "September 25"
+    ],
+    "body-hl": [
+        "192g",
+        "8mm thickness"
+    ],
+    "os-hl": [
+        "Android 16",
+        "HyperOS 3"
+    ],
+    "storage-hl": [
+        "256GB/512GB/1TB storage",
+        "no card slot"
+    ],
+    "displaysize-hl": "6.3\"",
+    "displayres-hl": "1220x2656 pixels",
+    "camerapixels-hl": "50",
+    "videopixels-hl": "4320p",
+    "ramsize-hl": "12/16",
+    "chipset-hl": "Snapdragon 8 Elite Gen 5",
+    "batsize-hl": "6300",
+    "battype-hl": "100W 50W",
+    "comment": "Previously rumored as Xiaomi 16 Pro",
+    "nettech": [
+        "GSM",
+        "HSPA",
+        "LTE",
+        "5G"
+    ],
+    "net2g": [
+        "GSM 850",
+        "900",
+        "1800",
+        "1900"
+    ],
+    "net3g": [
+        "HSDPA 800",
+        "850",
+        "900",
+        "1700(AWS)",
+        "1900",
+        "2100"
+    ],
+    "net4g": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "7",
+        "8",
+        "12",
+        "17",
+        "18",
+        "19",
+        "20",
+        "25",
+        "26",
+        "28",
+        "34",
+        "38",
+        "39",
+        "40",
+        "41",
+        "42",
+        "48",
+        "66"
+    ],
+    "net5g": [
+        "1",
+        "2",
+        "3",
+        "5",
+        "7",
+        "8",
+        "12",
+        "18",
+        "20",
+        "25",
+        "26",
+        "28",
+        "38",
+        "40",
+        "41",
+        "48",
+        "66",
+        "77",
+        "78",
+        "80",
+        "81",
+        "83",
+        "84",
+        "89 SA/NSA"
+    ],
+    "speed": [
+        "HSPA",
+        "LTE",
+        "5G"
+    ],
+    "year": [
+        "2025",
+        "September 25"
+    ],
+    "status": [
+        "Available. Released 2025",
+        "September 25"
+    ],
+    "dimensions": "151.1 x 71.8 x 8 mm (5.95 x 2.83 x 0.31 in)",
+    "weight": "192 g (6.77 oz)",
+    "build": [
+        "Glass front (Dragon Crystal Glass)",
+        "aluminum frame"
+    ],
+    "sim": "Nano-SIM + Nano-SIM",
+    "bodyother": "IP68 dust tight and water resistant (immersible up to 4m for 30 min)",
+    "displaytype": [
+        "LTPO AMOLED",
+        "68B colors",
+        "2160Hz PWM",
+        "120Hz",
+        "Dolby Vision",
+        "HDR Vivid",
+        "HDR10+",
+        "3500 nits (peak)"
+    ],
+    "displaysize": [
+        "6.3 inches",
+        "97.1 cm 2 (~89.5% screen-to-body ratio)"
+    ],
+    "displayresolution": [
+        "1220 x 2656 pixels",
+        "19.5:9 ratio (~464 ppi density)"
+    ],
+    "displayprotection": "Xiaomi Dragon Crystal Glass",
+    "displayother": [
+        "Secondary display (on the back): LTPO AMOLED",
+        "120Hz",
+        "Dolby Vision",
+        "HDR Vivid",
+        "HDR10+",
+        "3500 nits (peak) 2.7 inches",
+        "572 x 904 pixels"
+    ],
+    "os": [
+        "Android 16",
+        "HyperOS 3"
+    ],
+    "chipset": "Qualcomm SM8850-AC Snapdragon 8 Elite Gen 5 (3 nm)",
+    "cpu": "Octa-core (2x4.6 GHz Oryon V3 Phoenix L + 6x3.62 GHz Oryon V3 Phoenix M)",
+    "gpu": "Adreno 840",
+    "memoryslot": "No",
+    "internalmemory": [
+        "256GB 12GB RAM",
+        "512GB 12GB RAM",
+        "512GB 16GB RAM",
+        "1TB 16GB RAM"
+    ],
+    "memoryother": "UFS 4.1",
+    "cam1modules": [
+        "50 MP",
+        "f/1.7",
+        "23mm (wide)",
+        "1/1.28\"",
+        "1.22µm",
+        "dual pixel PDAF",
+        "OIS 50 MP",
+        "f/3.0",
+        "115mm (periscope telephoto)",
+        "PDAF (20cm - ∞)",
+        "OIS",
+        "5x optical zoom 50 MP",
+        "f/2.4",
+        "17mm",
+        "102˚ (ultrawide)",
+        "1/2.76\"",
+        "0.64µm"
+    ],
+    "cam1features": [
+        "Laser AF",
+        "color spectrum sensor",
+        "Leica lens",
+        "Dual-LED dual-tone flash",
+        "HDR",
+        "panorama"
+    ],
+    "cam1video": [
+        "8K@30fps (HDR)",
+        "4K@30/60/120fps (HDR10+",
+        "10-bit Dolby Vision HDR",
+        "10-bit LOG)",
+        "1080p@30/60/120/240/960fps",
+        "720p@1920fps",
+        "gyro-EIS"
+    ],
+    "cam2modules": [
+        "50 MP",
+        "f/2.2",
+        "21mm (wide)",
+        "PDAF"
+    ],
+    "cam2features": [
+        "HDR",
+        "panorama"
+    ],
+    "cam2video": [
+        "4K@30/60fps",
+        "1080p@30/60fps",
+        "HDR10+",
+        "gyro-EIS"
+    ],
+    "optionalother": "24-bit/192kHz Hi-Res & Hi-Res wireless audio Snapdragon sound",
+    "wlan": [
+        "Wi-Fi 802.11 a/b/g/n/ac/6e/7",
+        "dual-band",
+        "Wi-Fi Direct"
+    ],
+    "bluetooth": [
+        "5.4",
+        "A2DP",
+        "LE",
+        "aptX HD",
+        "aptX Adaptive",
+        "LHDC 5"
+    ],
+    "gps": [
+        "GPS (L1+L5)",
+        "BDS (B1I+B1c+B2a)",
+        "GALILEO (E1+E5a)",
+        "QZSS (L1+L5)",
+        "NavIC (L5)",
+        "GLONASS"
+    ],
+    "nfc": "Yes",
+    "radio": "No",
+    "usb": [
+        "USB Type-C 3.2",
+        "Display Port",
+        "OTG"
+    ],
+    "sensors": [
+        "Fingerprint (under display",
+        "ultrasonic)",
+        "accelerometer",
+        "proximity",
+        "gyro",
+        "compass",
+        "barometer"
+    ],
+    "featuresother": "Ultra Wideband (UWB) support",
+    "batdescription1": "Si/C Li-Ion 6300 mAh",
+    "colors": [
+        "Black",
+        "White",
+        "Purple",
+        "Green"
+    ],
+    "models": "25098PN5AC",
+    "price": "About 600 EUR",
+    "title": "Xiaomi 17 Pro",
+    "image": "https://fdn2.gsmarena.com/vv/bigpic/xiaomi-17-pro.jpg",
+    "_source_url": "https://www.gsmarena.com/xiaomi_17_pro_5g-14182.php"
+}
