@@ -1,4 +1,4 @@
-// desktop/DesktopDetail.tsx - UPDATED IMPORTS ONLY
+// app\components\desktop\DesktopDetail.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
 import {
@@ -6,15 +6,20 @@ import {
   Plus, Cpu, MemoryStick, HardDrive, Search, Monitor, Zap, 
   Video, Wifi, Weight, Ruler, Calendar, Award, Signal, Volume2, Info, Package
 } from 'lucide-react';
-
-import { Phone, Review } from '../../components/shared/types';
-import { API_BASE } from '../../components/shared/constants';
-import { cleanHTMLText } from '../../components/shared/utils';
-import { ButtonPressFeedback } from '../../components/shared/ButtonPressFeedback';
-import { Tooltip } from '../../components/shared/Tooltip';
-import { ReviewCard } from '../../components/shared/ReviewCard';
-import { RatingsSummary } from '../../components/shared/RatingsSummary';
-import { HorizontalPhoneScroll } from '../../components/shared/HorizontalPhoneScroll';
+import { useRouter } from 'next/navigation';
+import { Phone, Review, Favorite } from '@/lib/types';
+import { API_BASE_URL, APP_ROUTES } from '@/lib/config';
+import { api } from '@/lib/api';
+import { cleanHTMLText } from '@/lib/utils';
+import { isAuthenticated, getAuthToken } from '@/lib/auth';
+import { ButtonPressFeedback } from '@/app/components/shared/ButtonPressFeedback';
+import { Tooltip } from '@/app/components/shared/Tooltip';
+import { ReviewCard } from '@/app/components/shared/ReviewCard';
+import { RatingsSummary } from '@/app/components/shared/RatingsSummary';
+import { HorizontalPhoneScroll } from '@/app/components/shared/HorizontalPhoneScroll';
+import { UserMenu } from './UserMenu';
+import { color, font } from '@/lib/tokens';
+import { createPhoneSlug } from '@/lib/config';
 
 
 interface DesktopDetailProps {
@@ -25,32 +30,57 @@ interface DesktopDetailProps {
 }
 
 export default function DesktopDetail({ phone, setView, setComparePhones, setSelectedPhone }: DesktopDetailProps) {
+  const router = useRouter();
   const [isExpertMode, setIsExpertMode] = useState(false);
   const [similarPhones, setSimilarPhones] = useState<Phone[]>([]);
   const [alsoComparedWith, setAlsoComparedWith] = useState<Phone[]>([]);
+  const [comparisonCounts, setComparisonCounts] = useState<{ [key: number]: number }>({});
   const [isFavorite, setIsFavorite] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [phoneStats, setPhoneStats] = useState<any>(null);
-  const [comparisonCounts, setComparisonCounts] = useState<{ [key: number]: number }>({});
+
+  // Check if phone is in user's favorites
+  useEffect(() => {
+    const checkFavorite = async () => {
+      if (!isAuthenticated()) return;
+
+      try {
+        const data = await api.favorites.list();
+        setIsFavorite(data.favorites?.some((f: Favorite) => f.phone_id === phone.id));
+      } catch (error) {
+        console.error('Failed to check favorite:', error);
+      }
+    };
+
+    checkFavorite();
+  }, [phone.id]);
 
   useEffect(() => {
     fetchSimilarPhones();
     fetchAlsoComparedWith();
     fetchReviews();
     fetchPhoneStats();
+    
+    // Add to view history
+    if (isAuthenticated()) {
+      fetch(`${API_BASE_URL}/history/views`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAuthToken()}`
+        },
+        body: JSON.stringify({ phoneId: phone.id })
+      }).catch(console.error);
+    }
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [phone]);
 
   const fetchReviews = async () => {
     try {
-      const res = await fetch('/reviews.json');
-      const data = await res.json();
-      const phoneReviews = data.reviews
-        .filter((r: Review) => r.phone_id === phone.id)
-        .sort((a: Review, b: Review) => b.helpful_count - a.helpful_count)
-        .slice(0, 5);
-      setReviews(phoneReviews);
+      const data = await api.reviews.getByPhone(phone.id, 1, 10);
+      setReviews(data.reviews || []);
     } catch (error) {
       console.error('Error fetching reviews:', error);
     }
@@ -58,10 +88,8 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
 
   const fetchPhoneStats = async () => {
     try {
-      const res = await fetch('/reviews.json');
-      const data = await res.json();
-      const stats = data.phone_stats.find((s: any) => s.phone_id === phone.id);
-      setPhoneStats(stats);
+      const data = await api.phones.getStats(phone.id);
+      setPhoneStats(data.stats || { average_rating: 0, total_reviews: 0, total_favorites: 0 });
     } catch (error) {
       console.error('Error fetching phone stats:', error);
     }
@@ -69,25 +97,13 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
 
   const fetchAlsoComparedWith = async () => {
     try {
-      const compRes = await fetch('/reviews.json');
-      const compData = await compRes.json();
-      const comparisonData = compData.comparisons.find((c: any) => c.phone_id === phone.id);
+      // Using custom endpoint - keep as fetch for now
+      const result = await fetch(`${API_BASE_URL}/phones/${phone.id}/also-compared`);
+      const data = await result.json();
       
-      if (comparisonData && comparisonData.compared_with_ids.length > 0) {
-        const phoneIds = comparisonData.compared_with_ids.slice(0, 6);
-        const phones = await Promise.all(
-          phoneIds.map(async (id: number) => {
-            const res = await fetch(`${API_BASE}/phones/${id}`);
-            return await res.json();
-          })
-        );
-        setAlsoComparedWith(phones);
-
-        const counts: { [key: number]: number } = {};
-        phoneIds.forEach((id: number, index: number) => {
-          counts[id] = comparisonData.comparison_count - (index * 100);
-        });
-        setComparisonCounts(counts);
+      if (data.success && data.phones.length > 0) {
+        setAlsoComparedWith(data.phones);
+        setComparisonCounts(data.comparisonCounts || {});
       }
     } catch (error) {
       console.error('Error fetching also compared:', error);
@@ -96,30 +112,32 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
 
   const fetchSimilarPhones = async () => {
     try {
-      let url = `${API_BASE}/phones/search?page_size=30`;
+      const params: any = {
+        page_size: 30,
+      };
       
       if (phone.price_usd) {
         const minPrice = Math.floor(phone.price_usd * 0.7);
         const maxPrice = Math.ceil(phone.price_usd * 1.3);
-        url += `&min_price=${minPrice}&max_price=${maxPrice}`;
+        params.min_price = minPrice;
+        params.max_price = maxPrice;
       }
       
       if (phone.ram_options && phone.ram_options.length > 0) {
         const avgRam = Math.max(...phone.ram_options);
-        url += `&min_ram=${Math.max(avgRam - 2, 4)}`;
+        params.min_ram = Math.max(avgRam - 2, 4);
       }
       
       if (phone.storage_options && phone.storage_options.length > 0) {
         const avgStorage = Math.max(...phone.storage_options);
-        url += `&min_storage=${Math.max(avgStorage / 2, 64)}`;
+        params.min_storage = Math.max(avgStorage / 2, 64);
       }
       
       if (phone.release_year) {
-        url += `&min_year=${phone.release_year - 1}`;
+        params.min_year = phone.release_year - 1;
       }
 
-      const response = await fetch(url);
-      const data = await response.json();
+      const data = await api.phones.search(params);
       
       const scoredPhones = (data.results || [])
         .filter((p: Phone) => p.id !== phone.id)
@@ -155,7 +173,7 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
           }
           return { ...p, similarityScore: score };
         })
-        .sort((a, b) => b.similarityScore - a.similarityScore)
+        .sort((a: any, b: any) => b.similarityScore - a.similarityScore)
         .slice(0, 12);
 
       setSimilarPhones(scoredPhones);
@@ -164,21 +182,47 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
     }
   };
 
+
+
+  // Update handleStartCompare
   const handleStartCompare = () => {
-    setComparePhones([phone]);
-    setView('compare');
+    if (isAuthenticated()) {
+      fetch(`${API_BASE_URL}/comparisons`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAuthToken()}`
+        },
+        body: JSON.stringify({ phoneIds: [phone.id] })
+      }).catch(console.error);
+    }
+    
+    const phoneSlug = createPhoneSlug(phone);
+    router.push(APP_ROUTES.compare([phoneSlug]));
   };
 
+  // Update handleCompareWithPhone
   const handleCompareWithPhone = async (comparePhone: Phone) => {
     try {
-      const response = await fetch(`${API_BASE}/phones/${comparePhone.id}`);
-      const fullPhone = await response.json();
-      setComparePhones([phone, fullPhone]);
-      setView('compare');
+      if (isAuthenticated()) {
+        fetch(`${API_BASE_URL}/comparisons`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getAuthToken()}`
+          },
+          body: JSON.stringify({ phoneIds: [phone.id, comparePhone.id] })
+        }).catch(console.error);
+      }
+      
+      const phoneSlugs = [phone, comparePhone].map(p => createPhoneSlug(p));
+      router.push(APP_ROUTES.compare(phoneSlugs));
     } catch (error) {
       console.error('Error comparing phones:', error);
     }
   };
+
+
 
   const handleSearchKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
@@ -186,14 +230,29 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
     }
   };
 
-  const handlePhoneClick = async (clickedPhone: Phone) => {
+  const handlePhoneClick = (clickedPhone: Phone) => {
+    const brandSlug = clickedPhone.brand.toLowerCase().replace(/\s+/g, '-');
+    const modelSlug = createPhoneSlug(clickedPhone);
+    router.push(APP_ROUTES.phoneDetail(brandSlug, modelSlug));
+  };
+
+  const toggleFavorite = async () => {
+    if (!isAuthenticated()) {
+      if (confirm('Please login to add favorites. Go to login?')) {
+        router.push(APP_ROUTES.login);
+      }
+      return;
+    }
+
     try {
-      const response = await fetch(`${API_BASE}/phones/${clickedPhone.id}`);
-      const fullPhone = await response.json();
-      setSelectedPhone(fullPhone);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (isFavorite) {
+        await api.favorites.remove(phone.id);
+      } else {
+        await api.favorites.add(phone.id);
+      }
+      setIsFavorite(!isFavorite);
     } catch (error) {
-      console.error('Error loading phone details:', error);
+      console.error('Failed to toggle favorite:', error);
     }
   };
 
@@ -297,37 +356,86 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
 
   const fullSpecs = phone.full_specifications?.specifications || {};
 
+  // Tokenized styles
+  const containerBgStyle: React.CSSProperties = {
+    backgroundColor: color.bg,
+  };
+
+  const navbarBgStyle: React.CSSProperties = {
+    backgroundColor: color.bg,
+    borderColor: color.borderLight,
+  };
+
+  const searchInputStyle: React.CSSProperties = {
+    backgroundColor: color.borderLight,
+    border: `1px solid ${color.border}`,
+    color: color.text,
+  };
+
+  const searchInputFocusStyle: React.CSSProperties = {
+    borderColor: color.primary,
+    boxShadow: `0 0 0 2px ${color.primary}1A`,
+  };
+
+  const priceCardStyle: React.CSSProperties = {
+    backgroundColor: color.text,
+    color: color.bg,
+  };
+
+  const specCardStyle: React.CSSProperties = {
+    backgroundColor: color.bg,
+    border: `1px solid ${color.borderLight}`,
+  };
+
+  const specCardHoverStyle: React.CSSProperties = {
+    borderColor: color.text,
+  };
+
+  const categoryHeaderStyle: React.CSSProperties = {
+    backgroundColor: color.borderLight,
+    borderColor: color.borderLight,
+  };
+
   return (
-    <div className="min-h-screen bg-white">
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
+    <div className="min-h-screen" style={containerBgStyle}>
+      <div className="sticky top-0 z-30 border-b" style={navbarBgStyle}>
         <div className="max-w-7xl mx-auto px-8 py-4">
           <div className="flex items-center gap-6">
-            <ButtonPressFeedback onClick={() => setView('home')} className="flex items-center gap-3 hover:opacity-70 transition-opacity">
-              <ArrowLeft size={20} className="text-black" strokeWidth={2} />
+            <ButtonPressFeedback onClick={() => router.push(APP_ROUTES.home)} className="flex items-center gap-3 hover:opacity-70 transition-opacity">
+              <ArrowLeft size={20} style={{ color: color.text }} />
               <img src="/logo.svg" alt="Mobylite" className="w-8 h-8" />
-              <h2 className="text-xl font-bold text-black">Mobylite</h2>
+              <h2 className="text-xl font-bold" style={{ color: color.text }}>Mobylite</h2>
             </ButtonPressFeedback>
 
             <div className="flex-1 relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" strokeWidth={2} />
+                <Search size={20} style={{ color: color.textMuted }} />
               </div>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={handleSearchKeyPress}
-                className="block w-full pl-12 pr-4 py-3 bg-gray-50 text-black rounded-xl border border-gray-200 focus:border-black focus:outline-none placeholder:text-gray-400 text-sm font-medium transition-all"
+                className="block w-full pl-12 pr-4 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all"
+                style={searchInputStyle}
+                onFocus={(e) => Object.assign(e.currentTarget.style, searchInputFocusStyle)}
+                onBlur={(e) => Object.assign(e.currentTarget.style, searchInputStyle)}
                 placeholder="Search phones..."
               />
             </div>
 
             <ButtonPressFeedback
-              className={`p-2.5 rounded-full transition-all ${isFavorite ? 'text-black bg-gray-100' : 'text-gray-400 hover:bg-gray-100'}`}
-              onClick={() => setIsFavorite(!isFavorite)}
+              className={`p-2.5 rounded-full transition-all`}
+              style={{ 
+                color: isFavorite ? color.danger : color.textMuted,
+                backgroundColor: isFavorite ? color.dangerBg : 'transparent'
+              }}
+              onClick={toggleFavorite}
             >
-              <Heart size={24} fill={isFavorite ? 'currentColor' : 'none'} strokeWidth={2} />
+              <Heart size={24} fill={isFavorite ? 'currentColor' : 'none'} />
             </ButtonPressFeedback>
+
+            <UserMenu />
           </div>
         </div>
       </div>
@@ -337,37 +445,54 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
           <div className="col-span-2">
             <div className="sticky top-24">
               <div className="flex gap-6 mb-6">
-                <div className="w-48 h-48 flex-shrink-0 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl flex items-center justify-center overflow-hidden border border-gray-200">
+                <div 
+                  className="w-48 h-48 flex-shrink-0 rounded-2xl flex items-center justify-center overflow-hidden border"
+                  style={{ backgroundColor: color.borderLight, borderColor: color.borderLight }}
+                >
                   {phone.main_image_url ? (
                     <img src={phone.main_image_url} alt={phone.model_name} className="w-full h-full object-contain p-6" />
                   ) : (
-                    <Smartphone size={80} className="text-gray-300" strokeWidth={1.5} />
+                    <Smartphone size={80} style={{ color: color.textLight }} />
                   )}
                 </div>
                 
                 <div className="flex-1 flex flex-col justify-center">
-                  <p className="text-xs text-gray-500 font-bold mb-2 uppercase tracking-wide">{phone.brand}</p>
-                  <h1 className="text-3xl font-bold text-black leading-tight mb-2">{phone.model_name}</h1>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: color.textMuted }}>
+                    {phone.brand}
+                  </p>
+                  <h1 
+                    className="text-3xl font-bold leading-tight mb-2"
+                    style={{ fontFamily: font.primary, color: color.text }}
+                  >
+                    {phone.model_name}
+                  </h1>
                   {phoneStats && (
                     <RatingsSummary
-                      averageRating={phoneStats.average_rating}
-                      totalReviews={phoneStats.total_reviews}
-                      ownersCount={phoneStats.owners_count}
+                      phoneId={phone.id}
                       variant="compact"
                     />
                   )}
                   {phone.release_date_full && (
-                    <p className="text-sm text-gray-500 font-medium mt-2">{cleanHTMLText(phone.release_date_full)}</p>
+                    <p className="text-sm font-medium mt-2" style={{ color: color.textMuted }}>
+                      {cleanHTMLText(phone.release_date_full)}
+                    </p>
                   )}
                 </div>
               </div>
 
               {phone.price_usd && (
-                <div className="bg-black text-white rounded-2xl p-6 mb-4">
+                <div className="rounded-2xl p-6 mb-4" style={priceCardStyle}>
                   <p className="text-sm font-bold mb-1 opacity-70">PRICE</p>
-                  <p className="text-4xl font-bold">${phone.price_usd}</p>
+                  <p 
+                    className="text-4xl font-bold"
+                    style={{ fontFamily: font.numeric }}
+                  >
+                    ${phone.price_usd}
+                  </p>
                   {phone.price_original && phone.currency && (
-                    <p className="text-sm opacity-70 mt-1">{phone.price_original} {phone.currency}</p>
+                    <p className="text-sm opacity-70 mt-1">
+                      {phone.price_original} {phone.currency}
+                    </p>
                   )}
                 </div>
               )}
@@ -375,20 +500,33 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
               <div className="space-y-3">
                 {phone.amazon_link && (
                   <ButtonPressFeedback className="w-full" onClick={() => window.open(phone.amazon_link, '_blank')}>
-                    <div className="w-full py-4 text-center font-bold text-white bg-black hover:bg-gray-900 rounded-xl text-sm transition-all">
+                    <div 
+                      className="w-full py-4 text-center font-bold rounded-xl text-sm transition-all"
+                      style={{ backgroundColor: color.primary, color: color.primaryText }}
+                    >
                       Buy on Amazon
                     </div>
                   </ButtonPressFeedback>
                 )}
                 {phone.brand_link && (
                   <ButtonPressFeedback className="w-full" onClick={() => window.open(phone.brand_link, '_blank')}>
-                    <div className="w-full py-4 text-center font-bold text-black bg-gray-100 hover:bg-gray-200 rounded-xl text-sm transition-all">
+                    <div 
+                      className="w-full py-4 text-center font-bold rounded-xl text-sm transition-all"
+                      style={{ backgroundColor: color.borderLight, color: color.text }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = color.border}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = color.borderLight}
+                    >
                       Visit Brand Site
                     </div>
                   </ButtonPressFeedback>
                 )}
-                <ButtonPressFeedback onClick={handleStartCompare} className="w-full py-4 font-bold text-black bg-gray-100 hover:bg-gray-200 rounded-xl text-sm transition-all flex items-center justify-center gap-2">
-                  <Plus size={18} strokeWidth={2} />
+                <ButtonPressFeedback 
+                  onClick={handleStartCompare}
+                  className="w-full py-4 font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+                  style={{ backgroundColor: color.borderLight, color: color.text }}
+                  hoverStyle={{ backgroundColor: color.border }}
+                >
+                  <Plus size={18} />
                   Add to Compare
                 </ButtonPressFeedback>
               </div>
@@ -397,21 +535,31 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
 
           <div className="col-span-3">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-3xl font-bold text-black">Specifications</h2>
-              <div className="inline-flex bg-gray-100 p-1 rounded-xl">
+              <h2 
+                className="text-3xl font-bold"
+                style={{ fontFamily: font.primary, color: color.text }}
+              >
+                Specifications
+              </h2>
+              <div 
+                className="inline-flex p-1 rounded-xl"
+                style={{ backgroundColor: color.borderLight }}
+              >
                 <button
                   onClick={() => setIsExpertMode(false)}
                   className={`px-6 py-2.5 text-xs font-bold transition-all rounded-lg ${
-                    !isExpertMode ? 'bg-white text-black shadow-sm' : 'text-gray-500'
+                    !isExpertMode ? 'shadow-sm' : ''
                   }`}
+                  style={!isExpertMode ? { backgroundColor: color.bg, color: color.text } : { color: color.textMuted }}
                 >
                   SIMPLE
                 </button>
                 <button
                   onClick={() => setIsExpertMode(true)}
                   className={`px-6 py-2.5 text-xs font-bold transition-all rounded-lg ${
-                    isExpertMode ? 'bg-white text-black shadow-sm' : 'text-gray-500'
+                    isExpertMode ? 'shadow-sm' : ''
                   }`}
+                  style={isExpertMode ? { backgroundColor: color.bg, color: color.text } : { color: color.textMuted }}
                 >
                   EXPERT
                 </button>
@@ -421,13 +569,27 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
             {!isExpertMode ? (
               <div className="grid grid-cols-2 gap-4">
                 {simpleSpecs.map((spec, idx) => (
-                  <div key={idx} className="bg-white border border-gray-200 rounded-xl p-5 hover:border-black transition-all">
+                  <div 
+                    key={idx} 
+                    className="rounded-xl p-5 transition-all"
+                    style={specCardStyle}
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = color.text}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = color.borderLight}
+                  >
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <spec.icon size={20} className="text-gray-700" strokeWidth={2} />
+                      <div 
+                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: color.borderLight }}
+                      >
+                        <spec.icon size={20} style={{ color: color.text }} />
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{spec.label}</span>
+                        <span 
+                          className="text-xs font-bold uppercase tracking-wide"
+                          style={{ color: color.textMuted }}
+                        >
+                          {spec.label}
+                        </span>
                         {spec.tooltip && (
                           <Tooltip 
                             term={spec.label}
@@ -437,7 +599,12 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
                         )}
                       </div>
                     </div>
-                    <p className="text-base font-bold text-black leading-snug">{spec.value}</p>
+                    <p 
+                      className="text-base font-bold leading-snug"
+                      style={{ color: color.text }}
+                    >
+                      {spec.value}
+                    </p>
                   </div>
                 ))}
               </div>               
@@ -462,19 +629,31 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
                   return sortedEntries.map(([category, specs]) => {
                     const CategoryIcon = getIconForCategory(category);
                     return (
-                      <div key={category} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                        <div className="bg-gray-50 border-b border-gray-200 px-5 py-3 flex items-center gap-3">
-                          <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center border border-gray-200">
-                            <CategoryIcon size={14} className="text-black" strokeWidth={2} />
+                      <div 
+                        key={category} 
+                        className="rounded-xl overflow-hidden border"
+                        style={specCardStyle}
+                      >
+                        <div 
+                          className="border-b px-5 py-3 flex items-center gap-3"
+                          style={categoryHeaderStyle}
+                        >
+                          <div 
+                            className="w-7 h-7 rounded-lg flex items-center justify-center border"
+                            style={{ backgroundColor: color.bg, borderColor: color.borderLight }}
+                          >
+                            <CategoryIcon size={14} style={{ color: color.text }} />
                           </div>
-                          <h3 className="text-sm font-bold text-black">{category}</h3>
+                          <h3 className="text-sm font-bold" style={{ color: color.text }}>{category}</h3>
                         </div>
                         <div className="p-5">
                           <div className="space-y-3">
                             {Object.entries(specs).map(([key, value]) => (
-                              <div key={key} className="flex justify-between py-2 border-b border-gray-100 last:border-0">
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide flex-shrink-0 mr-4">{key}</span>
-                                <span className="text-xs font-medium text-black text-right leading-relaxed">
+                              <div key={key} className="flex justify-between py-2 border-b last:border-0" style={{ borderColor: color.borderLight }}>
+                                <span className="text-xs font-bold uppercase tracking-wide flex-shrink-0 mr-4" style={{ color: color.textMuted }}>
+                                  {key}
+                                </span>
+                                <span className="text-xs font-medium text-right leading-relaxed" style={{ color: color.text }}>
                                   {formatSpecValue(value)}
                                 </span>
                               </div>
@@ -515,18 +694,15 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
         {reviews.length > 0 && phoneStats && (
           <div className="mt-16">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-black">Reviews</h3>
-              <button className="text-sm font-bold text-black hover:text-gray-600 transition-colors">
-                View All {phoneStats.total_reviews.toLocaleString()} Reviews →
+              <h3 className="text-2xl font-bold" style={{ color: color.text }}>Reviews</h3>
+              <button className="text-sm font-bold transition-colors" style={{ color: color.textMuted }}>
+                View All {phoneStats.total_reviews?.toLocaleString()} Reviews →
               </button>
             </div>
 
             <div className="mb-8">
               <RatingsSummary
-                averageRating={phoneStats.average_rating}
-                totalReviews={phoneStats.total_reviews}
-                ownersCount={phoneStats.owners_count}
-                wantCount={phoneStats.want_count}
+                phoneId={phone.id}
                 variant="detailed"
               />
             </div>

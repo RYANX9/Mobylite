@@ -1,428 +1,598 @@
-
-/* MobileHome.tsx */
 'use client';
-import { FiltersModal, SortModal, QuizModal, PriceAlertModal } from './MobileModals';
-
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, Smartphone, SlidersHorizontal, X, Zap, Camera, DollarSign, Battery, Trophy, ArrowRight, GitCompare, TrendingDown, Menu, ChevronDown } from 'lucide-react';
+import { Search, Loader2, Smartphone, SlidersHorizontal, GitCompare, Star } from 'lucide-react';
+import { Phone, Filters, User } from '@/lib/types';
+import { API_BASE_URL, APP_ROUTES, RECOMMENDATION_CATEGORIES } from '@/lib/config';
+import { isAuthenticated, getAuthToken } from '@/lib/auth';
+import { ButtonPressFeedback } from '@/app/components/shared/ButtonPressFeedback';
+import { SearchBar } from '@/app/components/shared/SearchBar';
+import { PhoneCard } from '@/app/components/shared/PhoneCard';
+import RecommendationButtons  from '@/app/components/shared/RecommendationButtons';
+import { CompareFloatingPanel } from '@/app/components/shared/CompareFloatingPanel';
+import  QuizModal  from '@/app/components/shared/QuizModal';
+import { PriceAlertModal } from '@/app/components/shared/PriceAlertModal';
+import { UserMenu } from './UserMenu';
+import { FilterPanel } from './FilterPanel';
+import { color, font } from '@/lib/tokens';
 
-const API_BASE = 'https://renderphones.onrender.com';
+import { api } from '@/lib/api';
 
-const ButtonPressFeedback = ({ children, className = '', onClick, disabled = false }) => (
-  <button
-    className={`active:scale-95 transition-all duration-150 touch-manipulation ${className} ${
-      disabled ? 'opacity-40 cursor-not-allowed' : ''
-    }`}
-    onClick={onClick}
-    disabled={disabled}
-  >
-    {children}
-  </button>
-);
+// Then destructure where needed:
+const { auth, phones, reviews } = api;
 
-export default function MobileHome({ setSelectedPhone, setView, setComparePhones }) {
-  const [phones, setPhones] = useState([]);
+if (!phones) {
+  throw new Error("Phones API failed to initialize");
+}
+
+// Extended filters for UI features
+interface ExtendedFilters extends Filters {
+  brands?: string[];
+  has_5g?: boolean;
+  screen_size?: string | null;
+  comparison?: string | null;
+}
+
+const INITIAL_FILTERS: ExtendedFilters = {
+  q: undefined,
+  min_price: undefined,
+  max_price: undefined,
+  min_ram: undefined,
+  min_storage: undefined,
+  min_battery: undefined,
+  min_screen_size: undefined,
+  min_camera_mp: undefined,
+  brand: undefined,
+  min_year: undefined,
+  sort_by: undefined,
+  sort_order: undefined,
+  page: undefined,
+  page_size: undefined,
+  brands: [],
+  has_5g: undefined,
+  screen_size: undefined,
+  comparison: undefined,
+};
+
+interface DesktopHomeProps {
+  setSelectedPhone: (phone: Phone) => void;
+  setView: (view: string) => void;
+  setComparePhones: (phones: Phone[]) => void;
+}
+
+export default function DesktopHome({ setSelectedPhone, setView, setComparePhones }: DesktopHomeProps) {
+  const [phones, setPhones] = useState<Phone[]>([]);
+  const [topRatedPhones, setTopRatedPhones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [totalResults, setTotalResults] = useState(0);
-  const [activeRecommendation, setActiveRecommendation] = useState(null);
-  const [compareList, setCompareList] = useState([]);
+  const [activeRecommendation, setActiveRecommendation] = useState<string | null>(null);
+  const [compareList, setCompareList] = useState<Phone[]>([]);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
-  const [selectedPhoneForAlert, setSelectedPhoneForAlert] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [showSort, setShowSort] = useState(false);
-
+  const [selectedPhoneForAlert, setSelectedPhoneForAlert] = useState<Phone | null>(null);
+  const [isNavbarSticky, setIsNavbarSticky] = useState(false);
   const [sortBy, setSortBy] = useState('release_year');
   const [sortOrder, setSortOrder] = useState('desc');
+  const [filters, setFilters] = useState<ExtendedFilters>(INITIAL_FILTERS);
 
-  const [filters, setFilters] = useState({
-    min_price: null,
-    max_price: null,
-    min_ram: null,
-    min_battery: null,
-    min_camera_mp: null,
-    min_year: null,
-    brands: [],
-    has_5g: null,
-    min_storage: null,
-    screen_size: null,
-    os: null,
-  });
+  const heroRef = useRef<HTMLDivElement>(null);
 
-  const debounceRef = useRef(null);
+  // Auth check and user data fetch
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  useEffect(() => {
+    const loadUser = async () => {
+      if (!isAuthenticated()) return;
+      
+      try {
+        const response = await api.auth.getMe();
+        if (response.success) {
+          setCurrentUser(response.user);
+        }
+      } catch (error) {
+        console.error('Failed to load user:', error);
+      }
+    };
+
+    loadUser();
+  }, []);
 
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      if (activeRecommendation) {
-        setActiveRecommendation(null);
+    const handleScroll = () => {
+      if (heroRef.current) {
+        const heroBottom = heroRef.current.offsetHeight;
+        setIsNavbarSticky(window.scrollY > heroBottom - 80);
       }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    fetchTopRated();
+  }, []);
+
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (activeRecommendation) setActiveRecommendation(null);
       fetchPhones();
     }, 300);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
+    return () => clearTimeout(debounceTimer);
   }, [searchQuery]);
 
   useEffect(() => {
-    if (!activeRecommendation) {
-      fetchPhones();
-    }
+    if (!activeRecommendation) fetchPhones();
   }, [filters, sortBy, sortOrder]);
 
+  const fetchTopRated = async () => {
+    try {
+      // Use search with sort by rating (most popular phones)
+      const data = await api.phones.search({
+        sort_by: 'antutu_score', // or 'popularity' if your API supports it
+        page_size: 10
+      });
+      setTopRatedPhones(data.results || []);
+    } catch (error) {
+      console.error('Failed to fetch top rated:', error);
+      setTopRatedPhones([]);
+    }
+  };
+
+
+  
   const fetchPhones = async () => {
     setLoading(true);
     try {
-      let url = `${API_BASE}/phones/search?page=1&page_size=100&sort_by=${sortBy}&sort_order=${sortOrder}`;
-
-      if (searchQuery) url += `&q=${encodeURIComponent(searchQuery)}`;
-      if (filters.min_price) url += `&min_price=${filters.min_price}`;
-      if (filters.max_price) url += `&max_price=${filters.max_price}`;
-      if (filters.min_ram) url += `&min_ram=${filters.min_ram}`;
-      if (filters.min_battery) url += `&min_battery=${filters.min_battery}`;
-      if (filters.min_camera_mp) url += `&min_camera_mp=${filters.min_camera_mp}`;
-      if (filters.min_year) url += `&min_year=${filters.min_year}`;
-      if (filters.min_storage) url += `&min_storage=${filters.min_storage}`;
-      if (filters.screen_size) url += `&screen_size=${filters.screen_size}`;
-      if (filters.os) url += `&os=${encodeURIComponent(filters.os)}`;
-      if (filters.has_5g === true) url += `&has_5g=true`;
+      const params = {
+        ...filters,
+        q: searchQuery || undefined,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        page: 1,
+        page_size: 20,
+      };
       
-      if (filters.brands && filters.brands.length > 0) {
-        filters.brands.forEach(brand => {
-          url += `&brand=${encodeURIComponent(brand)}`;
-        });
-      }
-
-      const res = await fetch(url);
-      const data = await res.json();
-
-      const list = data.results || [];
-      setPhones(list);
+      const data = await api.phones.search(params);
+      setPhones(data.results || []);
       setTotalResults(data.total || 0);
-    } catch (e) {
-      console.error('Error fetching phones:', e);
+    } catch (error) {
+      console.error('Error fetching phones:', error);
       setPhones([]);
+      setTotalResults(0);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchRecommendations = async (useCase) => {
+  const fetchRecommendations = async (useCase: string) => {
     setLoading(true);
     setActiveRecommendation(useCase);
     try {
-      const url = `${API_BASE}/phones/recommend?use_case=${useCase}&limit=50`;
-      const res = await fetch(url);
-      const data = await res.json();
-
-      const list = data.recommendations || [];
-      setPhones(list);
-      setTotalResults(list.length);
-    } catch (e) {
-      console.error('Error fetching recommendations:', e);
+      const data = await api.phones.recommend(useCase, undefined, 50);
+      setPhones(data.recommendations || []);
+      setTotalResults((data.recommendations || []).length);
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
       setPhones([]);
+      setTotalResults(0);
     } finally {
       setLoading(false);
     }
   };
 
   const handleResetFilters = () => {
-    setFilters({
-      min_price: null,
-      max_price: null,
-      min_ram: null,
-      min_battery: null,
-      min_camera_mp: null,
-      min_year: null,
-      brands: [],
-      has_5g: null,
-      min_storage: null,
-      screen_size: null,
-      os: null,
-    });
+    setFilters(INITIAL_FILTERS);
   };
 
-  const addToCompare = (phone) => {
+  const addToCompare = (phone: Phone) => {
     if (compareList.length >= 4) {
       alert('You can compare up to 4 phones');
       return;
     }
     if (compareList.find(p => p.id === phone.id)) return;
+    
+    // Add to comparison history
+    if (isAuthenticated()) {
+      fetch(`${API_BASE_URL}/comparisons`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAuthToken()}`
+        },
+        body: JSON.stringify({ phoneIds: [...compareList.map(p => p.id), phone.id] })
+      }).catch(console.error);
+    }
+    
     setCompareList([...compareList, phone]);
   };
 
-  const removeFromCompare = (phoneId) => {
+  const removeFromCompare = (phoneId: number) => {
     setCompareList(compareList.filter(p => p.id !== phoneId));
   };
 
-  const recommendations = [
-    { id: 'gamer', label: 'Gaming', icon: Zap },
-    { id: 'photographer', label: 'Photo', icon: Camera },
-    { id: 'budget', label: 'Budget', icon: DollarSign },
-    { id: 'battery', label: 'Battery', icon: Battery },
-    { id: 'flagship', label: 'Premium', icon: Trophy },
-  ];
+  const handlePhoneClick = async (phone: Phone) => {
+    try {
+      // Add to view history
+      if (isAuthenticated()) {
+        fetch(`${API_BASE_URL}/history/views`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getAuthToken()}`
+          },
+          body: JSON.stringify({ phoneId: phone.id })
+        }).catch(console.error);
+      }
 
-  const isNewRelease = (phone) => {
-    if (!phone.release_year) return false;
-    const y = phone.release_year;
-    const m = phone.release_month ?? 1;
-    const d = phone.release_day ?? 1;
-    const release = new Date(y, m - 1, d);
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 60);
-    return release >= cutoff;
+      const fullPhone = await api.phones.getDetails(phone.id);
+      setSelectedPhone(fullPhone);
+      setView('pdp');
+    } catch (error) {
+      console.error('Error fetching phone details:', error);
+    }
   };
 
-  const Card = ({ phone }) => {
-    const isNew = isNewRelease(phone);
-    const isInCompare = compareList.find(p => p.id === phone.id);
+  const handleQuizComplete = (newFilters: Partial<Filters>, useCase?: string) => {
+    setFilters({ ...filters, ...newFilters });
+    if (useCase) fetchRecommendations(useCase);
+    setShowQuiz(false);
+  };
 
-    return (
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden active:scale-[0.97] transition-all">
-        {isNew && (
-          <div className="absolute top-2 right-2 bg-black text-white text-[8px] font-bold px-2 py-1 rounded-full z-10">
-            NEW
-          </div>
-        )}
+  const handleCompareNavigate = async () => {
+    try {
+      const fullPhones = await Promise.all(
+        compareList.map(phone => api.phones.getDetails(phone.id))
+      );
+      setComparePhones(fullPhones);
+      setView('compare');
+    } catch (error) {
+      console.error('Error loading compare phones:', error);
+    }
+  };
 
-        <ButtonPressFeedback
-          className="w-full"
-          onClick={async () => {
-            try {
-              const res = await fetch(`${API_BASE}/phones/${phone.id}`);
-              const full = await res.json();
-              setSelectedPhone(full);
-              setView('pdp');
-            } catch (e) {
-              console.error(e);
-            }
-          }}
-        >
-          <div className="w-full h-44 bg-gray-50 flex items-center justify-center p-4">
-            {phone.main_image_url ? (
-              <img
-                src={phone.main_image_url}
-                alt={phone.model_name}
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-            ) : (
-              <Smartphone size={40} className="text-gray-300" strokeWidth={2} />
-            )}
-          </div>
+  // Tokenized styles
+  const heroBgStyle: React.CSSProperties = {
+    background: `linear-gradient(135deg, ${color.bgInverse} 0%, #000000 50%, ${color.bgInverse} 100%)`,
+  };
 
-          <div className="p-4">
-            <p className="text-[9px] text-gray-500 mb-1 font-medium uppercase">{phone.brand}</p>
-            <h3 className="font-bold text-black text-sm leading-snug mb-2 line-clamp-2 min-h-[40px]">
-              {phone.model_name}
-            </h3>
-            {phone.price_usd ? (
-              <p className="font-bold text-lg text-black">${phone.price_usd}</p>
-            ) : (
-              <p className="text-xs text-gray-400 font-medium">Price unavailable</p>
-            )}
-          </div>
-        </ButtonPressFeedback>
+  const navbarBgStyle: React.CSSProperties = {
+    backgroundColor: color.bg,
+    borderColor: color.borderLight,
+  };
 
-        <div className="px-4 pb-4 flex gap-2">
-          <ButtonPressFeedback
-            onClick={() => isInCompare ? removeFromCompare(phone.id) : addToCompare(phone)}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
-              isInCompare
-                ? 'bg-black text-white'
-                : 'bg-gray-100 text-black'
-            }`}
-          >
-            {isInCompare ? 'Remove' : 'Compare'}
-          </ButtonPressFeedback>
-          <ButtonPressFeedback
-            onClick={() => {
-              setSelectedPhoneForAlert(phone);
-              setShowPriceAlert(true);
-            }}
-            className="px-3 py-2.5 rounded-xl bg-gray-100"
-          >
-            <TrendingDown size={16} className="text-black" />
-          </ButtonPressFeedback>
-        </div>
-      </div>
-    );
+  const statCardStyle: React.CSSProperties = {
+    backgroundColor: `${color.bg}0D`,
+    border: `1px solid ${color.borderLight}1A`,
+    backdropFilter: 'blur(4px)',
   };
 
   return (
-    <div className="min-h-screen bg-white pb-24">
-      {/* Mobile Header */}
-      <div className="sticky top-0 z-40 bg-gradient-to-br from-gray-900 via-black to-gray-900 shadow-xl">
-        <div className="px-4 pt-4 pb-3">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <img src="/logo.svg" alt="Mobylite" className="w-8 h-8 invert" />
-              <h1 className="text-xl font-bold text-white">Mobylite</h1>
-            </div>
-            <ButtonPressFeedback
-              onClick={() => setShowFilters(true)}
-              className="p-2 rounded-xl bg-white/10 backdrop-blur-sm"
-            >
-              <SlidersHorizontal size={20} className="text-white" />
-            </ButtonPressFeedback>
-          </div>
+    <div className="min-h-screen" style={{ backgroundColor: color.bg }}>
+      <QuizModal show={showQuiz} onClose={() => setShowQuiz(false)} onComplete={handleQuizComplete} />
+      <PriceAlertModal show={showPriceAlert} onClose={() => setShowPriceAlert(false)} phone={selectedPhoneForAlert} />
 
-          {/* Search Bar */}
-          <div className="relative mb-3">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search size={18} className="text-gray-400" />
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-11 pr-4 py-3 bg-white/10 backdrop-blur-sm text-white rounded-xl border border-white/20 placeholder:text-gray-400 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/30"
-              placeholder="Search phones..."
-            />
-          </div>
+      <CompareFloatingPanel
+        compareList={compareList}
+        onRemove={removeFromCompare}
+        onClear={() => setCompareList([])}
+        onCompare={handleCompareNavigate}
+        variant="desktop"
+      />
 
-          {/* Quick Actions */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none -mx-4 px-4">
-            <ButtonPressFeedback
-              onClick={() => setShowQuiz(true)}
-              className="flex items-center gap-2 px-3 py-2 bg-white text-black rounded-xl font-bold flex-shrink-0"
-            >
-              <Zap size={14} strokeWidth={2.5} />
-              <span className="text-xs whitespace-nowrap">Find Phone</span>
-            </ButtonPressFeedback>
-            {recommendations.map((rec) => (
-              <ButtonPressFeedback
-                key={rec.id}
-                onClick={() => fetchRecommendations(rec.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl border flex-shrink-0 ${
-                  activeRecommendation === rec.id
-                    ? 'bg-white text-black border-white'
-                    : 'bg-white/10 text-white border-white/20'
-                }`}
+      <div ref={heroRef} className="border-b" style={heroBgStyle}>
+        <div className="max-w-7xl mx-auto px-8 py-20">
+          <div className="flex items-start justify-between mb-12">
+            <div className="flex-1 max-w-3xl">
+              <div className="flex items-center gap-5 mb-6">
+                <img src="/logo.svg" alt="phone" className="w-16 h-16 invert" />
+                <div>
+                  <h1 
+                    className="text-6xl font-bold tracking-tight leading-none mb-3"
+                    style={{ fontFamily: font.primary, color: color.bg }}
+                  >
+                    Mobylite
+                  </h1>
+                  <p className="text-xl font-medium" style={{ color: color.textMuted }}>
+                    Compare phones. Make smart choices.
+                  </p>
+                </div>
+              </div>
+
+              <div 
+                className="rounded-2xl p-6 border"
+                style={statCardStyle}
               >
-                <rec.icon size={14} strokeWidth={2.5} />
-                <span className="text-xs font-bold whitespace-nowrap">{rec.label}</span>
-              </ButtonPressFeedback>
-            ))}
-            
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="flex items-start gap-3">
+                    <div 
+                      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: `${color.bg}1A` }}
+                    >
+                      <Search size={20} style={{ color: color.bg }} />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm mb-1" style={{ color: color.bg }}>Search Phones</div>
+                      <div className="text-xs leading-relaxed" style={{ color: color.textMuted }}>
+                        Browse thousands of devices with detailed specs
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div 
+                      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: `${color.bg}1A` }}
+                    >
+                      <GitCompare size={20} style={{ color: color.bg }} />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm mb-1" style={{ color: color.bg }}>Compare Side-by-Side</div>
+                      <div className="text-xs leading-relaxed" style={{ color: color.textMuted }}>
+                        Add up to 4 phones and see differences instantly
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div 
+                      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: `${color.bg}1A` }}
+                    >
+                      <Star size={20} style={{ color: color.bg }} />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm mb-1" style={{ color: color.bg }}>
+                        Get Recommendations
+                      </div>
+                      <div className="text-xs leading-relaxed" style={{ color: color.textMuted }}>
+                        Find phones matched to your needs and budget
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-6 ml-12">
+              <div 
+                className="text-center rounded-2xl px-8 py-6 border"
+                style={statCardStyle}
+              >
+                <div 
+                  className="text-5xl font-bold mb-2"
+                  style={{ fontFamily: font.numeric, color: color.bg }}
+                >
+                  {totalResults}
+                </div>
+                <div className="text-sm font-medium" style={{ color: color.textMuted }}>Phones</div>
+              </div>
+              <div 
+                className="text-center rounded-2xl px-8 py-6 border"
+                style={statCardStyle}
+              >
+                <div 
+                  className="text-5xl font-bold mb-2"
+                  style={{ fontFamily: font.numeric, color: color.bg }}
+                >
+                  50+
+                </div>
+                <div className="text-sm font-medium" style={{ color: color.textMuted }}>Brands</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Results Header */}
-      <div className="px-4 py-4 border-b border-gray-200 bg-white sticky top-[140px] z-30">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-black">
-              {activeRecommendation ? (
-                <span className="capitalize">{activeRecommendation} Phones</span>
-              ) : (
-                'Latest Phones'
+      <div 
+        className={`sticky top-0 z-30 border-b transition-all duration-300 ${
+          isNavbarSticky ? 'shadow-lg' : ''
+        }`}
+        style={navbarBgStyle}
+      >
+        <div className="max-w-7xl mx-auto px-8 py-4">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <img src="/logo.svg" alt="phone" className="w-8 h-8" />
+              <h2 
+                className="text-xl font-bold"
+                style={{ fontFamily: font.primary, color: color.text }}
+              >
+                Mobylite
+              </h2>
+            </div>
+
+            <SearchBar 
+              value={searchQuery} 
+              onChange={setSearchQuery} 
+              className="flex-1"
+              variant="desktop"
+            />
+
+            <RecommendationButtons
+              activeRecommendation={activeRecommendation}
+              onRecommendationClick={fetchRecommendations}
+              onQuizClick={() => setShowQuiz(true)}
+              variant="desktop"
+            />
+
+            <UserMenu />
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-8 py-8">
+        {topRatedPhones.length > 0 && !activeRecommendation && !searchQuery && (
+          <div className="mb-12">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 
+                  className="text-2xl font-bold flex items-center gap-3"
+                  style={{ fontFamily: font.primary, color: color.text }}
+                >
+                  <Star size={24} style={{ color: color.text }} />
+                  Top Rated
+                </h2>
+                <p className="text-sm font-medium mt-1" style={{ color: color.textMuted }}>
+                  Highest rated by users with 100+ reviews
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-5 overflow-x-auto pb-4 scrollbar-hide">
+              {topRatedPhones.map((phone) => (
+                <TopRatedCard key={phone.id} phone={phone} onClick={handlePhoneClick} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-8">
+          <FilterPanel 
+            filters={filters}
+            setFilters={setFilters}
+            onReset={handleResetFilters}
+          />
+
+          <div className="flex-1">
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4 pb-4 border-b-2" style={{ borderColor: color.text }}>
+                <h2 
+                  className="text-2xl font-bold tracking-tight"
+                  style={{ fontFamily: font.primary, color: color.text }}
+                >
+                  {activeRecommendation ? (
+                    <span className="capitalize">{RECOMMENDATION_CATEGORIES[activeRecommendation as keyof typeof RECOMMENDATION_CATEGORIES]?.title || activeRecommendation}</span>
+                  ) : (
+                    'Latest Releases'
+                  )}
+                </h2>
+                <select
+                  value={`${sortBy}-${sortOrder}`}
+                  onChange={(e) => {
+                    const [newSortBy, newSortOrder] = e.target.value.split('-');
+                    setSortBy(newSortBy);
+                    setSortOrder(newSortOrder);
+                  }}
+                  className="px-4 py-3 rounded-xl text-xs font-semibold focus:outline-none transition-all"
+                  style={{ border: `1px solid ${color.border}`, backgroundColor: color.bg, color: color.text }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = color.primary}
+                  onBlur={(e) => e.currentTarget.style.borderColor = color.border}
+                >
+                  <option value="release_year-desc">Newest First</option>
+                  <option value="release_year-asc">Oldest First</option>
+                  <option value="price_usd-asc">Price: Low to High</option>
+                  <option value="price_usd-desc">Price: High to Low</option>
+                </select>
+              </div>
+              {totalResults > 0 && (
+                <p className="text-xs font-medium" style={{ color: color.textMuted }}>
+                  Showing {totalResults} phone{totalResults !== 1 ? 's' : ''}
+                </p>
               )}
-            </h2>
-            {totalResults > 0 && (
-              <p className="text-xs text-gray-500 mt-1">{totalResults} results</p>
+            </div>
+
+            {loading && (
+              <div className="flex justify-center items-center py-32">
+                <Loader2 className="animate-spin" size={48} style={{ color: color.textMuted }} />
+              </div>
+            )}
+
+            {!loading && phones.length > 0 && (
+              <div className="grid grid-cols-4 gap-5 mb-8">
+                {phones.map((phone) => (
+                  <PhoneCard
+                    key={phone.id}
+                    phone={phone}
+                    variant="desktop"
+                    onPhoneClick={handlePhoneClick}
+                    onCompareToggle={(p) => compareList.find(cp => cp.id === p.id) ? removeFromCompare(p.id) : addToCompare(p)}
+                    onPriceAlert={(p) => {
+                      setSelectedPhoneForAlert(p);
+                      setShowPriceAlert(true);
+                    }}
+                    isInCompare={!!compareList.find(p => p.id === phone.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {!loading && phones.length === 0 && (
+              <div className="text-center py-32 px-4">
+                <Smartphone size={80} style={{ color: color.borderLight }} />
+                <h3 className="font-semibold mt-6" style={{ color: color.text }}>No phones found</h3>
+                <p className="text-sm mt-2" style={{ color: color.textMuted }}>Try adjusting your filters</p>
+              </div>
             )}
           </div>
-          <ButtonPressFeedback
-            onClick={() => setShowSort(true)}
-            className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-xs font-bold"
-          >
-            Sort
-            <ChevronDown size={14} />
-          </ButtonPressFeedback>
         </div>
       </div>
-
-      {/* Phone Grid */}
-      <div className="px-4 py-4">
-        {loading && (
-          <div className="flex justify-center items-center py-24">
-            <Loader2 className="animate-spin text-gray-400" size={40} strokeWidth={2} />
-          </div>
-        )}
-
-        {!loading && phones.length > 0 && (
-          <div className="grid grid-cols-2 gap-3">
-            {phones.map((phone) => (
-              <Card key={phone.id} phone={phone} />
-            ))}
-          </div>
-        )}
-
-        {!loading && phones.length === 0 && (
-          <div className="text-center py-24 px-4">
-            <Smartphone size={60} className="text-gray-200 mx-auto mb-4" strokeWidth={1.5} />
-            <p className="text-gray-500 text-sm font-semibold">No phones found</p>
-            <p className="text-gray-400 text-xs mt-1">Try adjusting your filters</p>
-          </div>
-        )}
-      </div>
-
-      {/* Filters Modal - SEE NEXT FILE */}
-      
-      {/* Compare Bottom Bar */}
-      {compareList.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-black text-white p-4 z-50 safe-area-inset-bottom">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-sm">Compare ({compareList.length}/4)</h3>
-            <button onClick={() => setCompareList([])} className="text-gray-400">
-              <X size={18} />
-            </button>
-          </div>
-          <ButtonPressFeedback
-            onClick={async () => {
-              const fullPhones = await Promise.all(
-                compareList.map(async (phone) => {
-                  const res = await fetch(`${API_BASE}/phones/${phone.id}`);
-                  return await res.json();
-                })
-              );
-              setComparePhones(fullPhones);
-              setView('compare');
-            }}
-            className="w-full py-3 bg-white text-black rounded-xl text-sm font-bold flex items-center justify-center gap-2"
-          >
-            <GitCompare size={16} />
-            Compare Now
-          </ButtonPressFeedback>
-        </div>
-      )}
-
-      {/* Modals */}
-      <FiltersModal
-        showFilters={showFilters}
-        setShowFilters={setShowFilters}
-        filters={filters}
-        setFilters={setFilters}
-        handleResetFilters={handleResetFilters}
-      />
-
-      <SortModal
-        showSort={showSort}
-        setShowSort={setShowSort}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-        setSortBy={setSortBy}
-        setSortOrder={setSortOrder}
-      />
-
-      <QuizModal
-        showQuiz={showQuiz}
-        setShowQuiz={setShowQuiz}
-        setFilters={setFilters}
-        setActiveRecommendation={setActiveRecommendation}
-      />
-
-      <PriceAlertModal
-        showPriceAlert={showPriceAlert}
-        setShowPriceAlert={setShowPriceAlert}
-        selectedPhoneForAlert={selectedPhoneForAlert}
-      />
     </div>
   );
 }
+
+// Internal component for top rated cards
+interface TopRatedCardProps {
+  phone: Phone & { rating?: number; review_count?: number };
+  onClick: (phone: Phone) => void;
+}
+
+const TopRatedCard: React.FC<TopRatedCardProps> = ({ phone, onClick }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  const cardStyle: React.CSSProperties = {
+    backgroundColor: color.bg,
+    border: `1px solid ${isHovered ? color.text : color.borderLight}`,
+    flexShrink: 0,
+    width: '256px',
+  };
+
+  const badgeStyle: React.CSSProperties = {
+    backgroundColor: color.bgInverse,
+    color: color.primaryText,
+  };
+
+  return (
+    <div 
+      className="rounded-2xl p-4 transition-all"
+      style={cardStyle}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <ButtonPressFeedback
+        onClick={() => onClick(phone)}
+        className="w-full"
+      >
+        <div 
+          className="w-full h-48 flex items-center justify-center overflow-hidden rounded-t-2xl mb-3"
+          style={{ backgroundColor: color.borderLight }}
+        >
+          {phone.main_image_url ? (
+            <img
+              src={phone.main_image_url}
+              alt={phone.model_name}
+              className="w-full h-full object-contain p-6"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+          ) : (
+            <Smartphone size={48} style={{ color: color.textLight }} />
+          )}
+        </div>
+        <div>
+          <p className="text-[10px]" style={{ color: color.textMuted }}>{phone.brand}</p>
+          <h3 className="font-semibold text-sm leading-tight line-clamp-2 mb-2" style={{ color: color.text }}>
+            {phone.model_name}
+          </h3>
+          {phone.price_usd && (
+            <p className="font-bold mb-2" style={{ color: color.text }}>${phone.price_usd}</p>
+          )}
+          {phone.rating !== undefined && (
+            <div className="flex items-center gap-2 text-xs" style={{ color: color.textMuted }}>
+              <div className="flex items-center gap-1">
+                <Star size={12} style={{ color: color.starFilled }} />
+                <span className="font-semibold">{phone.rating.toFixed(1)}</span>
+              </div>
+              <span>({phone.review_count?.toLocaleString()} reviews)</span>
+            </div>
+          )}
+        </div>
+      </ButtonPressFeedback>
+    </div>
+  );
+};

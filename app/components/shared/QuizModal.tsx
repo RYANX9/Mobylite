@@ -1,7 +1,13 @@
-// components/shared/QuizModal.tsx
+'use client';
 import React, { useState } from 'react';
 import { X, ArrowRight } from 'lucide-react';
-import { Filters } from './types';
+import { Filters } from '@/lib/types';
+import { color, font } from '@/lib/tokens';
+import { ButtonPressFeedback } from './ButtonPressFeedback';
+
+interface QuizAnswer {
+  [key: string]: any;
+}
 
 interface QuizModalProps {
   show: boolean;
@@ -9,11 +15,7 @@ interface QuizModalProps {
   onComplete: (filters: Partial<Filters>, useCase?: string) => void;
 }
 
-interface QuizAnswer {
-  [key: string]: any;
-}
-
-export const QuizModal: React.FC<QuizModalProps> = ({ show, onClose, onComplete }) => {
+export default function QuizModal({ show, onClose, onComplete }: QuizModalProps) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<QuizAnswer>({});
 
@@ -38,15 +40,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ show, onClose, onComplete 
         { label: 'Camera quality', value: 'photographer' },
         { label: 'Battery life', value: 'battery' },
         { label: 'Overall premium features', value: 'flagship' },
-      ]
-    },
-    {
-      q: 'Which operating system do you prefer?',
-      key: 'os',
-      options: [
-        { label: 'Android', value: 'Android' },
-        { label: 'iOS (Apple)', value: 'iOS' },
-        { label: 'No preference', value: null },
       ]
     },
     {
@@ -91,37 +84,6 @@ export const QuizModal: React.FC<QuizModalProps> = ({ show, onClose, onComplete 
         { label: 'Not important', value: null },
       ]
     },
-    {
-      q: 'Do you need 5G?',
-      key: '5g',
-      options: [
-        { label: 'Yes, 5G is essential', value: true },
-        { label: 'No, 4G is fine', value: false },
-        { label: 'No preference', value: null },
-      ]
-    },
-    {
-      q: 'How new should the phone be?',
-      key: 'year',
-      options: [
-        { label: 'Latest (2024-2025)', value: 2024 },
-        { label: 'Recent (2023+)', value: 2023 },
-        { label: 'Modern (2022+)', value: 2022 },
-        { label: 'Any year', value: null },
-      ]
-    },
-    {
-      q: 'Any brand preference?',
-      key: 'brand',
-      options: [
-        { label: 'Apple', value: 'Apple' },
-        { label: 'Samsung', value: 'Samsung' },
-        { label: 'Google', value: 'Google' },
-        { label: 'OnePlus', value: 'OnePlus' },
-        { label: 'Xiaomi', value: 'Xiaomi' },
-        { label: 'No preference', value: null },
-      ]
-    }
   ];
 
   const handleAnswer = (option: any) => {
@@ -142,19 +104,15 @@ export const QuizModal: React.FC<QuizModalProps> = ({ show, onClose, onComplete 
       if (quizAnswers.budget.minPrice) newFilters.min_price = quizAnswers.budget.minPrice;
       if (quizAnswers.budget.maxPrice) newFilters.max_price = quizAnswers.budget.maxPrice;
     }
-    if (quizAnswers.os?.value) newFilters.os = quizAnswers.os.value;
     if (quizAnswers.ram?.value) newFilters.min_ram = quizAnswers.ram.value;
     if (quizAnswers.battery?.value) newFilters.min_battery = quizAnswers.battery.value;
     if (quizAnswers.storage?.value) newFilters.min_storage = quizAnswers.storage.value;
     if (quizAnswers.camera?.value) newFilters.min_camera_mp = quizAnswers.camera.value;
-    if (quizAnswers['5g']?.value !== null && quizAnswers['5g']?.value !== undefined) {
-      newFilters.has_5g = quizAnswers['5g'].value;
-    }
-    if (quizAnswers.year?.value) newFilters.min_year = quizAnswers.year.value;
-    if (quizAnswers.brand?.value) newFilters.brands = [quizAnswers.brand.value];
 
-    const useCase = quizAnswers.useCase?.value;
-    onComplete(newFilters, useCase);
+    // NOTE: useCase is intentionally NOT passed here to avoid triggering recommendations
+    // The parent component can use it for UI hints if needed, but filters are applied purely
+
+    onComplete(newFilters, quizAnswers.useCase?.value);
     
     setStep(0);
     setAnswers({});
@@ -181,12 +139,49 @@ export const QuizModal: React.FC<QuizModalProps> = ({ show, onClose, onComplete 
     setAnswers({});
   };
 
+  const progressBarStyle = (index: number): React.CSSProperties => {
+    if (index < step) return { backgroundColor: color.success };
+    if (index === step) return { backgroundColor: color.text };
+    return { backgroundColor: color.borderLight };
+  };
+
+  const optionButtonStyle: React.CSSProperties = {
+    border: `2px solid ${color.border}`,
+    backgroundColor: color.bg,
+    color: color.text,
+  };
+
+  const optionHoverStyle: React.CSSProperties = {
+    borderColor: color.text,
+    backgroundColor: color.borderLight,
+  };
+
+  const modalBackdropStyle: React.CSSProperties = {
+    backgroundColor: `${color.bgInverse}99`,
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-2xl p-6 md:p-8 max-w-2xl w-full shadow-2xl">
+    <div 
+      className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm px-4"
+      style={modalBackdropStyle}
+    >
+      <div 
+        className="rounded-2xl p-6 md:p-8 max-w-2xl w-full shadow-2xl"
+        style={{ backgroundColor: color.bg }}
+      >
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl md:text-2xl font-bold text-black">Find Your Perfect Phone</h2>
-          <button onClick={handleClose} className="text-gray-400 hover:text-black transition-colors">
+          <h2 
+            className="text-xl md:text-2xl font-bold"
+            style={{ fontFamily: font.primary, color: color.text }}
+          >
+            Find Your Perfect Phone
+          </h2>
+          <button 
+            onClick={handleClose} 
+            style={{ color: color.textMuted }}
+            onMouseEnter={(e) => e.currentTarget.style.color = color.text}
+            onMouseLeave={(e) => e.currentTarget.style.color = color.textMuted}
+          >
             <X size={24} />
           </button>
         </div>
@@ -196,62 +191,68 @@ export const QuizModal: React.FC<QuizModalProps> = ({ show, onClose, onComplete 
             {questions.map((_, i) => (
               <div
                 key={i}
-                className={`h-2 flex-1 rounded-full transition-all duration-300 ${
-                  i < step ? 'bg-green-500' : i === step ? 'bg-black' : 'bg-gray-200'
-                }`}
+                className="h-2 flex-1 rounded-full transition-all duration-300"
+                style={progressBarStyle(i)}
               />
             ))}
           </div>
           
           <div className="mb-2">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: color.textMuted }}>
               Question {step + 1} of {questions.length}
             </span>
           </div>
           
-          <p className="text-xl md:text-2xl font-bold text-black mb-6">
+          <p 
+            className="text-xl md:text-2xl font-bold mb-6"
+            style={{ fontFamily: font.primary, color: color.text }}
+          >
             {questions[step].q}
           </p>
         </div>
 
         <div className="space-y-3 mb-6">
           {questions[step].options.map((opt, i) => (
-            <button
+            <ButtonPressFeedback
               key={i}
               onClick={() => handleAnswer(opt)}
-              className="w-full p-4 md:p-5 text-left border-2 border-gray-200 rounded-xl hover:border-black hover:bg-gray-50 transition-all font-semibold text-black group"
+              className="w-full p-4 md:p-5 rounded-xl transition-all font-semibold"
+              style={optionButtonStyle}
+              hoverStyle={optionHoverStyle}
             >
               <div className="flex items-center justify-between">
                 <span className="text-sm md:text-base">{opt.label}</span>
-                <ArrowRight size={20} className="text-gray-300 group-hover:text-black transition-colors" />
+                <ArrowRight size={20} style={{ color: color.border }} />
               </div>
-            </button>
+            </ButtonPressFeedback>
           ))}
         </div>
 
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-          <button
+        <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: color.borderLight }}>
+          <ButtonPressFeedback
             onClick={handleBack}
             disabled={step === 0}
-            className={`px-4 md:px-6 py-3 rounded-xl font-bold transition-all text-sm md:text-base ${
-              step === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-black hover:bg-gray-100'
-            }`}
+            className="px-4 md:px-6 py-3 rounded-xl font-bold transition-all text-sm md:text-base"
+            style={{ color: step === 0 ? color.textMuted : color.text }}
+            hoverStyle={step === 0 ? undefined : { backgroundColor: color.borderLight }}
           >
             Back
-          </button>
+          </ButtonPressFeedback>
           
-          <div className="text-xs md:text-sm text-gray-500 font-medium">
+          <div className="text-xs md:text-sm font-medium" style={{ color: color.textMuted }}>
             {Math.round(((step + 1) / questions.length) * 100)}% Complete
           </div>
           
-          <button
+          <ButtonPressFeedback
             onClick={handleSkip}
-            className="px-4 md:px-6 py-3 rounded-xl font-bold text-gray-600 hover:text-black hover:bg-gray-100 transition-all text-sm md:text-base"
+            className="px-4 md:px-6 py-3 rounded-xl font-bold transition-all text-sm md:text-base"
+            style={{ color: color.textMuted }}
+            hoverStyle={{ backgroundColor: color.borderLight, color: color.text }}
           >
             Skip
-          </button>
+          </ButtonPressFeedback>
         </div>
       </div>
     </div>
   );
-};
+}

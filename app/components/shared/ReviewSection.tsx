@@ -1,99 +1,306 @@
-// components/shared/ReviewCard.tsx
-import React from 'react';
-import { Star, ThumbsUp, CheckCircle } from 'lucide-react';
-import { Review } from './types';
+'use client';
+import React, { useState, useEffect } from 'react';
+import { Plus, LogIn } from 'lucide-react';
+import { Review } from '@/lib/types';
+import { StarRating } from './StarRating';
+import { ButtonPressFeedback } from './ButtonPressFeedback';
+import { ReviewCard } from './ReviewCard';
+import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
+import { isAuthenticated, getAuthToken } from '@/lib/auth';
+import { APP_ROUTES } from '@/lib/config';
+import { color, font } from '@/lib/tokens';
 
-interface ReviewCardProps {
-  review: Review;
-  onHelpful?: (reviewId: number) => void;
+interface ReviewFormProps {
+  phoneId: number;
+  onSuccess: () => void;
 }
 
-export const ReviewCard: React.FC<ReviewCardProps> = ({ review, onHelpful }) => {
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+const ReviewForm: React.FC<ReviewFormProps> = ({ phoneId, onSuccess }) => {
+  const router = useRouter();
+  const [rating, setRating] = useState(5);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [pros, setPros] = useState('');
+  const [cons, setCons] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-    return `${Math.floor(diffDays / 365)} years ago`;
+    if (!isAuthenticated()) {
+      if (confirm('Please sign in to write a review. Go to sign in?')) {
+        const currentPath = window.location.pathname + window.location.search;
+        sessionStorage.setItem('returnUrl', currentPath);
+        router.push(APP_ROUTES.login);
+      }
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await api.reviews.create({
+        phone_id: phoneId,
+        rating,
+        title,
+        body,
+        pros: pros.split('\n').filter(p => p.trim()),
+        cons: cons.split('\n').filter(c => c.trim()),
+      });
+      
+      onSuccess();
+      setTitle('');
+      setBody('');
+      setPros('');
+      setCons('');
+      setRating(5);
+    } catch (err: any) {
+      setError(err.message || 'Failed to submit review');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    border: `1px solid ${color.border}`,
+    backgroundColor: color.bg,
+    color: color.text,
+  };
+
+  const inputFocusStyle: React.CSSProperties = {
+    borderColor: color.primary,
+    boxShadow: `0 0 0 2px ${color.primary}1A`,
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 transition-all">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
+    <form onSubmit={handleSubmit} className="rounded-2xl p-6 border" style={{ backgroundColor: color.borderLight, borderColor: color.borderLight }}>
+      <h3 className="font-bold mb-4" style={{ color: color.text }}>Write Your Review</h3>
+      
+      {error && <p className="text-sm mb-4" style={{ color: color.danger }}>{error}</p>}
+      
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-semibold mb-2" style={{ color: color.text }}>Rating</label>
+          <StarRating value={rating} onChange={setRating} variant="desktop" />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-semibold mb-2" style={{ color: color.text }}>Title</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl focus:outline-none transition-all"
+            style={inputStyle}
+            onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle)}
+            onBlur={(e) => Object.assign(e.currentTarget.style, inputStyle)}
+            placeholder="Great phone for photography!"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold mb-2" style={{ color: color.text }}>Review</label>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl focus:outline-none transition-all min-h-[120px]"
+            style={inputStyle}
+            onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle)}
+            onBlur={(e) => Object.assign(e.currentTarget.style, inputStyle)}
+            placeholder="Share your experience with this phone..."
+            required
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-semibold mb-2" style={{ color: color.text }}>Pros (one per line)</label>
+            <textarea
+              value={pros}
+              onChange={(e) => setPros(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl focus:outline-none transition-all text-sm min-h-[80px]"
+              style={inputStyle}
+              onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle)}
+              onBlur={(e) => Object.assign(e.currentTarget.style, inputStyle)}
+              placeholder="Great camera\nLong battery life"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-2" style={{ color: color.text }}>Cons (one per line)</label>
+            <textarea
+              value={cons}
+              onChange={(e) => setCons(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl focus:outline-none transition-all text-sm min-h-[80px]"
+              style={inputStyle}
+              onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle)}
+              onBlur={(e) => Object.assign(e.currentTarget.style, inputStyle)}
+              placeholder="Expensive\nNo charger included"
+            />
+          </div>
+        </div>
+
+        <ButtonPressFeedback
+          type="submit"
+          disabled={loading}
+          className="w-full py-3 rounded-xl font-bold transition-all"
+          style={{ 
+            backgroundColor: color.text, 
+            color: color.bg,
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {loading ? 'Submitting...' : 'Submit Review'}
+        </ButtonPressFeedback>
+      </div>
+    </form>
+  );
+};
+
+interface ReviewSectionProps {
+  phoneId: number;
+}
+
+export const ReviewSection: React.FC<ReviewSectionProps> = ({ phoneId }) => {
+  const router = useRouter();
+  const [reviewsList, setReviewsList] = useState<Review[]>([]);
+  const [userReview, setUserReview] = useState<Review | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [phoneId]);
+
+  const fetchReviews = async () => {
+    setLoading(true);
+    try {
+      const token = getAuthToken();
+      const data = await api.reviews.getByPhone(phoneId, 1, 10); // First page, 10 reviews
+      
+      if (data.success && data.reviews) {
+        const allReviews: Review[] = data.reviews;
+        
+        if (isAuthenticated()) {
+          try {
+            const meResponse = await api.auth.getMe();
+            if (meResponse.success) {
+              const userId = meResponse.user.id;
+              const userRev = allReviews.find((r: Review) => r.user_id === userId);
+              setUserReview(userRev || null);
+              setReviewsList(allReviews.filter((r: Review) => r.user_id !== userId));
+              return;
+            }
+          } catch (err) {
+            console.error('Failed to fetch user:', err);
+          }
+        }
+        
+        setReviewsList(allReviews);
+      }
+    } catch (error) {
+      console.error('Failed to fetch reviews:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleHelpfulVote = async (reviewId: string) => {
+    if (!isAuthenticated()) {
+      if (confirm('Please sign in to vote on reviews. Go to sign in?')) {
+        const currentPath = window.location.pathname + window.location.search;
+        sessionStorage.setItem('returnUrl', currentPath);
+        router.push(APP_ROUTES.login);
+      }
+      return;
+    }
+
+    try {
+      await api.reviews.helpful(reviewId); // Assuming this method exists in lib/api.ts reviews section
+      fetchReviews();
+    } catch (error) {
+      console.error('Failed to mark as helpful:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-32 rounded-xl animate-pulse" style={{ backgroundColor: color.borderLight }} />
+        ))}
+      </div>
+    );
+  }
+
+  const authBannerStyle: React.CSSProperties = {
+    backgroundColor: color.bgInverse,
+  };
+
+  return (
+    <div className="space-y-4">
+      {userReview && (
+        <div className="rounded-2xl p-4 border-2" style={{ backgroundColor: color.borderLight, borderColor: color.primary }}>
           <div className="flex items-center gap-2 mb-2">
-            <div className="flex items-center gap-1">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  size={16}
-                  className={i < review.rating ? 'fill-black text-black' : 'text-gray-300'}
-                  strokeWidth={2}
-                />
-              ))}
-            </div>
-            {review.verified_owner && (
-              <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
-                <CheckCircle size={12} strokeWidth={2} />
-                <span className="text-[10px] font-bold">Verified Owner</span>
-              </div>
+            <span className="px-2 py-1 rounded text-xs font-bold" style={{ backgroundColor: color.borderLight, color: color.text }}>
+              Your Review
+            </span>
+          </div>
+          <ReviewCard review={userReview} onHelpful={handleHelpfulVote} />
+        </div>
+      )}
+
+      {!userReview && (
+        <div className="rounded-2xl p-6 text-white" style={authBannerStyle}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-lg" style={{ fontFamily: font.primary }}>Share Your Experience</h3>
+            {!isAuthenticated() ? (
+              <ButtonPressFeedback
+                onClick={() => {
+                  const currentPath = window.location.pathname + window.location.search;
+                  sessionStorage.setItem('returnUrl', currentPath);
+                  router.push(APP_ROUTES.login);
+                }}
+                className="px-4 py-2 rounded-xl font-bold flex items-center gap-2"
+                style={{ backgroundColor: color.bg, color: color.text }}
+              >
+                <LogIn size={16} />
+                Sign In to Review
+              </ButtonPressFeedback>
+            ) : (
+              <ButtonPressFeedback
+                onClick={() => setShowForm(true)}
+                className="px-4 py-2 rounded-xl font-bold flex items-center gap-2"
+                style={{ backgroundColor: color.bg, color: color.text }}
+              >
+                <Plus size={16} />
+                Write Review
+              </ButtonPressFeedback>
             )}
           </div>
-          <h4 className="font-bold text-black text-base mb-1">{review.title}</h4>
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="font-semibold">{review.user_name}</span>
-            <span>•</span>
-            <span>{formatDate(review.date)}</span>
-          </div>
+          {showForm && <ReviewForm phoneId={phoneId} onSuccess={() => {
+            setShowForm(false);
+            fetchReviews();
+          }} />}
         </div>
-      </div>
+      )}
 
-      <p className="text-sm text-gray-700 leading-relaxed mb-4">{review.review_text}</p>
-
-      {(review.pros && review.pros.length > 0) || (review.cons && review.cons.length > 0) ? (
-        <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-100">
-          {review.pros && review.pros.length > 0 && (
-            <div>
-              <div className="text-xs font-bold text-green-700 mb-2">PROS</div>
-              <ul className="space-y-1">
-                {review.pros.map((pro, i) => (
-                  <li key={i} className="text-xs text-gray-600 flex items-start gap-2">
-                    <span className="text-green-600 mt-0.5">+</span>
-                    <span>{pro}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {review.cons && review.cons.length > 0 && (
-            <div>
-              <div className="text-xs font-bold text-red-700 mb-2">CONS</div>
-              <ul className="space-y-1">
-                {review.cons.map((con, i) => (
-                  <li key={i} className="text-xs text-gray-600 flex items-start gap-2">
-                    <span className="text-red-600 mt-0.5">−</span>
-                    <span>{con}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+      {reviewsList.length > 0 ? (
+        <div className="space-y-4">
+          {reviewsList.map((review) => (
+            <ReviewCard key={review.id} review={review} onHelpful={handleHelpfulVote} />
+          ))}
         </div>
-      ) : null}
-
-      <button
-        onClick={() => onHelpful?.(review.id)}
-        className="flex items-center gap-2 text-xs font-semibold text-gray-500 hover:text-black transition-colors"
-      >
-        <ThumbsUp size={14} strokeWidth={2} />
-        <span>Helpful ({review.helpful_count})</span>
-      </button>
+      ) : (
+        <div className="text-center py-12">
+          <p style={{ color: color.textMuted }}>
+            No reviews yet. {isAuthenticated() ? 'Be the first to review!' : 'Sign in to write the first review.'}
+          </p>
+        </div>
+      )}
     </div>
   );
 };

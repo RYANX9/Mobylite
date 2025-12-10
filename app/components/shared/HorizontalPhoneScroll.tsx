@@ -1,9 +1,9 @@
-// components/shared/HorizontalPhoneScroll.tsx
+'use client';
 import React, { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Smartphone, GitCompare } from 'lucide-react';
-import { Phone } from './types';
+import { Phone } from '@/lib/types';
 import { ButtonPressFeedback } from './ButtonPressFeedback';
-import { API_BASE } from './constants';
+import { color, font } from '@/lib/tokens';
 
 interface HorizontalPhoneScrollProps {
   title: string;
@@ -46,32 +46,55 @@ export const HorizontalPhoneScroll: React.FC<HorizontalPhoneScrollProps> = ({
 
   if (phones.length === 0) return null;
 
+  const arrowButtonStyle = (enabled: boolean): React.CSSProperties => ({
+    border: `2px solid ${color.border}`,
+    color: color.text,
+    opacity: enabled ? 1 : 0.3,
+    cursor: enabled ? 'pointer' : 'not-allowed',
+    backgroundColor: color.bg,
+  });
+
+  const arrowHoverStyle = (enabled: boolean): React.CSSProperties | undefined => {
+    if (!enabled) return undefined;
+    return {
+      borderColor: color.text,
+      backgroundColor: color.borderLight,
+    };
+  };
+
+  const cardStyle: React.CSSProperties = {
+    backgroundColor: color.bg,
+    border: `1px solid ${color.borderLight}`,
+    flexShrink: 0,
+    width: '256px',
+  };
+
   return (
     <div className="mb-12">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-2xl font-bold text-black">{title}</h3>
-          {subtitle && <p className="text-sm text-gray-500 font-medium mt-1">{subtitle}</p>}
+          <h3 className="text-2xl font-bold" style={{ fontFamily: font.primary, color: color.text }}>{title}</h3>
+          {subtitle && <p className="text-sm font-medium mt-1" style={{ color: color.textMuted }}>{subtitle}</p>}
         </div>
         <div className="flex gap-2">
-          <button
+          <ButtonPressFeedback
             onClick={() => scroll('left')}
             disabled={!showLeftArrow}
-            className={`w-10 h-10 rounded-full border-2 border-gray-200 flex items-center justify-center transition-all ${
-              showLeftArrow ? 'hover:border-black hover:bg-gray-50' : 'opacity-30 cursor-not-allowed'
-            }`}
+            className="w-10 h-10 rounded-full flex items-center justify-center transition-all"
+            style={arrowButtonStyle(showLeftArrow)}
+            hoverStyle={showLeftArrow ? arrowHoverStyle(true) : undefined}
           >
-            <ChevronLeft size={20} className="text-black" strokeWidth={2} />
-          </button>
-          <button
+            <ChevronLeft size={20} strokeWidth={2} />
+          </ButtonPressFeedback>
+          <ButtonPressFeedback
             onClick={() => scroll('right')}
             disabled={!showRightArrow}
-            className={`w-10 h-10 rounded-full border-2 border-gray-200 flex items-center justify-center transition-all ${
-              showRightArrow ? 'hover:border-black hover:bg-gray-50' : 'opacity-30 cursor-not-allowed'
-            }`}
+            className="w-10 h-10 rounded-full flex items-center justify-center transition-all"
+            style={arrowButtonStyle(showRightArrow)}
+            hoverStyle={showRightArrow ? arrowHoverStyle(true) : undefined}
           >
-            <ChevronRight size={20} className="text-black" strokeWidth={2} />
-          </button>
+            <ChevronRight size={20} strokeWidth={2} />
+          </ButtonPressFeedback>
         </div>
       </div>
 
@@ -83,36 +106,42 @@ export const HorizontalPhoneScroll: React.FC<HorizontalPhoneScrollProps> = ({
       >
         {phones.map((phone) => (
           <div
-            key={`${phone.id}-${Math.random()}`}
-            className="flex-shrink-0 w-64 bg-white border border-gray-200 hover:border-black rounded-2xl overflow-hidden transition-all group"
+            key={phone.id}
+            className="rounded-2xl overflow-hidden transition-all"
+            style={cardStyle}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = color.text}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = color.borderLight}
           >
             <ButtonPressFeedback
               onClick={() => onPhoneClick(phone)}
               className="w-full"
             >
-              <div className="w-full h-48 bg-gray-50 flex items-center justify-center overflow-hidden group-hover:bg-gray-100 transition-colors">
+              <div 
+                className="w-full h-48 flex items-center justify-center overflow-hidden transition-colors p-6"
+                style={{ backgroundColor: color.borderLight }}
+              >
                 {phone.main_image_url ? (
                   <img
                     src={phone.main_image_url}
                     alt={phone.model_name}
-                    className="w-full h-full object-contain p-6"
-                    onError={(e) => { e.target.style.display = 'none'; }}
+                    className="w-full h-full object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                 ) : (
-                  <Smartphone size={48} className="text-gray-300" strokeWidth={2} />
+                  <Smartphone size={48} style={{ color: color.textLight }} />
                 )}
               </div>
 
               <div className="p-5">
-                <p className="text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-wide">{phone.brand}</p>
-                <p className="text-sm font-bold text-black leading-tight line-clamp-2 mb-2 min-h-[36px]">
+                <p className="text-[10px] mb-1 font-bold uppercase tracking-wide" style={{ color: color.textMuted }}>{phone.brand}</p>
+                <p className="text-sm font-bold leading-tight line-clamp-2 mb-2 min-h-[36px]" style={{ color: color.text }}>
                   {phone.model_name}
                 </p>
                 {phone.price_usd && (
-                  <p className="text-xl font-bold text-black mb-2">${phone.price_usd}</p>
+                  <p className="text-xl font-bold mb-2" style={{ color: color.text }}>${phone.price_usd}</p>
                 )}
                 {showComparisonCount && comparisonCounts[phone.id] && (
-                  <p className="text-xs text-gray-500 font-medium">
+                  <p className="text-xs font-medium" style={{ color: color.textMuted }}>
                     Compared {comparisonCounts[phone.id].toLocaleString()} times
                   </p>
                 )}
@@ -123,7 +152,9 @@ export const HorizontalPhoneScroll: React.FC<HorizontalPhoneScrollProps> = ({
               <div className="px-5 pb-5">
                 <ButtonPressFeedback
                   onClick={() => onCompareClick(phone)}
-                  className="w-full py-2 bg-black text-white hover:bg-gray-900 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2"
+                  className="w-full py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2"
+                  style={{ backgroundColor: color.text, color: color.bg }}
+                  hoverStyle={{ backgroundColor: color.text }}
                 >
                   <GitCompare size={14} strokeWidth={2} />
                   Compare

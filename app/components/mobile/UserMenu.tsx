@@ -1,0 +1,250 @@
+'use client';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, LogOut, Heart, Star, Bell, History, ChevronRight, LogIn } from 'lucide-react';
+import { ButtonPressFeedback } from '../shared/ButtonPressFeedback';
+import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
+import { isAuthenticated, getAuthToken, logoutUser } from '@/lib/auth';
+import { APP_ROUTES } from '@/lib/config';
+import { color, font } from '@/lib/tokens';
+import type { User as UserType } from '@/lib/types';
+
+interface UserData extends UserType {
+  total_favorites?: number;
+  total_reviews?: number;
+  total_alerts?: number;
+  total_comparisons?: number;
+}
+
+export const UserMenu = () => {
+  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const [user, setUser] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!isAuthenticated()) {
+        setUser(null);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await api.auth.getMe();
+        if (response.success) {
+          setUser(response.user);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Failed to load user:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserData();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const handleLogoutClick = () => {
+    logoutUser();
+    setIsOpen(false);
+  };
+
+  const handleNavigate = (path: string) => {
+    router.push(path);
+    setIsOpen(false);
+  };
+
+  const handleLogin = () => {
+    const currentPath = window.location.pathname + window.location.search + window.location.hash;
+    sessionStorage.setItem('returnUrl', currentPath);
+    router.push(APP_ROUTES.login);
+  };
+
+  if (!user && !loading) {
+    return (
+      <ButtonPressFeedback
+        onClick={handleLogin}
+        className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-sm font-bold"
+        style={{ backgroundColor: color.text, color: color.bg }}
+      >
+        <LogIn size={16} strokeWidth={2} />
+        Sign In
+      </ButtonPressFeedback>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div 
+        className="w-10 h-10 rounded-lg flex items-center justify-center animate-pulse"
+        style={{ backgroundColor: color.borderLight }}
+      >
+        <div className="w-5 h-5 rounded-full" style={{ backgroundColor: color.border }} />
+      </div>
+    );
+  }
+
+  const menuStyle: React.CSSProperties = {
+    backgroundColor: color.bg,
+    border: `1px solid ${color.borderLight}`,
+  };
+
+  const headerStyle: React.CSSProperties = {
+    backgroundColor: color.borderLight,
+    borderColor: color.borderLight,
+  };
+
+  const itemHoverStyle: React.CSSProperties = {
+    backgroundColor: color.borderLight,
+  };
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <ButtonPressFeedback
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 rounded-lg transition-all p-2"
+        hoverStyle={itemHoverStyle}
+      >
+        {user?.avatar_url ? (
+          <img
+            src={user.avatar_url}
+            alt={user.display_name}
+            className="w-8 h-8 rounded-full object-cover border"
+            style={{ borderColor: color.border }}
+          />
+        ) : (
+          <div 
+            className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: color.borderLight }}
+          >
+            <User size={16} style={{ color: color.textMuted }} />
+          </div>
+        )}
+        <span className="text-sm font-semibold" style={{ color: color.text }}>{user?.display_name}</span>
+      </ButtonPressFeedback>
+
+      {isOpen && (
+        <div 
+          className="absolute right-0 mt-2 w-64 rounded-xl shadow-lg z-50 overflow-hidden"
+          style={menuStyle}
+        >
+          <div 
+            className="p-4 border-b"
+            style={headerStyle}
+          >
+            <div className="flex items-center gap-3">
+              {user?.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt={user.display_name}
+                  className="w-10 h-10 rounded-full object-cover border"
+                  style={{ borderColor: color.border }}
+                />
+              ) : (
+                <div 
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: color.borderLight }}
+                >
+                  <User size={20} style={{ color: color.textMuted }} />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold truncate" style={{ color: color.text }}>{user?.display_name}</p>
+                <p className="text-xs truncate" style={{ color: color.textMuted }}>{user?.email}</p>
+              </div>
+            </div>
+          </div>
+
+          <nav className="py-2">
+            <MenuItem
+              icon={<Heart size={16} />}
+              label="My Favorites"
+              count={user.total_favorites}
+              onClick={() => handleNavigate(APP_ROUTES.accountFavorites)}
+            />
+            <MenuItem
+              icon={<Star size={16} />}
+              label="My Reviews"
+              count={user.total_reviews}
+              onClick={() => handleNavigate(APP_ROUTES.accountReviews)}
+            />
+            <MenuItem
+              icon={<Bell size={16} />}
+              label="Price Alerts"
+              count={user.total_alerts}
+              onClick={() => handleNavigate(APP_ROUTES.accountAlerts)}
+            />
+            <MenuItem
+              icon={<History size={16} />}
+              label="Comparison History"
+              count={user.total_comparisons}
+              onClick={() => handleNavigate(APP_ROUTES.accountComparisons)}
+            />
+          </nav>
+
+          <div className="border-t" style={{ borderColor: color.borderLight }}>
+            <ButtonPressFeedback
+              onClick={handleLogoutClick}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all"
+              style={{ color: color.danger }}
+              hoverStyle={{ backgroundColor: color.dangerBg }}
+            >
+              <LogOut size={16} />
+              <span>Sign Out</span>
+            </ButtonPressFeedback>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const MenuItem: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  count?: number;
+  onClick: () => void;
+}> = ({ icon, label, count, onClick }) => (
+  <ButtonPressFeedback
+    onClick={onClick}
+    className="w-full flex items-center justify-between px-3 py-2.5 transition-all"
+    hoverStyle={{ backgroundColor: color.borderLight }}
+  >
+    <div className="flex items-center gap-3">
+      <div className="w-5 h-5 flex items-center justify-center" style={{ color: color.textMuted }}>
+        {icon}
+      </div>
+      <span className="text-sm font-medium" style={{ color: color.text }}>{label}</span>
+    </div>
+    <div className="flex items-center gap-2">
+      {count !== undefined && count > 0 && (
+        <span 
+          className="text-xs font-semibold px-2 py-0.5 rounded-full"
+          style={{ backgroundColor: color.borderLight, color: color.textMuted }}
+        >
+          {count}
+        </span>
+      )}
+      <ChevronRight size={16} style={{ color: color.border }} />
+    </div>
+  </ButtonPressFeedback>
+);
