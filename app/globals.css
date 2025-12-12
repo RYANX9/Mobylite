@@ -1,0 +1,90 @@
+/* app/globals.css  (keeps existing Tailwind & Geist fonts) */
+@import "tailwindcss";
+
+/* 1.  your NEW semantic palette (replaces the old 2-colour set) */
+:root {
+  /* surface */
+  --color-bg: #ffffff;
+  --color-bg-inverse: #000000;
+
+  /* text */
+  --color-text: #111827;
+  --color-text-muted: #6b7280;
+  --color-text-light: #9ca3af;
+
+  /* interactive */
+  --color-primary: #111827;
+  --color-primary-text: #ffffff;
+
+  /* border */
+  --color-border: #d1d5db;
+  --color-border-light: #e5e7eb;
+
+
+}
+
+/* 2.  dark mode (still respects prefers-color-scheme) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #111827;
+    --color-text: #f3f4f6;
+    --color-primary: #ffffff;
+    --color-primary-text: #000000;
+  }
+}
+
+/* 3.  forward to Tailwind theme (v3.4+ @theme syntax) */
+@theme inline {
+  /* colours */
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --color-bg-inverse: var(--color-bg-inverse);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-light: var(--color-text-light);
+  --color-primary: var(--color-primary);
+  --color-primary-text: var(--color-primary-text);
+  --color-border: var(--color-border);
+  --color-border-light: var(--color-border-light);
+
+  /* fonts */
+  --font-primary: var(--font-primary);
+  --font-body: var(--font-body);
+  --font-numeric: var(--font-numeric);
+}
+
+/* 4.  base layer (keeps Geist + new bg/fg) */
+@layer base {
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+  }
+}
+
+.logo-heading-override {
+    /* Use the variable that is linked to Young-Serif in your setup */
+    font-family: var(--font-primary) !important; 
+}
+
+/* 5.  LOCK SITE TO THE TWO LOADED FONTS (override anything else) */
+*, *::before, *::after {
+  font-family: var(--font-body) !important;          /* default to Space-Grotesk */
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-primary) !important;       /* headings → Young-Serif */
+}
+
+/* 6.  NUMBERS ONLY: swap in a different face (example uses Young-Serif) */
+@font-face {
+  font-family: "DigitsOnly";
+  src: local("Young Serif");        /* or url(/fonts/young-serif.woff2) */
+  unicode-range: U+30-39;           /* 0 1 2 3 4 5 6 7 8 9 */
+  font-weight: 400;
+  font-display: swap;
+}
+
+/* 7.  Stack so digits come from DigitsOnly, rest from Space-Grotesk */
+body {
+  font-family: "DigitsOnly", var(--font-body);
+}
+
