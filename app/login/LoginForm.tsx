@@ -66,9 +66,17 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
           callback: handleGoogleResponse,
         });
 
-        // CHANGE: Render the custom Google Sign-In button manually instead of using
-        // the GSI library's renderButton() to achieve the required styling and text.
-        // This prevents the GSI library's default styling/text from overriding the component's design.
+        // FIX: Render the GSI button to a hidden container (hiddenGoogleButton) to capture the click flow.
+        window.google.accounts.id.renderButton(
+          document.getElementById('hiddenGoogleButton'),
+          {
+            theme: 'outline',
+            size: 'large',
+            width: '100%',
+            text: isLogin ? 'signin_with' : 'signup_with',
+            shape: 'rectangular',
+          }
+        );
       }
     };
 
@@ -101,16 +109,6 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
       setLoading(false);
     }
   };
-  
-  // ADD: Function to handle the custom Google Sign-In button click
-  const handleGoogleSignInClick = () => {
-    if (window.google) {
-      // Trigger the Google Sign-In one-tap flow or prompt
-      // The prompt/redirect is usually triggered by the GSI initialization or a specific call.
-      // Since we are not using renderButton, we use the prompt() method.
-      window.google.accounts.id.prompt();
-    }
-  }
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -432,23 +430,27 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
               </div>
             </div>
             
-            {/* ISOLATED EDIT: Replace the empty div used by GSI renderButton 
-            with a standard button component to apply the required styling 
-            and fix the text/lag issues. */}
+            {/* Custom styled button - FIX: Programmatically clicks the hidden GSI button */}
             <button
                 type="button"
-                onClick={handleGoogleSignInClick}
+                // FIX: Click the hidden GSI button which handles the authentication flow
+                onClick={() => document.getElementById('hiddenGoogleButton')?.click()}
                 disabled={loading}
                 className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
                 style={{ 
                     border: `1px solid ${color.border}`,
-                    backgroundColor: color.primary, // Use a contrasting background
-                    color: color.primaryText,
+                    backgroundColor: color.primary, // Keeping your color change
+                    color: color.primaryText, // Keeping your color change
                 }}
             >
                 <FcGoogle size={24} />
                 {isLogin ? 'Sign In with Google' : 'Sign Up with Google'}
             </button>
+            
+            {/* HIDDEN CONTAINER: The GSI library renders its official button here. 
+            Your custom button clicks this hidden element to initiate the flow correctly. */}
+            <div id="hiddenGoogleButton" style={{ visibility: 'hidden', height: 0, overflow: 'hidden', pointerEvents: 'none' }}></div>
+
 
             <div className="text-center">
               <p style={{ color: color.textMuted }}>
@@ -486,4 +488,6 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
     </div>
   );
 }
-        
+
+
+
