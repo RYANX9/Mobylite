@@ -670,7 +670,7 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
                               >
                                 {/* Label Column - spans 4 of 12 columns */}
                                 <span 
-                                  className="col-span-2 text-xs font-bold uppercase tracking-wide pr-4" 
+                                  className="col-span-4 text-xs font-bold uppercase tracking-wide pr-4" 
                                   style={{ color: color.textMuted }}
                                 >
                                   {key}
@@ -678,7 +678,7 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
                                 
                                 {/* Value Column - spans 8 of 12 columns */}
                                 <span 
-                                  className="col-span-10 text-xs font-medium leading-relaxed text-left" 
+                                  className="col-span-8 text-xs font-medium leading-relaxed text-left" 
                                   style={{ color: color.text }}
                                 >
                                   {formatSpecValue(value)}
