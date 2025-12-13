@@ -460,7 +460,7 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
             </form>
 
             {/* ----- divider ----- */}
-            <div className="relative my-2">
+            <div className="relative mt-2 mb-4">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t" style={{ borderColor: color.border }} />
               </div>
