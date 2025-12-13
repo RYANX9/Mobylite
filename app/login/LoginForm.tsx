@@ -1,7 +1,7 @@
 // app/login/LoginForm.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { TrendingDown, GitCompare, Star, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -16,12 +16,14 @@ interface LoginFormProps {
 declare global {
   interface Window {
     google: any;
+    handleGoogleCredential: (response: any) => void;
   }
 }
 
 export default function LoginForm({ redirectUrl }: LoginFormProps) {
   const router = useRouter();
   const { user, loading: authLoading, login, googleLogin } = useAuth();
+  const googleInitialized = useRef(false);
 
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -52,40 +54,6 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
     }
   }, [user, authLoading, router, redirectUrl]);
 
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    document.body.appendChild(script);
-
-    script.onload = () => {
-      if (window.google) {
-        window.google.accounts.id.initialize({
-          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
-          callback: handleGoogleResponse,
-        });
-
-        window.google.accounts.id.renderButton(
-          document.getElementById('googleSignInButton'),
-          {
-            theme: 'outline',
-            size: 'large',
-            width: '100%',
-            text: isLogin ? 'signin_with' : 'signup_with',
-            shape: 'rectangular',
-          }
-        );
-      }
-    };
-
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  }, [isLogin]);
-
   const handleGoogleResponse = async (response: any) => {
     setLoading(true);
     setError('');
@@ -104,8 +72,65 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
       router.replace(returnUrl);
     } catch (err: any) {
       setError(err.message || 'Google authentication failed');
-    } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (googleInitialized.current) return;
+
+    window.handleGoogleCredential = handleGoogleResponse;
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    
+    script.onload = () => {
+      if (window.google && !googleInitialized.current) {
+        const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+        
+        if (!clientId) {
+          setError('Google Sign-In not configured');
+          return;
+        }
+
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: window.handleGoogleCredential,
+          auto_select: false,
+        });
+
+        googleInitialized.current = true;
+      }
+    };
+
+    document.body.appendChild(script);
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []);
+
+  const handleGoogleLogin = () => {
+    if (!window.google) {
+      setError('Google Sign-In not loaded yet. Please try again.');
+      return;
+    }
+
+    if (loading) return;
+
+    try {
+      window.google.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          console.log('Google prompt not shown:', notification.getNotDisplayedReason());
+        }
+      });
+    } catch (err) {
+      console.error('Google sign-in error:', err);
+      setError('Failed to open Google Sign-In');
     }
   };
 
@@ -147,13 +172,6 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
       setError(err.message || 'Authentication failed');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoogleButtonClick = () => {
-    const googleBtn = document.querySelector('#googleSignInButton div[role="button"]') as HTMLElement;
-    if (googleBtn) {
-      googleBtn.click();
     }
   };
 
@@ -435,38 +453,20 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
               </div>
             </div>
 
-            <div className="relative">
-              <button
-                type="button"
-                onClick={handleGoogleButtonClick}
-                disabled={loading}
-                className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition disabled:opacity-50 disabled:cursor-not-allowed relative z-10"
-                style={{ 
-                  border: `1px solid ${color.border}`,
-                  backgroundColor: color.bg, 
-                  color: color.text,
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = color.borderLight}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = color.bg}
-              >
-                <FcGoogle size={24} />
-                {isLogin ? 'Sign In with Google' : 'Sign Up with Google'}
-              </button>
-              
-              <div 
-                id="googleSignInButton" 
-                style={{ 
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '48px',
-                  opacity: 0,
-                  pointerEvents: 'none',
-                  zIndex: -1
-                }}
-              />
-            </div>
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+              style={{ 
+                border: `1px solid ${color.border}`,
+                backgroundColor: color.bg, 
+                color: color.text,
+              }}
+            >
+              <FcGoogle size={24} />
+              {isLogin ? 'Sign In with Google' : 'Sign Up with Google'}
+            </button>
 
             <div className="text-center">
               <p style={{ color: color.textMuted }}>
@@ -503,5 +503,5 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
       </div>
     </div>
   );
+      
 }
-
