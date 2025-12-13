@@ -466,7 +466,7 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
             {phoneStats && (
               <div className="mb-1">
                 {phoneStats.average_rating > 0 ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1">
                       <Star size={14} style={{ color: color.primary }} fill={color.primary} />
                       <span className="text-xs font-bold" style={{ color: color.text }}>
@@ -476,6 +476,12 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
                     <span className="text-[11px]" style={{ color: color.textMuted }}>
                       ({phoneStats.total_reviews.toLocaleString()} reviews)
                     </span>
+                    {phoneStats.verified_owners_percentage > 0 && (
+                      <span className="flex items-center gap-1 text-[11px]" style={{ color: color.success }}>
+                        <Users size={12} />
+                        {Math.round((phoneStats.verified_owners_percentage / 100) * phoneStats.total_reviews)} owners
+                      </span>
+                    )}
                   </div>
                 ) : (
                   <span className="text-[11px]" style={{ color: color.textMuted }}>No reviews yet</span>

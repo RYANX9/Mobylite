@@ -20,6 +20,16 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  login: (email: string, password: string, displayName?: string) => Promise<void>;
+  googleLogin: (credential: string) => Promise<void>;  // NEW
+  logout: () => void;
+  refreshUser: () => Promise<void>;
+}
+
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -105,12 +115,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const googleLogin = useCallback(async (credential: string) => {
+    const data = await api.auth.googleOAuth(credential);
+    
+    if (data.token && typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.authToken, data.token);
+    }
+    if (data.user) {
+      setUser(data.user);
+    }
+  }, []);
+
+
   const refreshUser = useCallback(async () => {
     await loadUser();
   }, [loadUser]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, googleLogin, logout, refreshUser}}>
       {children}
     </AuthContext.Provider>
   );

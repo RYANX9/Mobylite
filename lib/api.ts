@@ -22,7 +22,7 @@ async function fetchAPI<T>(
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {  // ✅ FIXED
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
   });
@@ -122,6 +122,7 @@ class API {
       body: string;
       pros?: string[];
       cons?: string[];
+      is_owner?: boolean;
     }) => {
       return fetchAPI<any>(API_ENDPOINTS.reviews.create, {
         method: 'POST',
@@ -129,8 +130,20 @@ class API {
       });
     },
 
+    update: async (reviewId: string, data: Partial<{
+      rating: number;
+      title: string;
+      body: string;
+      is_owner: boolean;
+    }>) => {
+      return fetchAPI<any>(`/reviews/${reviewId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+
     helpful: async (reviewId: string) => {
-      return fetchAPI<any>(`${API_ENDPOINTS.reviews.base}/${reviewId}/helpful`, {
+      return fetchAPI<any>(`/reviews/${reviewId}/helpful`, {
         method: 'POST',
       });
     },
@@ -226,8 +239,22 @@ class API {
       if (typeof window === 'undefined') return false;
       return !!localStorage.getItem(STORAGE_KEYS.authToken);
     },
+    
+    // ✅ FIXED: Properly indented inside auth object
+    googleOAuth: async (credential: string) => {
+      const data = await fetchAPI<{ token: string; user: any }>(
+        API_ENDPOINTS.auth.google,
+        {
+          method: 'POST',
+          body: JSON.stringify({ credential }),
+        }
+      );
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.authToken, data.token);
+      }
+      return data;
+    },
   };
 }
-
 // ✅ EXPORT SINGLETON INSTANCE
 export const api = new API();

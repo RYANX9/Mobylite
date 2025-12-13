@@ -8,6 +8,7 @@ export const API_ENDPOINTS = {
     signup: "/auth/signup",
     login: "/auth/login",
     me: "/auth/me",
+    google: '/auth/google',
   },
   phones: {
     search: "/phones/search",
@@ -69,6 +70,7 @@ export const STORAGE_KEYS = {
   compareList: "mobylite_compare_list",
   recentSearches: "mobylite_recent_searches",
   userId: "mobylite_user_id",
+
 } as const;
 
 export const APP_CONFIG = {

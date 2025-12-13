@@ -29,7 +29,6 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
     e.stopPropagation();
     
     if (!isAuthenticated()) {
-      // ✅ Save current URL before redirecting
       const currentPath = window.location.pathname + window.location.search + window.location.hash;
       sessionStorage.setItem('returnUrl', currentPath);
       
@@ -47,6 +46,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   };
 
   const size = variant === 'mobile' ? 'text-sm' : 'text-base';
+  const displayName = review.display_name || `User${review.user_id?.slice(0, 6) || 'Unknown'}`;
 
   return (
     <div 
@@ -60,18 +60,35 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
+          <div 
+            className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs"
+            style={{ backgroundColor: color.primary, color: color.bg }}
+          >
+            {displayName.charAt(0).toUpperCase()}
+          </div>
           <span className="font-semibold" style={{ color: color.text }}>
-            {review.display_name || 'Anonymous'}
+            {displayName}
           </span>
           {review.verified_owner && (
             <span 
               className="px-2 py-0.5 rounded-full text-xs font-bold"
               style={{ 
-                backgroundColor: color.successBg, // 🎨 Semantic token
-                color: color.success                  // 🎨 Semantic token
+                backgroundColor: color.successBg,
+                color: color.success
               }}
             >
               Verified Owner
+            </span>
+          )}
+          {review.is_owner && (
+            <span 
+              className="px-2 py-0.5 rounded-full text-xs font-bold"
+              style={{ 
+                backgroundColor: color.primary + '20',
+                color: color.primary
+              }}
+            >
+              Owner
             </span>
           )}
         </div>
@@ -80,6 +97,9 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
       
       <p className="text-xs mb-1" style={{ color: color.textMuted }}>
         {new Date(review.created_at).toLocaleDateString()}
+        {review.edited_at && (
+          <span className="ml-2 italic">(Edited)</span>
+        )}
       </p>
       
       <h3 className="font-medium mb-2" style={{ color: color.text }}>

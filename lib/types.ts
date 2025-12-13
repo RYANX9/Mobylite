@@ -64,6 +64,18 @@ export interface Review {
   is_visible: boolean;
   display_name?: string;
   avatar_url?: string | null;
+  verified_owner: boolean;
+  is_owner?: boolean;
+  is_visible: boolean;
+  created_at: string;
+  edited_at?: string;
+}
+
+export interface UpdateReviewData {
+  rating?: number;
+  title?: string;
+  body?: string;
+  is_owner?: boolean;
 }
 
 export interface Favorite {
@@ -147,4 +159,13 @@ export interface ExtendedFilters extends Filters {
   has_5g?: boolean;
   screen_size?: string | null;
   comparison?: string | null;
+}
+
+export interface PhoneStats {
+  average_rating: number;
+  total_reviews: number;
+  total_favorites: number;
+  total_owners: number;
+  rating_distribution: Record<string, number>;
+  verified_owners_percentage: number;
 }

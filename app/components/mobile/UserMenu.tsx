@@ -101,7 +101,7 @@ export const UserMenu = () => {
     <div className="relative" ref={menuRef}>
       <ButtonPressFeedback
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-lg transition-all p-2"
+        className="w-10 h-10 flex items-center justify-center rounded-full transition-all"
         hoverStyle={itemHoverStyle}
       >
         {userData?.avatar_url ? (
@@ -119,9 +119,6 @@ export const UserMenu = () => {
             <User size={16} style={{ color: color.textMuted }} />
           </div>
         )}
-        <span className="text-sm font-semibold" style={{ color: color.text }}>
-          {userData?.display_name}
-        </span>
       </ButtonPressFeedback>
 
       {isOpen && (
@@ -233,3 +230,4 @@ const MenuItem: React.FC<{
     </div>
   </ButtonPressFeedback>
 );
+      

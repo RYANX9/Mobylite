@@ -1,7 +1,8 @@
 // app/components/shared/RatingsSummary.tsx
+
 'use client';
 import React, { useEffect, useState } from 'react';
-import { Star, Users, Heart } from 'lucide-react';
+import { Star, Users, Heart, UserCheck } from 'lucide-react';
 import { api } from '@/lib/api';
 import { color } from '@/lib/tokens';
 
@@ -9,6 +10,7 @@ interface PhoneStats {
   average_rating: number;
   total_reviews: number;
   total_favorites: number;
+  total_owners: number;
   rating_distribution: {
     "5": number;
     "4": number;
@@ -44,11 +46,11 @@ export const RatingsSummary: React.FC<RatingsSummaryProps> = ({
       }
     } catch (error: any) {
       console.error('Failed to fetch phone stats:', error);
-      // Set default stats on error
       setStats({
         average_rating: 0,
         total_reviews: 0,
         total_favorites: 0,
+        total_owners: 0,
         rating_distribution: { "5": 0, "4": 0, "3": 0, "2": 0, "1": 0 },
         verified_owners_percentage: 0
       });
@@ -67,7 +69,7 @@ export const RatingsSummary: React.FC<RatingsSummaryProps> = ({
     color: filled ? color.starFilled : color.starEmpty,
   });
 
-  const estimatedOwners = Math.floor(stats.total_reviews * 0.7);
+  const verifiedOwnersCount = stats.total_owners;
 
   if (variant === 'compact') {
     return (
@@ -81,12 +83,12 @@ export const RatingsSummary: React.FC<RatingsSummaryProps> = ({
         <span className="text-sm" style={{ color: color.textMuted }}>
           ({stats.total_reviews} {stats.total_reviews === 1 ? 'review' : 'reviews'})
         </span>
-        {estimatedOwners > 0 && (
+        {verifiedOwnersCount > 0 && (
           <>
             <span style={{ color: color.border }}>|</span>
-            <div className="flex items-center gap-1 text-sm" style={{ color: color.textMuted }}>
-              <Users size={14} />
-              <span>{estimatedOwners} own it</span>
+            <div className="flex items-center gap-1 text-sm" style={{ color: color.success }}>
+              <UserCheck size={14} />
+              <span>{verifiedOwnersCount} owners</span>
             </div>
           </>
         )}
@@ -94,7 +96,6 @@ export const RatingsSummary: React.FC<RatingsSummaryProps> = ({
     );
   }
 
-  // Detailed variant with rating distribution
   const statCardStyle: React.CSSProperties = {
     backgroundColor: color.bg,
     border: `1px solid ${color.borderLight}`,
@@ -110,7 +111,6 @@ export const RatingsSummary: React.FC<RatingsSummaryProps> = ({
       style={{ backgroundColor: color.borderLight, borderColor: color.borderLight }}
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left: Overall Rating */}
         <div className="flex items-center gap-6">
           <div className="text-center">
             <div className="text-5xl font-bold mb-2" style={{ fontFamily: 'Roboto, sans-serif', color: color.text }}>
@@ -129,9 +129,10 @@ export const RatingsSummary: React.FC<RatingsSummaryProps> = ({
             <div className="text-xs font-medium" style={{ color: color.textMuted }}>
               {stats.total_reviews} {stats.total_reviews === 1 ? 'review' : 'reviews'}
             </div>
-            {stats.verified_owners_percentage > 0 && (
-              <div className="text-xs font-medium mt-1" style={{ color: color.success }}>
-                {stats.verified_owners_percentage}% verified owners
+            {verifiedOwnersCount > 0 && (
+              <div className="flex items-center justify-center gap-1 text-xs font-medium mt-1" style={{ color: color.success }}>
+                <UserCheck size={14} />
+                <span>{verifiedOwnersCount} verified owners</span>
               </div>
             )}
           </div>
@@ -166,27 +167,22 @@ export const RatingsSummary: React.FC<RatingsSummaryProps> = ({
             })}
           </div>
         </div>
-
-        {/* Right: Stats Cards */}
         <div className="grid grid-cols-2 gap-4">
-          {estimatedOwners > 0 && (
-            <div className="rounded-xl p-4" style={statCardStyle}>
-              <Users size={20} style={{ color: color.text }} className="mb-2" />
-              <div className="text-2xl font-bold mb-1" style={{ color: color.text }}>
-                {estimatedOwners}
-              </div>
-              <div className="text-xs font-medium" style={{ color: color.textMuted }}>Owners</div>
+          <div className="rounded-xl p-4" style={statCardStyle}>
+            <UserCheck size={20} style={{ color: color.success }} className="mb-2" />
+            <div className="text-2xl font-bold mb-1" style={{ color: color.text }}>
+              {verifiedOwnersCount}
             </div>
-          )}
-          {stats.total_favorites > 0 && (
-            <div className="rounded-xl p-4" style={statCardStyle}>
-              <Heart size={20} style={{ color: color.text }} className="mb-2" />
-              <div className="text-2xl font-bold mb-1" style={{ color: color.text }}>
-                {stats.total_favorites}
-              </div>
-              <div className="text-xs font-medium" style={{ color: color.textMuted }}>Favorites</div>
+            <div className="text-xs font-medium" style={{ color: color.textMuted }}>Verified Owners</div>
+          </div>
+          <div className="rounded-xl p-4" style={statCardStyle}>
+            <Heart size={20} style={{ color: color.text }} className="mb-2" />
+            <div className="text-2xl font-bold mb-1" style={{ color: color.text }}>
+              {stats.total_favorites}
             </div>
-          )}
+            <div className="text-xs font-medium" style={{ color: color.textMuted }}>Favorites</div>
+          </div>
+
         </div>
       </div>
     </div>
