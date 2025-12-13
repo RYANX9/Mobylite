@@ -443,7 +443,7 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
                 style={{ 
                     border: `1px solid ${color.border}`,
                     backgroundColor: color.bgInverse, // Use a contrasting background
-                    color: color.text,
+                    color: color.primaryText,
                 }}
             >
                 <FcGoogle size={24} />
