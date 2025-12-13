@@ -67,7 +67,7 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
         });
 
         window.google.accounts.id.renderButton(
-          document.getElementById('hiddenGoogleButton'),
+          document.getElementById('googleSignInButton'),
           {
             theme: 'outline',
             size: 'large',
@@ -160,6 +160,26 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: color.bg }}>
+      <style jsx>{`
+        #googleSignInButton > div {
+          width: 100% !important;
+        }
+        #googleSignInButton iframe {
+          width: 100% !important;
+          height: 48px !important;
+        }
+        #googleSignInButton div[role="button"] {
+          width: 100% !important;
+          height: 48px !important;
+          border-radius: 12px !important;
+          border: 1px solid ${color.border} !important;
+          background-color: ${color.bg} !important;
+        }
+        #googleSignInButton div[role="button"]:hover {
+          background-color: ${color.borderLight} !important;
+        }
+      `}</style>
+      
       <div className="flex flex-col lg:flex-row lg:h-screen">
         
         <div
@@ -427,25 +447,8 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
                 </span>
               </div>
             </div>
-            
-            <button
-                type="button"
-                onClick={() => document.getElementById('hiddenGoogleButton')?.querySelector('div[role="button"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))}
-                disabled={loading}
-                className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ 
-                    border: `1px solid ${color.border}`,
-                    backgroundColor: color.bg, 
-                    color: color.text,
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = color.borderLight}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = color.bg}
-            >
-                <FcGoogle size={24} />
-                {isLogin ? 'Sign In with Google' : 'Sign Up with Google'}
-            </button>
-            
-            <div id="hiddenGoogleButton" style={{ visibility: 'hidden', position: 'absolute', height: 0, overflow: 'hidden', pointerEvents: 'none' }}></div>
+
+            <div id="googleSignInButton" className="w-full"></div>
 
             <div className="text-center">
               <p style={{ color: color.textMuted }}>
@@ -483,4 +486,4 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
     </div>
   );
 }
-
+                                                                            
