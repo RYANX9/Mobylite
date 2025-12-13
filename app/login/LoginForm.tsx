@@ -66,7 +66,6 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
           callback: handleGoogleResponse,
         });
 
-        // FIX: Render the GSI button to a hidden container (hiddenGoogleButton) to capture the click flow.
         window.google.accounts.id.renderButton(
           document.getElementById('hiddenGoogleButton'),
           {
@@ -109,7 +108,6 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
       setLoading(false);
     }
   };
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -430,27 +428,24 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
               </div>
             </div>
             
-            {/* Custom styled button - FIX: Programmatically clicks the hidden GSI button */}
             <button
                 type="button"
-                // FIX: Click the hidden GSI button which handles the authentication flow
-                onClick={() => document.getElementById('hiddenGoogleButton')?.click()}
+                onClick={() => document.getElementById('hiddenGoogleButton')?.querySelector('div[role="button"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))}
                 disabled={loading}
-                className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ 
                     border: `1px solid ${color.border}`,
-                    backgroundColor: color.primary, // Keeping your color change
-                    color: color.primaryText, // Keeping your color change
+                    backgroundColor: color.bg, 
+                    color: color.text,
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = color.borderLight}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = color.bg}
             >
                 <FcGoogle size={24} />
                 {isLogin ? 'Sign In with Google' : 'Sign Up with Google'}
             </button>
             
-            {/* HIDDEN CONTAINER: The GSI library renders its official button here. 
-            Your custom button clicks this hidden element to initiate the flow correctly. */}
-            <div id="hiddenGoogleButton" style={{ visibility: 'hidden', height: 0, overflow: 'hidden', pointerEvents: 'none' }}></div>
-
+            <div id="hiddenGoogleButton" style={{ visibility: 'hidden', position: 'absolute', height: 0, overflow: 'hidden', pointerEvents: 'none' }}></div>
 
             <div className="text-center">
               <p style={{ color: color.textMuted }}>
@@ -488,6 +483,4 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
     </div>
   );
 }
-
-
 
