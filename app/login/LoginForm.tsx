@@ -442,7 +442,7 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
                 className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
                 style={{ 
                     border: `1px solid ${color.border}`,
-                    backgroundColor: color.bgInverse, // Use a contrasting background
+                    backgroundColor: color.primary, // Use a contrasting background
                     color: color.primaryText,
                 }}
             >
