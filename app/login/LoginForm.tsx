@@ -16,7 +16,6 @@ interface LoginFormProps {
 declare global {
   interface Window {
     google: any;
-    handleGoogleCredential: (response: any) => void;
   }
 }
 
@@ -79,44 +78,51 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
   useEffect(() => {
     if (googleInitialized.current) return;
 
-    window.handleGoogleCredential = handleGoogleResponse;
+    const loadGoogleScript = () => {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      
+      script.onload = () => {
+        if (window.google && !googleInitialized.current) {
+          const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+          
+          if (!clientId) {
+            console.error('Google Client ID not configured');
+            return;
+          }
 
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    
-    script.onload = () => {
-      if (window.google && !googleInitialized.current) {
-        const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-        
-        if (!clientId) {
-          setError('Google Sign-In not configured');
-          return;
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+          });
+
+          googleInitialized.current = true;
         }
+      };
 
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: window.handleGoogleCredential,
-          auto_select: false,
-        });
+      script.onerror = () => {
+        console.error('Failed to load Google Sign-In script');
+      };
 
-        googleInitialized.current = true;
-      }
+      document.body.appendChild(script);
+
+      return () => {
+        if (document.body.contains(script)) {
+          document.body.removeChild(script);
+        }
+      };
     };
 
-    document.body.appendChild(script);
-
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
+    loadGoogleScript();
   }, []);
 
   const handleGoogleLogin = () => {
     if (!window.google) {
-      setError('Google Sign-In not loaded yet. Please try again.');
+      setError('Google Sign-In is loading. Please try again in a moment.');
       return;
     }
 
@@ -124,13 +130,16 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
 
     try {
       window.google.accounts.id.prompt((notification: any) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          console.log('Google prompt not shown:', notification.getNotDisplayedReason());
+        if (notification.isNotDisplayed()) {
+          console.log('Google One Tap not displayed:', notification.getNotDisplayedReason());
+        }
+        if (notification.isSkippedMoment()) {
+          console.log('Google One Tap skipped:', notification.getSkippedReason());
         }
       });
     } catch (err) {
       console.error('Google sign-in error:', err);
-      setError('Failed to open Google Sign-In');
+      setError('Failed to open Google Sign-In. Please try again.');
     }
   };
 
@@ -457,15 +466,17 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
               type="button"
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+              className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ 
                 border: `1px solid ${color.border}`,
                 backgroundColor: color.bg, 
                 color: color.text,
               }}
+              onMouseEnter={(e) => !loading && (e.currentTarget.style.backgroundColor = color.borderLight)}
+              onMouseLeave={(e) => !loading && (e.currentTarget.style.backgroundColor = color.bg)}
             >
               <FcGoogle size={24} />
-              {isLogin ? 'Sign In with Google' : 'Sign Up with Google'}
+              <span>{isLogin ? 'Sign In with Google' : 'Sign Up with Google'}</span>
             </button>
 
             <div className="text-center">
@@ -503,5 +514,5 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
       </div>
     </div>
   );
-      
 }
+          
