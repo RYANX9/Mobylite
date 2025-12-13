@@ -1,4 +1,4 @@
-// app/login/LoginForm.tsx 
+// app/login/LoginForm.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -150,6 +150,13 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
     }
   };
 
+  const handleGoogleButtonClick = () => {
+    const googleBtn = document.querySelector('#googleSignInButton div[role="button"]') as HTMLElement;
+    if (googleBtn) {
+      googleBtn.click();
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="h-screen flex items-center justify-center" style={{ backgroundColor: color.bg }}>
@@ -160,26 +167,6 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: color.bg }}>
-      <style jsx>{`
-        #googleSignInButton > div {
-          width: 100% !important;
-        }
-        #googleSignInButton iframe {
-          width: 100% !important;
-          height: 48px !important;
-        }
-        #googleSignInButton div[role="button"] {
-          width: 100% !important;
-          height: 48px !important;
-          border-radius: 12px !important;
-          border: 1px solid ${color.border} !important;
-          background-color: ${color.bg} !important;
-        }
-        #googleSignInButton div[role="button"]:hover {
-          background-color: ${color.borderLight} !important;
-        }
-      `}</style>
-      
       <div className="flex flex-col lg:flex-row lg:h-screen">
         
         <div
@@ -448,7 +435,38 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
               </div>
             </div>
 
-            <div id="googleSignInButton" className="w-full"></div>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={handleGoogleButtonClick}
+                disabled={loading}
+                className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition disabled:opacity-50 disabled:cursor-not-allowed relative z-10"
+                style={{ 
+                  border: `1px solid ${color.border}`,
+                  backgroundColor: color.bg, 
+                  color: color.text,
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = color.borderLight}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = color.bg}
+              >
+                <FcGoogle size={24} />
+                {isLogin ? 'Sign In with Google' : 'Sign Up with Google'}
+              </button>
+              
+              <div 
+                id="googleSignInButton" 
+                style={{ 
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '48px',
+                  opacity: 0,
+                  pointerEvents: 'none',
+                  zIndex: -1
+                }}
+              />
+            </div>
 
             <div className="text-center">
               <p style={{ color: color.textMuted }}>
@@ -486,4 +504,4 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
     </div>
   );
 }
-                                                                            
+
