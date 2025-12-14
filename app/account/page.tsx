@@ -1,3 +1,4 @@
+
 // app\account\page.tsx
 'use client';
 import { useEffect, useState } from 'react';
@@ -98,10 +99,9 @@ export default function AccountPage() {
           <div className="grid grid-cols-4 gap-8">
             <div className="col-span-1">
               <div
-                className="rounded-2xl p-5 sticky top-24 border"
+                className="rounded-3xl p-6 sticky top-24 shadow-md"
                 style={{
                   backgroundColor: color.bg,
-                  borderColor: color.borderLight
                 }}
               >
                 <nav className="space-y-1 mb-6">
@@ -238,7 +238,7 @@ function FavoritesSection() {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2" style={{ color: color.text }}>My Favorites</h2>
+        <h2 className="text-3xl font-bold mb-2" style={{ color: color.text }}>My Favorites</h2>
         <p className="text-sm" style={{ color: color.textMuted }}>
           {favoritesList.length} phone{favoritesList.length !== 1 ? 's' : ''} saved
         </p>
@@ -248,8 +248,8 @@ function FavoritesSection() {
         {favoritesList.map((fav: Favorite) => (
           <div
             key={fav.phone_id}
-            className="flex-shrink-0 w-64 rounded-2xl overflow-hidden border transition-all hover:shadow-lg"
-            style={{ backgroundColor: color.bg, borderColor: color.borderLight }}
+            className="flex-shrink-0 w-64 rounded-3xl overflow-hidden shadow-md transition-all hover:shadow-xl"
+            style={{ backgroundColor: color.bg }}
           >
             <ButtonPressFeedback
               onClick={() => handlePhoneClick(fav.phone)}
@@ -345,7 +345,7 @@ function ReviewsSection() {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2" style={{ color: color.text }}>My Reviews</h2>
+        <h2 className="text-3xl font-bold mb-2" style={{ color: color.text }}>My Reviews</h2>
         <p className="text-sm" style={{ color: color.textMuted }}>
           {userReviews.length} review{userReviews.length !== 1 ? 's' : ''} written
         </p>
@@ -354,8 +354,8 @@ function ReviewsSection() {
         {userReviews.map((review: any) => (
           <div
             key={review.id}
-            className="rounded-xl p-5 border transition-all"
-            style={{ backgroundColor: color.bg, borderColor: color.borderLight }}
+            className="rounded-3xl p-6 shadow-md transition-all"
+            style={{ backgroundColor: color.bg }}
           >
             {/* Phone Info */}
             {review.phone && (
@@ -473,7 +473,7 @@ function AlertsSection() {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2" style={{ color: color.text }}>Price Alerts</h2>
+        <h2 className="text-3xl font-bold mb-2" style={{ color: color.text }}>Price Alerts</h2>
         <p className="text-sm" style={{ color: color.textMuted }}>
           {alerts.length} active alert{alerts.length !== 1 ? 's' : ''}
         </p>
@@ -482,8 +482,8 @@ function AlertsSection() {
         {alerts.map((alert: any) => (
           <div
             key={alert.id}
-            className="flex-shrink-0 w-64 rounded-2xl overflow-hidden border transition-all hover:shadow-lg"
-            style={{ backgroundColor: color.bg, borderColor: color.borderLight }}
+            className="flex-shrink-0 w-64 rounded-3xl overflow-hidden shadow-md transition-all hover:shadow-xl"
+            style={{ backgroundColor: color.bg }}
           >
             <ButtonPressFeedback
               onClick={() => alert.phone && handlePhoneClick(alert.phone)}
@@ -575,7 +575,7 @@ function ComparisonsSection() {
 }
 function SettingsSection({ user }: { user: any }) {
   return (
-    <div className="rounded-2xl p-6 space-y-6 border shadow-sm" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
+    <div className="rounded-3xl p-6 space-y-6 shadow-md" style={{ backgroundColor: color.bg }}>
       <div>
         <h3 className="text-xl font-semibold mb-4 tracking-tight" style={{ color: color.text }}>Account Information</h3>
         <div className="space-y-4">
