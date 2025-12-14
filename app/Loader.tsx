@@ -11,7 +11,7 @@ export default function Loader() {
     >
       <div className="flex flex-col items-center gap-4">
         <img src="/logo.svg" alt="Mobylite" className="w-16 h-16 animate-pulse" />
-        <p className="text-2xl font-bold font-semibold" style={{ color: logo-heading-override }}>
+        <p className="text-2xl logo-heading-override" style={{ color: color.text }}>
           Mobylite
         </p>
 
