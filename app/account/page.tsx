@@ -1,5 +1,4 @@
 // app\account\page.tsx
-// app\account\page.tsx
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -576,27 +575,27 @@ function ComparisonsSection() {
 }
 function SettingsSection({ user }: { user: any }) {
   return (
-    <div className="rounded-xl p-6 space-y-6 border shadow-sm" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
+    <div className="rounded-2xl p-8 space-y-8 border shadow-md transition-shadow hover:shadow-lg" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
       <div>
-        <h3 className="text-lg font-bold mb-4" style={{ color: color.text }}>Account Information</h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: color.borderLight }}>
-            <span className="text-sm font-medium text-left" style={{ color: color.textMuted }}>Name</span>
-            <span className="text-sm font-bold text-right ml-auto" style={{ color: color.text }}>{user?.display_name}</span>
+        <h3 className="text-xl font-semibold mb-6 tracking-tight" style={{ color: color.text }}>Account Information</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between py-4 border-b" style={{ borderColor: color.borderLight }}>
+            <span className="text-base font-medium" style={{ color: color.textMuted }}>Name</span>
+            <span className="text-base font-semibold text-right ml-auto" style={{ color: color.text }}>{user?.display_name}</span>
           </div>
-          <div className="flex items-center justify-between py-3">
-            <span className="text-sm font-medium text-left" style={{ color: color.textMuted }}>Email</span>
-            <span className="text-sm font-bold text-right ml-auto" style={{ color: color.text }}>{user?.email}</span>
+          <div className="flex items-center justify-between py-4">
+            <span className="text-base font-medium" style={{ color: color.textMuted }}>Email</span>
+            <span className="text-base font-semibold text-right ml-auto" style={{ color: color.text }}>{user?.email}</span>
           </div>
         </div>
       </div>
       <div>
-        <h3 className="text-lg font-bold mb-3" style={{ color: color.danger }}>Danger Zone</h3>
-        <p className="text-sm mb-4" style={{ color: color.textMuted }}>
+        <h3 className="text-xl font-semibold mb-4 tracking-tight" style={{ color: color.danger }}>Danger Zone</h3>
+        <p className="text-base mb-6" style={{ color: color.textMuted }}>
           This action cannot be undone. All your data will be permanently deleted.
         </p>
         <button
-          className="px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
+          className="px-6 py-3 rounded-xl text-base font-semibold transition-all hover:shadow-md"
           style={{
             backgroundColor: color.danger,
             color: color.bg
