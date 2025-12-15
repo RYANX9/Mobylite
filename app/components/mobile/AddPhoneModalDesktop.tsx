@@ -7,14 +7,14 @@ import { api } from '@/lib/api';
 import { ButtonPressFeedback } from '@/app/components/shared/ButtonPressFeedback';
 import { color } from '@/lib/tokens';
 
-interface AddPhoneModalDesktopProps {
+interface AddPhoneModalMobileProps {
   onSelect: (phone: Phone) => void;
   onClose: () => void;
   existingIds: number[];
 }
 
 // Near the top of AddPhoneModalDesktop component
-export default function AddPhoneModalDesktop({ onSelect, onClose, existingIds }: AddPhoneModalDesktopProps) {
+export default function AddPhoneModalDesktop({ onSelect, onClose, existingIds }: AddPhoneModalMobileProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<Phone[]>([]);
   const [loading, setLoading] = useState(false);
@@ -138,7 +138,15 @@ export default function AddPhoneModalDesktop({ onSelect, onClose, existingIds }:
             {results.map((phone) => (
               <ButtonPressFeedback
                 key={phone.id}
-                onClick={() => onSelect(phone)}
+                onClick={async () => {
+                  try {
+                    const fullPhone = await api.phones.getDetails(phone.id);
+                    onSelect(fullPhone);  // ✅ Just call onSelect, parent handles the rest
+                  } catch (error) {
+                    console.error('Error loading phone details:', error);
+                    alert('Failed to load phone details. Please try again.');
+                  }
+                }}
                 className="w-full p-5 flex items-center gap-5 rounded-xl transition-all border"
                 style={{ borderColor: color.borderLight, backgroundColor: color.bg }}
                 hoverStyle={{ borderColor: color.text }}
