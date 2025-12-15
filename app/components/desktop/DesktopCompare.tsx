@@ -1,6 +1,6 @@
-// app\components\desktop\DesktopCompare.tsx
+// app/components/desktop/DesktopCompare.tsx
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, Plus, X, Search, GitCompare, Share2, Info, Check, RefreshCw } from 'lucide-react';
 import { Phone } from '@/lib/types';
 import { API_BASE_URL, APP_ROUTES } from '@/lib/config';
@@ -11,7 +11,7 @@ import { Tooltip } from '@/app/components/shared/Tooltip';
 import { UserMenu } from './UserMenu';
 import { color, font } from '@/lib/tokens';
 import { Smartphone } from 'lucide-react';
-import { createPhoneSlug } from '@/lib/config';
+import { useRouter } from 'next/navigation';
 import AddPhoneModalDesktop from './AddPhoneModalDesktop';
 
 interface DesktopCompareProps {
@@ -22,59 +22,15 @@ interface DesktopCompareProps {
 }
 
 export default function DesktopCompare({ phones, setComparePhones, setView, setSelectedPhone }: DesktopCompareProps) {
+  const router = useRouter();
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
-
-
-
-  const loadPhonesFromURL = async (ids: number[]) => {
-    try {
-      const phonePromises = ids.map(id => fetch(`${API_BASE_URL}/phones/${id}`).then(res => res.json()));
-      const loadedPhones = await Promise.all(phonePromises);
-      const validPhones = loadedPhones.filter(p => p && p.id);
-      
-      if (validPhones.length > 0) {
-        setComparePhones(validPhones);
-      } else {
-        setView('home');
-      }
-    } catch (error) {
-      console.error('Error loading phones from URL:', error);
-      setView('home');
-    }
-  };
-
-  const loadPhonesFromNames = async (phoneNames: string[]) => {
-    try {
-      const phonePromises = phoneNames.map(async (slug) => {
-        const searchTerm = slug.replace(/-/g, ' ');
-        const data = await api.phones.search({ q: searchTerm, page_size: 1 });
-        if (data.results && data.results.length > 0) {
-          return await api.phones.getDetails(data.results[0].id);
-        }
-        return null;
-      });
-      
-      const loadedPhones = await Promise.all(phonePromises);
-      const validPhones = loadedPhones.filter(p => p && p.id);
-      
-      if (validPhones.length > 0) {
-        setComparePhones(validPhones);
-      } else {
-        setView('home');
-      }
-    } catch (error) {
-      console.error('Error loading phones from names:', error);
-      setView('home');
-    }
-  };
 
   const addPhone = async (phone: Phone) => {
     if (phones.length >= 4) return;
     
     try {
-      // ✅ Fetch full phone details first
       const fullPhone = await api.phones.getDetails(phone.id);
       
       if (isAuthenticated()) {
@@ -91,7 +47,6 @@ export default function DesktopCompare({ phones, setComparePhones, setView, setS
         }).catch(console.error);
       }
       
-      // ✅ Use fresh array to avoid stale state
       const newPhones = [...phones, fullPhone];
       setComparePhones(newPhones);
       setShowAddModal(false);
@@ -103,7 +58,7 @@ export default function DesktopCompare({ phones, setComparePhones, setView, setS
 
   const removePhone = (id: number) => {
     const updated = phones.filter(p => p.id !== id);
-    setComparePhones(updated); // ✅ This will trigger URL update in page.tsx
+    setComparePhones(updated);
   };
 
   const shareComparison = () => {
@@ -128,113 +83,272 @@ export default function DesktopCompare({ phones, setComparePhones, setView, setS
     router.push(`/${brandSlug}/${modelSlug}`);
   };
 
-  const getRefreshRate = (phone: Phone) => {
-    const specs = phone.full_specifications?.specifications?.Display;
-    if (!specs) return null;
+  const extractDisplayType = (phone: Phone) => {
+    const displayType = phone.full_specifications?.quick_specs?.displaytype || '';
+    const match = displayType.match(/(LTPO\s+)?(AMOLED|OLED|LCD|IPS|Super Retina|Dynamic AMOLED)/i);
+    const refreshMatch = displayType.match(/(\d+)Hz/);
     
-    const typeStr = String(specs.Type || '');
-    const match = typeStr.match(/(\d+)\s*Hz/i);
-    return match ? parseInt(match[1]) : null;
+    const type = match ? match[0] : 'OLED';
+    const refresh = refreshMatch ? ` (${refreshMatch[1]}Hz)` : '';
+    
+    return `${type}${refresh}`;
+  };
+
+  const extractBrightness = (phone: Phone) => {
+    const displayType = phone.full_specifications?.quick_specs?.displaytype || '';
+    
+    const hbmMatch = displayType.match(/(\d+)\s*nits\s*\(HBM\)/i);
+    if (hbmMatch) return parseInt(hbmMatch[1]);
+    
+    const peakMatch = displayType.match(/(\d+)\s*nits\s*\(peak\)/i);
+    if (peakMatch) return parseInt(peakMatch[1]);
+    
+    return null;
+  };
+
+  const extractCameras = (phone: Phone) => {
+    const cam1modules = phone.full_specifications?.quick_specs?.cam1modules || '';
+    const cameras: Array<{mp: number, type: string, aperture: string}> = [];
+    const cameraLines = cam1modules.split(/\r?\n/).filter(line => line.trim());
+    
+    cameraLines.forEach((line) => {
+      const mpMatch = line.match(/(\d+)\s*MP/i);
+      const apertureMatch = line.match(/f\/([0-9.]+)/i);
+      const typeMatch = line.match(/\((wide|ultrawide|ultra wide|telephoto|periscope|macro)\)/i);
+      
+      if (mpMatch && apertureMatch && typeMatch) {
+        cameras.push({
+          mp: parseInt(mpMatch[1]),
+          type: typeMatch[1],
+          aperture: apertureMatch[1]
+        });
+      }
+    });
+    
+    return cameras;
+  };
+
+  const extractOpticalZoom = (phone: Phone) => {
+    const cam1modules = phone.full_specifications?.quick_specs?.cam1modules || '';
+    const zoomMatch = cam1modules.match(/(\d+)x\s*optical\s*zoom/i);
+    return zoomMatch ? parseInt(zoomMatch[1]) : null;
+  };
+
+  const extractFrontCamera = (phone: Phone) => {
+    const cam2modules = phone.full_specifications?.quick_specs?.cam2modules || '';
+    const mpMatch = cam2modules.match(/(\d+)\s*MP/i);
+    const apertureMatch = cam2modules.match(/f\/([0-9.]+)/i);
+    
+    if (mpMatch && apertureMatch) {
+      return { mp: parseInt(mpMatch[1]), aperture: apertureMatch[1] };
+    }
+    return null;
+  };
+
+  const extractFrameMaterial = (phone: Phone) => {
+    const build = phone.full_specifications?.specifications?.Body?.Build || '';
+    
+    if (/titanium/i.test(build)) {
+      const gradeMatch = build.match(/Grade\s+(\d+)/i);
+      return gradeMatch ? `Titanium Frame (Grade ${gradeMatch[1]})` : 'Titanium Frame';
+    }
+    if (/aluminum|aluminium/i.test(build)) return 'Aluminum Frame';
+    if (/steel/i.test(build)) return 'Steel Frame';
+    if (/plastic/i.test(build)) return 'Plastic Frame';
+    
+    return null;
+  };
+
+  const extractWiFi = (phone: Phone) => {
+    const wlan = phone.full_specifications?.quick_specs?.wlan || '';
+    
+    if (/Wi-Fi\s*7/i.test(wlan) || /802\.11be/i.test(wlan)) return 7;
+    if (/Wi-Fi\s*6[eE]/i.test(wlan)) return 6.5;
+    if (/Wi-Fi\s*6/i.test(wlan) || /802\.11ax/i.test(wlan)) return 6;
+    if (/802\.11ac/i.test(wlan)) return 5;
+    
+    return null;
+  };
+
+  const extractAIFeature = (phone: Phone) => {
+    const brand = phone.brand.toLowerCase();
+    if (brand.includes('google')) return 'Google AI';
+    if (brand.includes('apple')) return 'Apple Intelligence';
+    if (brand.includes('samsung')) return 'Galaxy AI';
+    if (brand.includes('xiaomi')) return 'Xiaomi HyperOS AI';
+    return null;
   };
 
   const ALL_ROWS = [
     { 
       label: 'Price', 
-      key: 'price_usd', 
       type: 'low_wins', 
-      fmt: (v: any) => (v ? `$${v}` : '—'),
+      getValue: (p: Phone) => p.price_usd,
+      format: (v: any) => v ? `$${v}` : '—',
       tooltip: { layman: 'Total cost to buy the phone', nerd: 'MSRP at launch in USD' }
     },
     { 
+      label: 'Display Size & Tech', 
+      type: 'none', 
+      getValue: (p: Phone) => `${p.screen_size}" ${extractDisplayType(p)}`,
+      format: (v: any) => v || '—',
+      tooltip: { layman: 'Screen size and display technology', nerd: 'Display diagonal and panel type' }
+    },
+    { 
+      label: 'Display Brightness', 
+      type: 'high_wins', 
+      getValue: (p: Phone) => extractBrightness(p),
+      format: (v: any) => v ? `${v} nits (HBM)` : '—',
+      tooltip: { layman: 'How bright the screen gets outdoors', nerd: 'Peak brightness in nits' }
+    },
+    { 
       label: 'Chipset', 
-      key: 'chipset', 
       type: 'flagship', 
-      fmt: (v: any) => v || '—',
+      getValue: (p: Phone) => p.chipset,
+      format: (v: any) => v || '—',
       tooltip: { layman: 'Brain of the phone - flagship processors win', nerd: 'System on Chip processor' }
     },
     { 
       label: 'Main Camera', 
-      key: 'main_camera_mp', 
-      type: 'high_wins', 
-      fmt: (v: any) => (v ? `${v} MP` : '—'),
-      tooltip: { layman: 'Photo quality in megapixels', nerd: 'Main sensor resolution' }
+      type: 'none', 
+      getValue: (p: Phone) => {
+        const cameras = extractCameras(p);
+        return cameras[0] ? `${cameras[0].mp}MP (Wide, f/${cameras[0].aperture})` : null;
+      },
+      format: (v: any) => v || '—',
+      tooltip: { layman: 'Primary camera quality', nerd: 'Main sensor specs' }
     },
     { 
-      label: 'RAM (max)', 
-      key: 'ram_options', 
-      type: 'high_wins', 
-      fmt: (v: any) => (v && v.length ? `${Math.max(...v)} GB` : '—'),
-      tooltip: { layman: 'Memory for running apps', nerd: 'Maximum LPDDR RAM capacity' }
+      label: 'Ultra Wide Camera', 
+      type: 'none', 
+      getValue: (p: Phone) => {
+        const cameras = extractCameras(p);
+        const ultraWide = cameras.find(c => c.type.toLowerCase().includes('ultra'));
+        return ultraWide ? `${ultraWide.mp}MP (Ultra Wide, f/${ultraWide.aperture})` : null;
+      },
+      format: (v: any) => v || '—',
+      tooltip: { layman: 'Wide-angle camera for landscapes', nerd: 'Ultra-wide sensor specs' }
     },
     { 
-      label: 'Storage (max)', 
-      key: 'storage_options', 
+      label: 'Telephoto Camera', 
+      type: 'none', 
+      getValue: (p: Phone) => {
+        const cameras = extractCameras(p);
+        const telephoto = cameras.find(c => c.type.toLowerCase().includes('tele') || c.type.toLowerCase().includes('periscope'));
+        return telephoto ? `${telephoto.mp}MP (${telephoto.type.includes('periscope') ? 'Periscope' : 'Telephoto'})` : null;
+      },
+      format: (v: any) => v || '—',
+      tooltip: { layman: 'Zoom camera for distant subjects', nerd: 'Telephoto/periscope sensor' }
+    },
+    { 
+      label: 'Optical Zoom', 
       type: 'high_wins', 
-      fmt: (v: any) => (v && v.length ? `${Math.max(...v)} GB` : '—'),
-      tooltip: { layman: 'Space for apps and files', nerd: 'Maximum UFS storage capacity' }
+      getValue: (p: Phone) => extractOpticalZoom(p),
+      format: (v: any) => v ? `${v}x Optical Zoom` : '—',
+      tooltip: { layman: 'How much you can zoom without quality loss', nerd: 'Maximum optical zoom factor' }
+    },
+    { 
+      label: 'Front Camera', 
+      type: 'high_wins', 
+      getValue: (p: Phone) => {
+        const front = extractFrontCamera(p);
+        return front ? front.mp : null;
+      },
+      format: (v: any, p: Phone) => {
+        const front = extractFrontCamera(p);
+        return front ? `${front.mp}MP (f/${front.aperture}) Front` : '—';
+      },
+      tooltip: { layman: 'Selfie camera quality', nerd: 'Front-facing camera specs' }
     },
     { 
       label: 'Battery', 
-      key: 'battery_capacity', 
       type: 'high_wins', 
-      fmt: (v: any) => (v ? `${v} mAh` : '—'),
+      getValue: (p: Phone) => p.battery_capacity,
+      format: (v: any) => v ? `${v} mAh Battery` : '—',
       tooltip: { layman: 'How long the battery lasts', nerd: 'Li-Po/Li-Ion capacity in mAh' }
     },
     { 
-      label: 'Fast Charging', 
-      key: 'fast_charging_w', 
+      label: 'RAM', 
       type: 'high_wins', 
-      fmt: (v: any) => (v ? `${v}W` : '—'),
+      getValue: (p: Phone) => p.ram_options?.[0],
+      format: (v: any) => v ? `${v}GB RAM` : '—',
+      tooltip: { layman: 'Memory for running apps', nerd: 'LPDDR RAM capacity' }
+    },
+    { 
+      label: 'Storage Options', 
+      type: 'none', 
+      getValue: (p: Phone) => p.storage_options?.join('/'),
+      format: (v: any) => v ? `${v}GB` : '—',
+      tooltip: { layman: 'Space for apps and files', nerd: 'UFS storage variants' }
+    },
+    { 
+      label: 'Frame Material', 
+      type: 'none', 
+      getValue: (p: Phone) => extractFrameMaterial(p),
+      format: (v: any) => v || '—',
+      tooltip: { layman: 'What the frame is made of', nerd: 'Frame construction material' }
+    },
+    { 
+      label: 'Wi-Fi', 
+      type: 'high_wins', 
+      getValue: (p: Phone) => extractWiFi(p),
+      format: (v: any) => v ? `Wi-Fi ${v}` : '—',
+      tooltip: { layman: 'Wireless internet generation', nerd: 'Wi-Fi standard version' }
+    },
+    { 
+      label: 'AI Feature', 
+      type: 'none', 
+      getValue: (p: Phone) => extractAIFeature(p),
+      format: (v: any) => v || '—',
+      tooltip: { layman: 'AI assistant built-in', nerd: 'Manufacturer AI platform' }
+    },
+    { 
+      label: 'Fast Charging', 
+      type: 'high_wins', 
+      getValue: (p: Phone) => p.fast_charging_w,
+      format: (v: any) => v ? `${v}W` : '—',
       tooltip: { layman: 'How fast it charges', nerd: 'Max wired charging power in watts' }
     },
     { 
-      label: 'Screen Size', 
-      key: 'screen_size', 
-      type: 'high_wins', 
-      fmt: (v: any) => (v ? `${v}"` : '—'),
-      tooltip: { layman: 'Display diagonal size', nerd: 'Screen diagonal in inches' }
-    },
-    { 
-      label: 'Display Refresh', 
-      key: 'refresh_rate', 
-      type: 'high_wins', 
-      fmt: (v: any, phone: any) => {
-        const hz = getRefreshRate(phone);
-        return hz ? `${hz} Hz` : '—';
-      },
-      tooltip: { layman: 'How smooth the screen feels', nerd: 'Display refresh rate in Hz' }
+      label: 'Dimensions', 
+      type: 'none', 
+      getValue: (p: Phone) => p.full_specifications?.specifications?.Body?.Dimensions,
+      format: (v: any) => v || '—',
+      tooltip: { layman: 'Phone physical size', nerd: 'Length x Width x Thickness in mm' }
     },
     { 
       label: 'Weight', 
-      key: 'weight_g', 
       type: 'low_wins', 
-      fmt: (v: any) => (v ? `${v}g` : '—'),
+      getValue: (p: Phone) => p.weight_g,
+      format: (v: any) => v ? `${v}g` : '—',
       tooltip: { layman: 'How heavy the phone is', nerd: 'Total device weight in grams' }
     },
     { 
       label: 'Thickness', 
-      key: 'thickness_mm', 
       type: 'low_wins', 
-      fmt: (v: any) => (v ? `${v}mm` : '—'),
+      getValue: (p: Phone) => p.thickness_mm,
+      format: (v: any) => v ? `${v}mm` : '—',
       tooltip: { layman: 'How thin the phone is', nerd: 'Device thickness in millimeters' }
     },
     { 
       label: 'Release Year', 
-      key: 'release_year', 
       type: 'high_wins', 
-      fmt: (v: any) => v || '—',
+      getValue: (p: Phone) => p.release_year,
+      format: (v: any) => v || '—',
       tooltip: { layman: 'When it was released', nerd: 'Year of market release' }
     },
     { 
       label: 'AnTuTu Score', 
-      key: 'antutu_score', 
       type: 'high_wins', 
-      fmt: (v: any) => (v ? v.toLocaleString() : '—'),
+      getValue: (p: Phone) => p.antutu_score,
+      format: (v: any) => v ? v.toLocaleString() : '—',
       tooltip: { layman: 'Performance benchmark', nerd: 'AnTuTu v10 benchmark score' }
     },
   ];
 
   const getWinnerIdx = (row: any) => {
+    if (row.type === 'none') return -1;
+    
     if (row.type === 'flagship') {
       const flagshipChips = ['snapdragon 8', 'dimensity 9', 'exynos 2', 'apple a1', 'apple a2', 'tensor', 'snapdragon 8 elite', 'snapdragon 8 gen'];
       
@@ -251,11 +365,9 @@ export default function DesktopCompare({ phones, setComparePhones, setView, setS
       return winners.length === phones.length ? -1 : winners[0];
     }
 
-    const raw = phones.map((p) => p[row.key]);
-    const vals = raw.map((v) => (Array.isArray(v) && v.length ? Math.max(...v) : v));
-
-    if (row.type === 'none') return -1;
-    const valid = vals.filter((v) => v != null);
+    const vals = phones.map((p) => row.getValue(p));
+    const valid = vals.filter((v) => v != null && v !== '—');
+    
     if (valid.length < 2) return -1;
 
     const unique = new Set(valid);
@@ -273,48 +385,25 @@ export default function DesktopCompare({ phones, setComparePhones, setView, setS
     return bestIndices.length === phones.length ? -1 : bestIndices[0];
   };
 
-  const containerBgStyle: React.CSSProperties = {
-    backgroundColor: color.bg,
-  };
-
-  const heroBgStyle: React.CSSProperties = {
-    backgroundColor: color.bgInverse,
-  };
-
-  const headerBgStyle: React.CSSProperties = {
-    backgroundColor: color.bg,
-    borderColor: color.borderLight,
-  };
-
-  const headerShadowStyle: React.CSSProperties = {
-    boxShadow: 'none',
-  };
-
-  const thBgStyle: React.CSSProperties = {
-    backgroundColor: color.bg,
-  };
-
-  const tdBorderStyle = (isWinner: boolean, isEqual: boolean): React.CSSProperties => ({
+  const tdBorderStyle = (isWinner: boolean): React.CSSProperties => ({
     borderColor: color.border,
-    backgroundColor: isWinner ? color.bgInverse : (isEqual ? color.bg : color.bg),
+    backgroundColor: isWinner ? color.bgInverse : color.bg,
     color: isWinner ? color.textInverse : color.text,
   });
 
   return (
-    <div className="min-h-screen" style={containerBgStyle}>
+    <div className="min-h-screen" style={{ backgroundColor: color.bg }}>
       <div 
-        className={`sticky top-0 z-30 border-b transition-all ${
-          phones.length > 0 ? 'shadow-lg' : ''
-        }`}
-        style={{ ...headerBgStyle, ...(phones.length > 0 ? headerShadowStyle : {}) }}
+        className="sticky top-0 z-30 border-b"
+        style={{ backgroundColor: color.bg, borderColor: color.borderLight }}
       >
         <div className="max-w-7xl mx-auto px-8 py-4">
           <div className="flex items-center gap-6">
-          <ButtonPressFeedback onClick={() => setView('home')} className="flex items-center gap-3 hover:opacity-70 transition-opacity">
-            <ArrowLeft size={20} style={{ color: color.text }} />
-            <img src="/logo.svg" alt="Mobylite" className="w-8 h-8" />
-            <h2 className="text-xl font-bold" style={{ color: color.text }}>Mobylite</h2>
-          </ButtonPressFeedback>
+            <ButtonPressFeedback onClick={() => setView('home')} className="flex items-center gap-3 hover:opacity-70 transition-opacity">
+              <ArrowLeft size={20} style={{ color: color.text }} />
+              <img src="/logo.svg" alt="Mobylite" className="w-8 h-8" />
+              <h2 className="text-xl font-bold" style={{ color: color.text }}>Mobylite</h2>
+            </ButtonPressFeedback>
 
             <div className="flex-1 relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -357,9 +446,7 @@ export default function DesktopCompare({ phones, setComparePhones, setView, setS
                 <span className="text-xs font-bold">{linkCopied ? 'Copied!' : 'Share'}</span>
               </ButtonPressFeedback>
               <ButtonPressFeedback
-                onClick={() => {
-                  setComparePhones([]); // ✅ This will trigger URL update in page.tsx
-                }}
+                onClick={() => setComparePhones([])}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
                 style={{ backgroundColor: color.borderLight, color: color.text }}
                 hoverStyle={{ backgroundColor: color.border }}
@@ -382,7 +469,7 @@ export default function DesktopCompare({ phones, setComparePhones, setView, setS
         </div>
       </div>
 
-      <div className="border-b" style={heroBgStyle}>
+      <div className="border-b" style={{ backgroundColor: color.bgInverse }}>
         <div className="max-w-7xl mx-auto px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -410,6 +497,7 @@ export default function DesktopCompare({ phones, setComparePhones, setView, setS
             >
               <div 
                 className="text-5xl font-bold mb-2"
+
                 style={{ fontFamily: font.numeric, color: color.text }}
               >
                 {phones.length}/4
