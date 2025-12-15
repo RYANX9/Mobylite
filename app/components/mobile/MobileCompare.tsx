@@ -222,7 +222,7 @@ export default function MobileCompare({
       type: 'high_wins',
       fmt: (phone) => {
         const specs = extractCleanSpecs(phone);
-        return specs.find(s => s.icon === '🏗️')?.value || '—';
+        return specs.find(s => s.icon === '�️')?.value || '—';
       },
       parse: (v) => {
         if (v === '—') return null;
@@ -312,7 +312,7 @@ export default function MobileCompare({
       type: 'high_wins',
       fmt: (phone) => {
         const specs = extractCleanSpecs(phone);
-        const specialIcons = ['🔘', '✏️', '🛰️'];
+        const specialIcons = ['📘', '✏️', '🛰️'];
         const specials = specs.filter(s => 
           specialIcons.includes(s.icon) && !s.label.includes('MP')
         );
@@ -429,6 +429,8 @@ export default function MobileCompare({
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const labelWidth = showLabels ? 120 : 56;
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: color.bg }}>
       {/* Header */}
@@ -489,207 +491,96 @@ export default function MobileCompare({
         </div>
       </div>
 
-      {/* Scrollable Container */}
-      <div 
-        ref={scrollContainerRef}
-        className="overflow-x-auto hide-scrollbar"
-      >
-        <div className="inline-block min-w-full">
-          {/* Phone Cards Row */}
-          <div 
-            className="flex sticky top-[73px] z-20 border-b"
-            style={{ 
-              backgroundColor: color.bg, 
-              borderColor: color.borderLight,
-              paddingLeft: showLabels ? '120px' : '56px',
-              transition: '73px'
-            }}
-          >
+      {/* Comparison Table */}
+      <div className="relative">
+        {/* Phone Cards Row - Fixed Header */}
+        <div 
+          className="sticky z-20 border-b"
+          style={{ 
+            backgroundColor: color.bg, 
+            borderColor: color.borderLight,
+            top: '73px'
+          }}
+        >
+          <div className="flex">
+            {/* Fixed Label Column */}
             <div 
-              className="sticky left-0 z-10 flex items-center justify-center border-r"
+              className="flex items-center justify-center border-r flex-shrink-0"
               style={{ 
                 backgroundColor: color.bg,
                 borderColor: color.borderLight,
-                width: showLabels ? '120px' : '56px',
-                transition: 'width 0.3s ease',
-                marginLeft: showLabels ? '-120px' : '-56px'
+                width: `${labelWidth}px`,
+                transition: 'width 0.3s ease'
               }}
             >
               <span 
-                className="text-xs font-bold uppercase tracking-wide transform origin-left transition-all duration-300"
+                className="text-xs font-bold uppercase tracking-wide transition-opacity duration-300"
                 style={{ 
                   color: color.textMuted,
-                  opacity: showLabels ? 1 : 0,
-                  transform: showLabels ? 'scale(1)' : 'scale(0.8)'
+                  opacity: showLabels ? 1 : 0
                 }}
               >
                 {showLabels && 'Specs'}
               </span>
             </div>
 
-            {phones.map((phone) => (
-              <div 
-                key={phone.id}
-                className="w-[140px] flex-shrink-0 p-3 border-r relative"
-                style={{ borderColor: color.borderLight }}
-              >
-                <ButtonPressFeedback
-                  onClick={() => removePhone(phone.id)}
-                  className="absolute top-2 right-2 p-1 rounded-full z-10"
-                  style={{ backgroundColor: color.bg, border: `1px solid ${color.border}` }}
-                >
-                  <X size={12} style={{ color: color.textMuted }} />
-                </ButtonPressFeedback>
-
-                <ButtonPressFeedback
-                  onClick={() => handlePhoneClick(phone)}
-                  className="w-full"
-                >
-                  <div 
-                    className="w-full h-24 rounded-lg flex items-center justify-center mb-2"
-                    style={{ backgroundColor: color.borderLight }}
-                  >
-                    {phone.main_image_url ? (
-                      <img 
-                        src={phone.main_image_url} 
-                        alt={phone.model_name} 
-                        className="w-full h-full object-contain p-2" 
-                      />
-                    ) : (
-                      <Smartphone size={24} style={{ color: color.textLight }} />
-                    )}
-                  </div>
-
-                  <p className="text-[8px] font-bold uppercase tracking-wide mb-1" style={{ color: color.textMuted }}>
-                    {phone.brand}
-                  </p>
-                  <p className="text-[11px] font-bold leading-tight mb-2 line-clamp-2 min-h-[28px]" style={{ color: color.text }}>
-                    {phone.model_name}
-                  </p>
-                  {phone.price_usd && (
-                    <div className="inline-block px-2 py-0.5 rounded text-[10px] font-bold" style={{ backgroundColor: color.text, color: color.bg }}>
-                      ${phone.price_usd}
-                    </div>
-                  )}
-                </ButtonPressFeedback>
-              </div>
-            ))}
-
-            {phones.length < 4 && (
-              <div className="w-[140px] flex-shrink-0 p-3">
-                <ButtonPressFeedback
-                  onClick={() => setShowAddModal(true)}
-                  className="w-full h-full flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-6"
-                  style={{ borderColor: color.border }}
-                >
-                  <Plus size={24} style={{ color: color.textMuted }} />
-                  <p className="text-[10px] font-bold mt-2" style={{ color: color.textMuted }}>Add</p>
-                </ButtonPressFeedback>
-              </div>
-            )}
-          </div>
-
-          {/* Specs Rows */}
-          {ROWS.map((row) => {
-            const winner = getWinnerIdx(row);
-
-            return (
-              <div 
-                key={row.label}
-                className="flex border-b"
-                style={{ 
-                  borderColor: color.borderLight,
-                  
-                }}
-              >
+            {/* Scrollable Phone Cards */}
+            <div 
+              ref={scrollContainerRef}
+              className="flex overflow-x-auto hide-scrollbar"
+            >
+              {phones.map((phone) => (
                 <div 
-                  className="sticky left-0 z-10 flex items-center gap-2 px-3 py-3 border-r"
-                  style={{ 
-                    backgroundColor: color.bg, 
-                    borderColor: color.borderLight,
-                    width: showLabels ? '120px' : '56px',
-                    transition: 'width 0.3s ease',
-                    marginLeft: showLabels ? '-120px' : '-56px'
-                  }}
+                  key={phone.id}
+                  className="w-[140px] flex-shrink-0 p-3 border-r relative"
+                  style={{ borderColor: color.borderLight }}
                 >
-                  <row.icon size={16} style={{ color: color.textMuted }} className="flex-shrink-0" />
-                  <span 
-                    className="text-xs font-bold truncate transform origin-left transition-all duration-300"
-                    style={{ 
-                      color: color.text,
-                      opacity: showLabels ? 1 : 0,
-                      transform: showLabels ? 'scale(1)' : 'scale(0.8)',
-                      width: showLabels ? 'auto' : '0',
-                    }}
+                  <ButtonPressFeedback
+                    onClick={() => removePhone(phone.id)}
+                    className="absolute top-2 right-2 p-1 rounded-full z-10"
+                    style={{ backgroundColor: color.bg, border: `1px solid ${color.border}` }}
                   >
-                    {showLabels && row.label}
-                  </span>
-                </div>
+                    <X size={12} style={{ color: color.textMuted }} />
+                  </ButtonPressFeedback>
 
-                {phones.map((phone, idx) => {
-                  const isWinner = winner === idx;
-                  const displayVal = row.fmt(phone);
-
-                  return (
+                  <ButtonPressFeedback
+                    onClick={() => handlePhoneClick(phone)}
+                    className="w-full"
+                  >
                     <div 
-                      key={phone.id}
-                      className="w-[140px] flex-shrink-0 px-2 py-3 flex items-center justify-center border-r"
-                      style={{ 
-                        borderColor: color.border,
-                        backgroundColor: isWinner ? color.bgInverse : color.bg,
-                        color: isWinner ? color.textInverse : color.text
-                      }}
+                      className="w-full h-24 rounded-lg flex items-center justify-center mb-2"
+                      style={{ backgroundColor: color.borderLight }}
                     >
-                      <span className={`text-[11px] text-center ${isWinner ? 'font-bold' : 'font-semibold'}`}>
-                        {displayVal}
-                      </span>
+                      {phone.main_image_url ? (
+                        <img 
+                          src={phone.main_image_url} 
+                          alt={phone.model_name} 
+                          className="w-full h-full object-contain p-2" 
+                        />
+                      ) : (
+                        <Smartphone size={24} style={{ color: color.textLight }} />
+                      )}
                     </div>
-                  );
-                })}
 
-                {phones.length < 4 && (
-                  <div className="w-[140px] flex-shrink-0" />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                    <p className="text-[8px] font-bold uppercase tracking-wide mb-1" style={{ color: color.textMuted }}>
+                      {phone.brand}
+                    </p>
+                    <p className="text-[11px] font-bold leading-tight mb-2 line-clamp-2 min-h-[28px]" style={{ color: color.text }}>
+                      {phone.model_name}
+                    </p>
+                    {phone.price_usd && (
+                      <div className="inline-block px-2 py-0.5 rounded text-[10px] font-bold" style={{ backgroundColor: color.text, color: color.bg }}>
+                        ${phone.price_usd}
+                      </div>
+                    )}
+                  </ButtonPressFeedback>
+                </div>
+              ))}
 
-      {/* Legend */}
-      <div className="p-4">
-        <div className="rounded-xl p-4 border" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
-          <p className="text-xs font-bold mb-2" style={{ color: color.text }}>Legend</p>
-          <div className="flex items-center gap-4 text-[10px]">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: color.bgInverse }} />
-              <span style={{ color: color.textMuted }}>Winner</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded border" style={{ borderColor: color.border }} />
-              <span style={{ color: color.textMuted }}>Standard</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {showAddModal && (
-        <AddPhoneModalMobile
-          onSelect={addPhone}
-          onClose={() => setShowAddModal(false)}
-          existingIds={phones.map((p) => p.id)}
-        />
-      )}
-
-      <style jsx>{`
-        .hide-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
-    </div>
-  );
-}
+              {phones.length < 4 && (
+                <div className="w-[140px] flex-shrink-0 p-3">
+                  <ButtonPressFeedback
+                    onClick={() => setShowAddModal(true)}
+                    className="w-full h-full flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-6"
+                    style={{ borderColor: color.border }}
+             
