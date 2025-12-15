@@ -138,15 +138,7 @@ export default function AddPhoneModalDesktop({ onSelect, onClose, existingIds }:
             {results.map((phone) => (
               <ButtonPressFeedback
                 key={phone.id}
-                onClick={async () => {
-                  try {
-                    const fullPhone = await api.phones.getDetails(phone.id);
-                    onSelect(fullPhone);  // ✅ Just call onSelect, parent handles the rest
-                  } catch (error) {
-                    console.error('Error loading phone details:', error);
-                    alert('Failed to load phone details. Please try again.');
-                  }
-                }}
+                onClick={() => onSelect(phone)}
                 className="w-full p-5 flex items-center gap-5 rounded-xl transition-all border"
                 style={{ borderColor: color.borderLight, backgroundColor: color.bg }}
                 hoverStyle={{ borderColor: color.text }}
