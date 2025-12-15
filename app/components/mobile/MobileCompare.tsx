@@ -599,8 +599,7 @@ export default function MobileCompare({
                 className="flex border-b"
                 style={{ 
                   borderColor: color.borderLight,
-                  paddingLeft: showLabels ? '120px' : '56px',
-                  transition: 'padding-left 0.3s ease'
+                  
                 }}
               >
                 <div 
