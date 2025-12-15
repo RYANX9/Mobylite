@@ -655,12 +655,12 @@ function AlertsSection() {
 function ComparisonsSection() {
   return (
     <EmptyState
-      icon={<History size={48} />}
-      title="Comparisons"
-      description="Your recent comparisons will appear here"
+      icon={History}
+      title="Comparison History"
+      description="Your recent phone comparisons will appear here"
+      action={null}
     />
   );
-}
 function SettingsSection({ user }: { user: any }) {
   return (
     <div className="rounded-3xl p-6 space-y-6 shadow-md" style={{ backgroundColor: color.bg }}>
