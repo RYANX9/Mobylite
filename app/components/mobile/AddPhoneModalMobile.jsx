@@ -7,7 +7,11 @@ import { api } from '@/lib/api';
 import { ButtonPressFeedback } from '@/app/components/shared/ButtonPressFeedback';
 import { color } from '@/lib/tokens';
 
-
+interface AddPhoneModalMobileProps {
+  onSelect: (phone: Phone) => void;
+  onClose: () => void;
+  existingIds: number[];
+}
 
 export default function AddPhoneModalMobile({ onSelect, onClose, existingIds }: AddPhoneModalMobileProps) {
   const [searchQuery, setSearchQuery] = useState('');
