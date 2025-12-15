@@ -502,7 +502,7 @@ export default function MobileCompare({
               backgroundColor: color.bg, 
               borderColor: color.borderLight,
               paddingLeft: showLabels ? '120px' : '56px',
-              transition: 'padding-left 0.3s ease'
+              transition: '73px'
             }}
           >
             <div 
