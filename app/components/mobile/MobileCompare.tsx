@@ -551,6 +551,7 @@ export default function MobileCompare({
                       className="w-full h-24 rounded-lg flex items-center justify-center mb-2"
                       style={{ backgroundColor: color.borderLight }}
                     >
+                      
                       {phone.main_image_url ? (
                         <img 
                           src={phone.main_image_url} 
@@ -583,4 +584,116 @@ export default function MobileCompare({
                     onClick={() => setShowAddModal(true)}
                     className="w-full h-full flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-6"
                     style={{ borderColor: color.border }}
-             
+                  >
+                    <Plus size={24} style={{ color: color.textMuted }} />
+                    <p className="text-[10px] font-bold mt-2" style={{ color: color.textMuted }}>Add</p>
+                  </ButtonPressFeedback>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Specs Rows - Scrollable Content */}
+        <div>
+          {ROWS.map((row) => {
+            const winner = getWinnerIdx(row);
+
+            return (
+              <div 
+                key={row.label}
+                className="flex border-b"
+                style={{ borderColor: color.borderLight }}
+              >
+                {/* Fixed Label Column */}
+                <div 
+                  className="flex items-center gap-2 px-3 py-3 border-r flex-shrink-0"
+                  style={{ 
+                    backgroundColor: color.bg, 
+                    borderColor: color.borderLight,
+                    width: `${labelWidth}px`,
+                    transition: 'width 0.3s ease'
+                  }}
+                >
+                  <row.icon size={16} style={{ color: color.textMuted }} className="flex-shrink-0" />
+                  <span 
+                    className="text-xs font-bold truncate transition-opacity duration-300"
+                    style={{ 
+                      color: color.text,
+                      opacity: showLabels ? 1 : 0
+                    }}
+                  >
+                    {showLabels && row.label}
+                  </span>
+                </div>
+
+                {/* Scrollable Values */}
+                <div className="flex overflow-x-auto hide-scrollbar">
+                  {phones.map((phone, idx) => {
+                    const isWinner = winner === idx;
+                    const displayVal = row.fmt(phone);
+
+                    return (
+                      <div 
+                        key={phone.id}
+                        className="w-[140px] flex-shrink-0 px-2 py-3 flex items-center justify-center border-r"
+                        style={{ 
+                          borderColor: color.border,
+                          backgroundColor: isWinner ? color.bgInverse : color.bg,
+                          color: isWinner ? color.textInverse : color.text
+                        }}
+                      >
+                        <span className={`text-[11px] text-center ${isWinner ? 'font-bold' : 'font-semibold'}`}>
+                          {displayVal}
+                        </span>
+                      </div>
+                    );
+                  })}
+
+                  {phones.length < 4 && (
+                    <div className="w-[140px] flex-shrink-0" />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="p-4">
+        <div className="rounded-xl p-4 border" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
+          <p className="text-xs font-bold mb-2" style={{ color: color.text }}>Legend</p>
+          <div className="flex items-center gap-4 text-[10px]">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: color.bgInverse }} />
+              <span style={{ color: color.textMuted }}>Winner</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded border" style={{ borderColor: color.border }} />
+              <span style={{ color: color.textMuted }}>Standard</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {showAddModal && (
+        <AddPhoneModalMobile
+          onSelect={addPhone}
+          onClose={() => setShowAddModal(false)}
+          existingIds={phones.map((p) => p.id)}
+        />
+      )}
+
+      <style jsx>{`
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+    </div>
+  );
+}
