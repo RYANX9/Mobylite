@@ -491,7 +491,7 @@ export default function MobileCompare({
           </div>
         </div>
       </div>
-      {* Scrollable Container */}
+       
       <div 
         ref={scrollContainerRef}
         className="overflow-x-auto hide-scrollbar"
