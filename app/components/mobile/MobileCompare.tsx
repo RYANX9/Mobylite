@@ -557,177 +557,38 @@ export default function MobileCompare({
                     ) : (
                       <Smartphone size={24} style={{ color: color.textLight }} />
                     )}
+                  </div>
 
-                    
+                  <p className="text-[8px] font-bold uppercase tracking-wide mb-1" style={{ color: color.textMuted }}>
+                    {phone.brand}
+                  </p>
+                  <p className="text-[11px] font-bold leading-tight mb-2 line-clamp-2 min-h-[28px]" style={{ color: color.text }}>
+                    {phone.model_name}
+                  </p>
+                  {phone.price_usd && (
+                    <div className="inline-block px-2 py-0.5 rounded text-[10px] font-bold" style={{ backgroundColor: color.text, color: color.bg }}>
+                      ${phone.price_usd}
+                    </div>
+                  )}
+                </ButtonPressFeedback>
+              </div>
+            ))}
 
-
-
-
-      
-    <div className="min-h-screen" style={{ backgroundColor: color.bg }}>
-      {/* Header */}
-      <div className="sticky top-0 z-30 border-b" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between mb-3">
-            <ButtonPressFeedback 
-              onClick={() => {
-                window.history.replaceState(null, '', window.location.pathname);
-                setView('home');
-              }}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft size={20} style={{ color: color.text }} />
-              <span className="text-base font-bold" style={{ color: color.text }}>Back</span>
-            </ButtonPressFeedback>
-
-            <div className="flex items-center gap-2">
-              <ButtonPressFeedback
-                onClick={shareComparison}
-                className="p-2 rounded-lg transition-all"
-                style={linkCopied ? 
-                  { backgroundColor: color.success, color: color.bg } : 
-                  { backgroundColor: color.borderLight, color: color.text }
-                }
-              >
-                {linkCopied ? <Check size={18} /> : <Share2 size={18} />}
-              </ButtonPressFeedback>
-              
-              <ButtonPressFeedback
-                onClick={() => {
-                  setComparePhones([]);
-                }}
-                className="px-3 py-2 rounded-lg text-xs font-bold transition-all"
-                style={{ backgroundColor: color.borderLight, color: color.text }}
-              >
-                Clear
-              </ButtonPressFeedback>
-
-              {phones.length < 4 && (
+            {phones.length < 4 && (
+              <div className="w-[140px] flex-shrink-0 p-3">
                 <ButtonPressFeedback
                   onClick={() => setShowAddModal(true)}
-                  className="px-3 py-2 rounded-lg flex items-center gap-1 text-xs font-bold transition-all"
-                  style={{ backgroundColor: color.text, color: color.bg }}
+                  className="w-full h-full flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-6"
+                  style={{ borderColor: color.border }}
                 >
-                  <Plus size={16} />
-                  Add
+                  <Plus size={24} style={{ color: color.textMuted }} />
+                  <p className="text-[10px] font-bold mt-2" style={{ color: color.textMuted }}>Add</p>
                 </ButtonPressFeedback>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
-          <div className="text-center">
-            <p className="text-xs font-medium" style={{ color: color.textMuted }}>
-              Swipe to compare • Black = Winner • {phones.length}/4 phones
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Comparison Table */}
-      <div className="relative">
-        {/* Phone Cards Row - Fixed Header */}
-        <div 
-          className="sticky z-20 border-b"
-          style={{ 
-            backgroundColor: color.bg, 
-            borderColor: color.borderLight,
-            top: '73px'
-          }}
-        >
-          <div className="flex">
-            {/* Fixed Label Column */}
-            <div 
-              className="flex items-center justify-center border-r flex-shrink-0"
-              style={{ 
-                backgroundColor: color.bg,
-                borderColor: color.borderLight,
-                width: `${labelWidth}px`,
-                transition: 'width 0.3s ease'
-              }}
-            >
-              <span 
-                className="text-xs font-bold uppercase tracking-wide transition-opacity duration-300"
-                style={{ 
-                  color: color.textMuted,
-                  opacity: showLabels ? 1 : 0
-                }}
-              >
-                {showLabels && 'Specs'}
-              </span>
-            </div>
-
-            {/* Scrollable Phone Cards */}
-            <div 
-              ref={scrollContainerRef}
-              className="flex overflow-x-auto hide-scrollbar"
-            >
-              {phones.map((phone) => (
-                <div 
-                  key={phone.id}
-                  className="w-[140px] flex-shrink-0 p-3 border-r relative"
-                  style={{ borderColor: color.borderLight }}
-                >
-                  <ButtonPressFeedback
-                    onClick={() => removePhone(phone.id)}
-                    className="absolute top-2 right-2 p-1 rounded-full z-10"
-                    style={{ backgroundColor: color.bg, border: `1px solid ${color.border}` }}
-                  >
-                    <X size={12} style={{ color: color.textMuted }} />
-                  </ButtonPressFeedback>
-
-                  <ButtonPressFeedback
-                    onClick={() => handlePhoneClick(phone)}
-                    className="w-full"
-                  >
-                    <div 
-                      className="w-full h-24 rounded-lg flex items-center justify-center mb-2"
-                      style={{ backgroundColor: color.borderLight }}
-                    >
-                      
-                      {phone.main_image_url ? (
-                        <img 
-                          src={phone.main_image_url} 
-                          alt={phone.model_name} 
-                          className="w-full h-full object-contain p-2" 
-                        />
-                      ) : (
-                        <Smartphone size={24} style={{ color: color.textLight }} />
-                      )}
-                    </div>
-
-                    <p className="text-[8px] font-bold uppercase tracking-wide mb-1" style={{ color: color.textMuted }}>
-                      {phone.brand}
-                    </p>
-                    <p className="text-[11px] font-bold leading-tight mb-2 line-clamp-2 min-h-[28px]" style={{ color: color.text }}>
-                      {phone.model_name}
-                    </p>
-                    {phone.price_usd && (
-                      <div className="inline-block px-2 py-0.5 rounded text-[10px] font-bold" style={{ backgroundColor: color.text, color: color.bg }}>
-                        ${phone.price_usd}
-                      </div>
-                    )}
-                  </ButtonPressFeedback>
-                </div>
-              ))}
-
-              {phones.length < 4 && (
-                <div className="w-[140px] flex-shrink-0 p-3">
-                  <ButtonPressFeedback
-                    onClick={() => setShowAddModal(true)}
-                    className="w-full h-full flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-6"
-                    style={{ borderColor: color.border }}
-                  >
-                    <Plus size={24} style={{ color: color.textMuted }} />
-                    <p className="text-[10px] font-bold mt-2" style={{ color: color.textMuted }}>Add</p>
-                  </ButtonPressFeedback>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Specs Rows - Scrollable Content */}
-        <div>
+          {/* Specs Rows */}
           {ROWS.map((row) => {
             const winner = getWinnerIdx(row);
 
@@ -737,9 +598,8 @@ export default function MobileCompare({
                 className="flex border-b"
                 style={{ borderColor: color.borderLight }}
               >
-                {/* Fixed Label Column */}
                 <div 
-                  className="flex items-center gap-2 px-3 py-3 border-r flex-shrink-0"
+                  className="sticky left-0 z-10 flex items-center gap-2 px-3 py-3 border-r flex-shrink-0"
                   style={{ 
                     backgroundColor: color.bg, 
                     borderColor: color.borderLight,
@@ -759,33 +619,30 @@ export default function MobileCompare({
                   </span>
                 </div>
 
-                {/* Scrollable Values */}
-                <div className="flex overflow-x-auto hide-scrollbar">
-                  {phones.map((phone, idx) => {
-                    const isWinner = winner === idx;
-                    const displayVal = row.fmt(phone);
+                {phones.map((phone, idx) => {
+                  const isWinner = winner === idx;
+                  const displayVal = row.fmt(phone);
 
-                    return (
-                      <div 
-                        key={phone.id}
-                        className="w-[140px] flex-shrink-0 px-2 py-3 flex items-center justify-center border-r"
-                        style={{ 
-                          borderColor: color.border,
-                          backgroundColor: isWinner ? color.bgInverse : color.bg,
-                          color: isWinner ? color.textInverse : color.text
-                        }}
-                      >
-                        <span className={`text-[11px] text-center ${isWinner ? 'font-bold' : 'font-semibold'}`}>
-                          {displayVal}
-                        </span>
-                      </div>
-                    );
-                  })}
+                  return (
+                    <div 
+                      key={phone.id}
+                      className="w-[140px] flex-shrink-0 px-2 py-3 flex items-center justify-center border-r"
+                      style={{ 
+                        borderColor: color.border,
+                        backgroundColor: isWinner ? color.bgInverse : color.bg,
+                        color: isWinner ? color.textInverse : color.text
+                      }}
+                    >
+                      <span className={`text-[11px] text-center ${isWinner ? 'font-bold' : 'font-semibold'}`}>
+                        {displayVal}
+                      </span>
+                    </div>
+                  );
+                })}
 
-                  {phones.length < 4 && (
-                    <div className="w-[140px] flex-shrink-0" />
-                  )}
-                </div>
+                {phones.length < 4 && (
+                  <div className="w-[140px] flex-shrink-0" />
+                )}
               </div>
             );
           })}
@@ -818,14 +675,19 @@ export default function MobileCompare({
       )}
 
       <style jsx>{`
+ 
         .hide-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
         }
         .hide-scrollbar::-webkit-scrollbar {
+        
           display: none;
         }
       `}</style>
     </div>
   );
 }
+              
+
+
