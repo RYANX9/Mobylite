@@ -13,6 +13,8 @@ export const API_ENDPOINTS = {
   phones: {
     search: "/phones/search",
     detail: (id: number) => `/phones/${id}`,
+    bySlug: (brand: string, model: string) => `/phones/slug/${brand}/${model}`, // NEW
+    compareBySlug: (slugs: string) => `/phones/compare-by-slug/${slugs}`, // NEW
     latest: "/phones/latest",
     recommend: "/phones/recommend",
     compare: "/phones/compare",
@@ -50,6 +52,12 @@ export const createPhoneSlug = (phone: { brand: string; model_name: string }) =>
 
 export const parsePhoneSlug = (slug: string): string => {
   return slug.split('-').join(' ');
+};
+
+// Helper function for creating compare URLs
+export const createCompareUrl = (phones: Array<{brand: string, model_name: string}>) => {
+  const slugs = phones.map(p => createPhoneSlug(p)).join('-vs-');
+  return `/compare/${slugs}`;
 };
 
 export const APP_ROUTES = {
