@@ -491,6 +491,74 @@ export default function MobileCompare({
           </div>
         </div>
       </div>
+      {* Scrollable Container */}
+      <div 
+        ref={scrollContainerRef}
+        className="overflow-x-auto hide-scrollbar"
+      >
+        <div className="inline-block min-w-full">
+          {/* Phone Cards Row */}
+          <div 
+            className="flex sticky z-20 border-b"
+            style={{ 
+              backgroundColor: color.bg, 
+              borderColor: color.borderLight,
+              top: '73px'
+            }}
+          >
+            <div 
+              className="sticky left-0 z-10 flex items-center justify-center border-r flex-shrink-0"
+              style={{ 
+                backgroundColor: color.bg,
+                borderColor: color.borderLight,
+                width: `${labelWidth}px`,
+                transition: 'width 0.3s ease'
+              }}
+            >
+              <span 
+                className="text-xs font-bold uppercase tracking-wide transition-opacity duration-300"
+                style={{ 
+                  color: color.textMuted,
+                  opacity: showLabels ? 1 : 0
+                }}
+              >
+                {showLabels && 'Specs'}
+              </span>
+            </div>
+
+            {phones.map((phone) => (
+              <div 
+                key={phone.id}
+                className="w-[140px] flex-shrink-0 p-3 border-r relative"
+                style={{ borderColor: color.borderLight }}
+              >
+                <ButtonPressFeedback
+                  onClick={() => removePhone(phone.id)}
+                  className="absolute top-2 right-2 p-1 rounded-full z-10"
+                  style={{ backgroundColor: color.bg, border: `1px solid ${color.border}` }}
+                >
+                  <X size={12} style={{ color: color.textMuted }} />
+                </ButtonPressFeedback>
+
+                <ButtonPressFeedback
+                  onClick={() => handlePhoneClick(phone)}
+                  className="w-full"
+                >
+                  <div 
+                    className="w-full h-24 rounded-lg flex items-center justify-center mb-2"
+                    style={{ backgroundColor: color.borderLight }}
+                  >
+                    {phone.main_image_url ? (
+                      <img 
+                        src={phone.main_image_url} 
+                        alt={phone.model_name} 
+                        className="w-full h-full object-contain p-2" 
+                      />
+                    ) : (
+                      <Smartphone size={24} style={{ color: color.textLight }} />
+                    )}
+
+                    
 
 
 
