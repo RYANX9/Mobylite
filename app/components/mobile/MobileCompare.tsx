@@ -431,7 +431,71 @@ export default function MobileCompare({
 
   const labelWidth = showLabels ? 120 : 56;
 
+
   return (
+    <div className="min-h-screen" style={{ backgroundColor: color.bg }}>
+      {/* Header */}
+      <div className="sticky top-0 z-30 border-b" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between mb-3">
+            <ButtonPressFeedback 
+              onClick={() => {
+                window.history.replaceState(null, '', window.location.pathname);
+                setView('home');
+              }}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft size={20} style={{ color: color.text }} />
+              <span className="text-base font-bold" style={{ color: color.text }}>Back</span>
+            </ButtonPressFeedback>
+
+            <div className="flex items-center gap-2">
+              <ButtonPressFeedback
+                onClick={shareComparison}
+                className="p-2 rounded-lg transition-all"
+                style={linkCopied ? 
+                  { backgroundColor: color.success, color: color.bg } : 
+                  { backgroundColor: color.borderLight, color: color.text }
+                }
+              >
+                {linkCopied ? <Check size={18} /> : <Share2 size={18} />}
+              </ButtonPressFeedback>
+              
+              <ButtonPressFeedback
+                onClick={() => {
+                  setComparePhones([]);
+                }}
+                className="px-3 py-2 rounded-lg text-xs font-bold transition-all"
+                style={{ backgroundColor: color.borderLight, color: color.text }}
+              >
+                Clear
+              </ButtonPressFeedback>
+
+              {phones.length < 4 && (
+                <ButtonPressFeedback
+                  onClick={() => setShowAddModal(true)}
+                  className="px-3 py-2 rounded-lg flex items-center gap-1 text-xs font-bold transition-all"
+                  style={{ backgroundColor: color.text, color: color.bg }}
+                >
+                  <Plus size={16} />
+                  Add
+                </ButtonPressFeedback>
+              )}
+            </div>
+          </div>
+
+          <div className="text-center">
+            <p className="text-xs font-medium" style={{ color: color.textMuted }}>
+              Swipe to compare • Black = Winner • {phones.length}/4 phones
+            </p>
+          </div>
+        </div>
+      </div>
+
+
+
+
+      
     <div className="min-h-screen" style={{ backgroundColor: color.bg }}>
       {/* Header */}
       <div className="sticky top-0 z-30 border-b" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
