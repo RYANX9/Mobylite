@@ -265,7 +265,7 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
           </h3>
           {phone.release_date_full && (
             <p className="text-[10px] mb-2" style={{ color: color.textLight }}>
-              {phone.release_date_full}
+              {phone.release_date_full.replace(/Released\s+/i, '')}
             </p>
           )}
           {phone.price_usd ? (
@@ -275,7 +275,7 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
           )}
         </div>
       </ButtonPressFeedback>
-      <div className="px-5 pb-5 flex gap-2">
+      <div className="px-5 pb-5 flex gap-2 justify-center">
         <ButtonPressFeedback
           onClick={(e) => {
             e.stopPropagation();
