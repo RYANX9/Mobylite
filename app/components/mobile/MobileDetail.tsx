@@ -1,35 +1,71 @@
-// app\components\mobile\MobileDetail.tsx
+// app/components/mobile/MobileDetail.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
 import {
   Camera, Battery, Bolt, Smartphone, ArrowLeft, Heart, Maximize2, 
-  Plus, Cpu, MemoryStick, HardDrive, Search, Monitor, Zap, 
+  Cpu, MemoryStick, HardDrive, Search, Monitor, Zap, 
   Video, Wifi, Weight, Ruler, Calendar, Award, Signal, Volume2, Info, Package, Bell,
-  ChevronDown, ChevronUp, GitCompare, Star, X, TrendingUp, Users
+  ChevronDown, ChevronUp, Star, Users, TrendingUp
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Phone, Review, Favorite } from '@/lib/types';
+import { Phone, Favorite } from '@/lib/types';
 import { API_BASE_URL, APP_ROUTES } from '@/lib/config';
 import { api } from '@/lib/api';
 import { cleanHTMLText } from '@/lib/utils';
 import { isAuthenticated, getAuthToken } from '@/lib/auth';
+import { extractCleanSpecs } from '@/lib/cleanSpecExtractor';
 import { ButtonPressFeedback } from '@/app/components/shared/ButtonPressFeedback';
 import { ReviewSection } from '@/app/components/shared/ReviewSection';
-import { color, font } from '@/lib/tokens';
-import { createPhoneSlug } from '@/lib/config';
+import { HorizontalPhoneScroll } from '@/app/components/shared/HorizontalPhoneScroll';
+import { UserMenu } from '@/app/components/shared/UserMenu';
 import { PriceAlertModal } from '@/app/components/shared/PriceAlertModal';
 import { CompareFloatingPanel } from '@/app/components/shared/CompareFloatingPanel';
-import { RatingsSummary } from '@/app/components/shared/RatingsSummary';
-import { UserMenu } from './UserMenu';
+import { color, font } from '@/lib/tokens';
+import { createPhoneSlug } from '@/lib/config';
 
 interface MobileDetailProps {
   phone: Phone;
-  setView: (view: string) => void;
-  setComparePhones: (phones: Phone[]) => void;
-  setSelectedPhone: (phone: Phone) => void;
+  initialReviews?: any[];
+  initialStats?: any;
 }
 
-export default function MobileDetail({ phone, setView, setComparePhones, setSelectedPhone }: MobileDetailProps) {
+const ICON_MAP: Record<string, any> = {
+  '📱': Maximize2,
+  '☀️': Zap,
+  '🔧': Cpu,
+  '📷': Camera,
+  '🔍': Search,
+  '🤳': Camera,
+  '🔋': Battery,
+  '💾': MemoryStick,
+  '📂': HardDrive,
+  '🏗️': Package,
+  '📡': Wifi,
+  '⚡': Bolt,
+  '📏': Ruler,
+  '🔘': Info,
+  '✏️': Info,
+  '🛰️': Signal,
+  '💰': Info,
+  '📸': Camera,
+  '🔭': Video,
+  '🔬': Camera,
+};
+
+const SPEC_TOOLTIPS: Record<string, { layman: string; nerd: string }> = {
+  'Display': { layman: 'Screen size and type', nerd: 'Display diagonal, resolution, and panel technology' },
+  'Chipset': { layman: 'Brain of the phone', nerd: 'System on Chip processor' },
+  'RAM': { layman: 'Memory for running apps', nerd: 'LPDDR5/5X RAM capacity' },
+  'Storage': { layman: 'Space for files', nerd: 'UFS 3.1/4.0 storage' },
+  'Camera': { layman: 'Photo quality', nerd: 'Main sensor resolution' },
+  'Video': { layman: 'Video quality', nerd: 'Max video resolution' },
+  'Battery': { layman: 'Battery life', nerd: 'Battery capacity' },
+  'Charging': { layman: 'Charging speed', nerd: 'Max charging power' },
+  'Weight': { layman: 'Device weight', nerd: 'Total weight in grams' },
+  'AnTuTu': { layman: 'Performance score', nerd: 'AnTuTu benchmark' },
+};
+
+export default function MobileDetail({ phone, initialReviews, initialStats }: MobileDetailProps) {
   const router = useRouter();
   const [isExpertMode, setIsExpertMode] = useState(false);
   const [similarPhones, setSimilarPhones] = useState<Phone[]>([]);
@@ -37,13 +73,12 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
   const [comparisonCounts, setComparisonCounts] = useState<{ [key: number]: number }>({});
   const [isFavorite, setIsFavorite] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [phoneStats, setPhoneStats] = useState<any>(null);
+  const [phoneStats, setPhoneStats] = useState<any>(initialStats || null);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Launch', 'Body', 'Display']));
   const [expandedSpec, setExpandedSpec] = useState<number | null>(null);
   const [compareList, setCompareList] = useState<Phone[]>([]);
 
-  // Check if phone is in user's favorites
   useEffect(() => {
     const checkFavorite = async () => {
       if (!isAuthenticated()) return;
@@ -60,9 +95,8 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
   useEffect(() => {
     fetchSimilarPhones();
     fetchAlsoComparedWith();
-    fetchPhoneStats();
+    if (!initialStats) fetchPhoneStats();
     
-    // Add to view history
     if (isAuthenticated()) {
       fetch(`${API_BASE_URL}/history/views`, {
         method: 'POST',
@@ -109,25 +143,19 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
 
   const fetchSimilarPhones = async () => {
     try {
-      const params: any = {
-        page_size: 30,
-      };
+      const params: any = { page_size: 30 };
       
       if (phone.price_usd) {
-        const minPrice = Math.floor(phone.price_usd * 0.7);
-        const maxPrice = Math.ceil(phone.price_usd * 1.3);
-        params.min_price = minPrice;
-        params.max_price = maxPrice;
+        params.min_price = Math.floor(phone.price_usd * 0.7);
+        params.max_price = Math.ceil(phone.price_usd * 1.3);
       }
       
       if (phone.ram_options && phone.ram_options.length > 0) {
-        const avgRam = Math.max(...phone.ram_options);
-        params.min_ram = Math.max(avgRam - 2, 4);
+        params.min_ram = Math.max(Math.max(...phone.ram_options) - 2, 4);
       }
       
       if (phone.storage_options && phone.storage_options.length > 0) {
-        const avgStorage = Math.max(...phone.storage_options);
-        params.min_storage = Math.max(avgStorage / 2, 64);
+        params.min_storage = Math.max(Math.max(...phone.storage_options) / 2, 64);
       }
       
       if (phone.release_year) {
@@ -143,13 +171,10 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
           if (p.brand === phone.brand) score += 40;
           if (phone.price_usd && p.price_usd) {
             const priceDiff = Math.abs(phone.price_usd - p.price_usd);
-            const priceScore = Math.max(0, 25 - (priceDiff / phone.price_usd) * 25);
-            score += priceScore;
+            score += Math.max(0, 25 - (priceDiff / phone.price_usd) * 25);
           }
           if (phone.ram_options && p.ram_options && phone.ram_options.length && p.ram_options.length) {
-            const phoneRam = Math.max(...phone.ram_options);
-            const pRam = Math.max(...p.ram_options);
-            const ramDiff = Math.abs(phoneRam - pRam);
+            const ramDiff = Math.abs(Math.max(...phone.ram_options) - Math.max(...p.ram_options));
             if (ramDiff === 0) score += 15;
             else if (ramDiff <= 2) score += 10;
             else if (ramDiff <= 4) score += 5;
@@ -176,23 +201,8 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
       setSimilarPhones(scoredPhones);
     } catch (error) {
       console.error('Error fetching similar phones:', error);
+      setSimilarPhones([]);
     }
-  };
-
-  const handleStartCompare = () => {
-    if (isAuthenticated()) {
-      fetch(`${API_BASE_URL}/comparisons`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`
-        },
-        body: JSON.stringify({ phoneIds: [phone.id] })
-      }).catch(console.error);
-    }
-    
-    const phoneSlug = createPhoneSlug(phone);
-    router.push(APP_ROUTES.compare([phoneSlug]));
   };
 
   const handleCompareWithPhone = async (comparePhone: Phone) => {
@@ -244,74 +254,31 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
     }
   };
 
-  const simpleSpecs = [
-    { 
-      icon: Cpu, 
-      label: 'Chipset', 
-      value: phone.chipset || 'N/A',
-      tooltip: { layman: 'Brain of the phone', nerd: 'System on Chip processor' }
-    },
-    {
-      icon: MemoryStick,
-      label: 'RAM',
-      value: phone.ram_options && phone.ram_options.length > 0 ? phone.ram_options.join(' / ') + ' GB' : 'N/A',
-      tooltip: { layman: 'Memory for running apps', nerd: 'LPDDR5/5X RAM capacity' }
-    },
-    {
-      icon: HardDrive,
-      label: 'Storage',
-      value: phone.storage_options && phone.storage_options.length > 0 ? phone.storage_options.join(' / ') + ' GB' : 'N/A',
-      tooltip: { layman: 'Space for files', nerd: 'UFS 3.1/4.0 storage' }
-    },
-    { 
-      icon: Maximize2, 
-      label: 'Display', 
-      value: phone.screen_size ? `${phone.screen_size}" ${phone.screen_resolution || ''}` : 'N/A',
-      tooltip: { layman: 'Screen size', nerd: 'Display diagonal and resolution' }
-    },
-    { 
-      icon: Camera, 
-      label: 'Camera', 
-      value: phone.main_camera_mp ? `${phone.main_camera_mp}MP` : 'N/A',
-      tooltip: { layman: 'Photo quality', nerd: 'Main sensor resolution' }
-    },
-    { 
-      icon: Video, 
-      label: 'Video', 
-      value: phone.video_resolution || 'N/A',
-      tooltip: { layman: 'Video quality', nerd: 'Max video resolution' }
-    },
-    { 
-      icon: Battery, 
-      label: 'Battery', 
-      value: phone.battery_capacity ? `${phone.battery_capacity} mAh` : 'N/A',
-      tooltip: { layman: 'Battery life', nerd: 'Battery capacity' }
-    },
-    { 
-      icon: Bolt, 
-      label: 'Charging', 
-      value: phone.fast_charging_w ? `${phone.fast_charging_w}W` : 'N/A',
-      tooltip: { layman: 'Charging speed', nerd: 'Max charging power' }
-    },
-    {
-      icon: Weight,
-      label: 'Weight',
-      value: phone.weight_g ? `${phone.weight_g}g` : 'N/A',
-      tooltip: { layman: 'Device weight', nerd: 'Total weight in grams' }
-    },
-    {
-      icon: Ruler,
-      label: 'Thickness',
-      value: phone.thickness_mm ? `${phone.thickness_mm}mm` : 'N/A',
-      tooltip: { layman: 'How thin it is', nerd: 'Device thickness' }
-    },
-    {
-      icon: Award,
-      label: 'AnTuTu',
-      value: phone.antutu_score || 'N/A',
-      tooltip: { layman: 'Performance score', nerd: 'AnTuTu benchmark' }
-    }
-  ];
+  const cleanSpecs = extractCleanSpecs(phone);
+  const simpleSpecs = cleanSpecs
+    .filter(spec => !['Price'].includes(spec.label))
+    .map(spec => {
+      // Extract category name for camera specs
+      let categoryLabel = spec.label;
+      
+      // Map camera types to their category names
+      if (spec.label.includes('Wide') && !spec.label.includes('Ultrawide')) {
+        categoryLabel = 'Main Camera';
+      } else if (spec.label.includes('Ultrawide')) {
+        categoryLabel = 'Ultrawide Camera';
+      } else if (spec.label.includes('Telephoto') || spec.label.includes('Periscope')) {
+        categoryLabel = 'Telephoto Camera';
+      }
+      
+      const IconComponent = ICON_MAP[spec.icon] || Info;
+      
+      return {
+        icon: IconComponent,
+        label: categoryLabel,
+        value: spec.value,
+        tooltip: SPEC_TOOLTIPS[categoryLabel] || SPEC_TOOLTIPS[spec.label]
+      };
+    });
 
   const getIconForCategory = (category: string) => {
     const icons: { [key: string]: any } = {
@@ -358,18 +325,11 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
     setExpandedSpec(expandedSpec === index ? null : index);
   };
 
-  const containerBgStyle: React.CSSProperties = {
-    backgroundColor: color.bg,
-  };
-
-  const navbarBgStyle: React.CSSProperties = {
-    backgroundColor: color.bg,
-    borderColor: color.borderLight,
-  };
+  const containerBgStyle: React.CSSProperties = { backgroundColor: color.bg };
+  const navbarBgStyle: React.CSSProperties = { backgroundColor: color.bg, borderColor: color.borderLight };
 
   return (
     <div className="min-h-screen" style={containerBgStyle}>
-      {/* Sticky Header with UserMenu */}
       <div className="sticky top-0 z-40 border-b" style={navbarBgStyle}>
         <div className="px-4 py-3">
           <div className="flex items-center justify-between gap-3">
@@ -411,16 +371,14 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
                 />
               </ButtonPressFeedback>
               
-              <UserMenu />
+              <UserMenu variant="mobile" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Compact Hero Section - Image left, text right */}
       <div className="px-4 py-6">
         <div className="flex items-start gap-4 mb-4">
-          {/* Smaller image on left */}
           <div 
             className="w-24 h-24 rounded-xl flex items-center justify-center overflow-hidden border flex-shrink-0"
             style={{ backgroundColor: color.borderLight, borderColor: color.borderLight }}
@@ -432,7 +390,6 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
             )}
           </div>
           
-          {/* Text and info on right - left aligned */}
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: color.textMuted }}>
               {phone.brand}
@@ -444,7 +401,6 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
               {phone.model_name}
             </h1>
             
-            {/* Price under title */}
             {phone.price_usd && (
               <div className="mb-2 text-left">
                 <p className="text-xs font-bold mb-1" style={{ color: color.textMuted }}>PRICE</p>
@@ -462,7 +418,6 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
               </div>
             )}
             
-            {/* Single, smaller rating section using RatingsSummary */}
             {phoneStats && (
               <div className="mb-1">
                 {phoneStats.average_rating > 0 ? (
@@ -491,7 +446,6 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
           </div>
         </div>
         
-        {/* Buy on Amazon on top */}
         {phone.amazon_link && (
           <ButtonPressFeedback onClick={() => window.open(phone.amazon_link, '_blank')} className="w-full mb-3">
             <div className="w-full py-4 text-center font-bold rounded-xl text-sm" style={{ backgroundColor: color.primary, color: color.primaryText }}>
@@ -500,7 +454,6 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
           </ButtonPressFeedback>
         )}
         
-        {/* Buttons row - Visit Brand Site and Set Price Alert side by side */}
         <div className="flex gap-3">
           {phone.brand_link && (
             <ButtonPressFeedback onClick={() => window.open(phone.brand_link, '_blank')} className="flex-1">
@@ -521,7 +474,6 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
         </div>
       </div>
 
-      {/* Specs Toggle */}
       <div className="px-4 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 
@@ -536,18 +488,14 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
           >
             <button
               onClick={() => setIsExpertMode(false)}
-              className={`px-4 py-2 text-xs font-bold rounded-full ${
-                !isExpertMode ? 'shadow-sm' : ''
-              }`}
+              className={`px-4 py-2 text-xs font-bold rounded-full ${!isExpertMode ? 'shadow-sm' : ''}`}
               style={!isExpertMode ? { backgroundColor: color.bg, color: color.text } : { color: color.textMuted }}
             >
               SIMPLE
             </button>
             <button
               onClick={() => setIsExpertMode(true)}
-              className={`px-4 py-2 text-xs font-bold rounded-full ${
-                isExpertMode ? 'shadow-sm' : ''
-              }`}
+              className={`px-4 py-2 text-xs font-bold rounded-full ${isExpertMode ? 'shadow-sm' : ''}`}
               style={isExpertMode ? { backgroundColor: color.bg, color: color.text } : { color: color.textMuted }}
             >
               EXPERT
@@ -592,7 +540,6 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
                     </p>
                   </ButtonPressFeedback>
                   
-                  {/* Expanded Details */}
                   {isExpanded && spec.tooltip && (
                     <div className="px-4 pb-4 border-t" style={{ borderColor: color.borderLight }}>
                       <div className="mt-3 space-y-3 text-left">
@@ -616,7 +563,7 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
             {(() => {
               const categoryOrder = [
                 'Launch','Body', 'Display', 'Platform', 'Memory', 'Main Camera', 
-                'Selfie camera', 'Selfie Camera','Battery', 'Comms', 'Sound', 
+                'Selfie camera','Battery', 'Comms', 'Sound', 
                 'Features',  'Network', 'Misc',  'Our Tests'
               ];
               
@@ -662,29 +609,26 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
                     {isExpanded && (
                       <div className="p-4" style={{ backgroundColor: color.bg }}>
                         <div className="space-y-3">
-                            {Object.entries(specs).map(([key, value]) => (
-                              <div 
-                                key={key} 
-                                className="grid grid-cols-12 py-3 border-b last:border-0 items-start" 
-                                style={{ borderColor: color.borderLight }}
+                          {Object.entries(specs).map(([key, value]) => (
+                            <div 
+                              key={key} 
+                              className="grid grid-cols-12 py-3 border-b last:border-0 items-start" 
+                              style={{ borderColor: color.borderLight }}
+                            >
+                              <span 
+                                className="col-span-4 text-xs font-bold uppercase tracking-wide pr-4" 
+                                style={{ color: color.textMuted }}
                               >
-                                {/* Label Column - spans 4 of 12 columns */}
-                                <span 
-                                  className="col-span-4 text-xs font-bold uppercase tracking-wide pr-4" 
-                                  style={{ color: color.textMuted }}
-                                >
-                                  {key}
-                                </span>
-                                
-                                {/* Value Column - spans 8 of 12 columns */}
-                                <span 
-                                  className="col-span-8 text-xs font-medium leading-relaxed text-left" 
-                                  style={{ color: color.text }}
-                                >
-                                  {formatSpecValue(value)}
-                                </span>
-                              </div>
-                            ))}
+                                {key}
+                              </span>
+                              <span 
+                                className="col-span-8 text-xs font-medium leading-relaxed text-left" 
+                                style={{ color: color.text }}
+                              >
+                                {formatSpecValue(value)}
+                              </span>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -696,7 +640,6 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
         )}
       </div>
 
-      {/* Similar Phones */}
       {similarPhones.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center gap-2 px-4 mb-4">
@@ -708,15 +651,16 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
               Similar Phones
             </h3>
           </div>
-          <MobileHorizontalPhoneScroll
+          <HorizontalPhoneScroll
+            title=""
             phones={similarPhones}
             onPhoneClick={handlePhoneClick}
             onCompareClick={handleCompareWithPhone}
+            variant="mobile"
           />
         </div>
       )}
 
-      {/* Also Compared With */}
       {alsoComparedWith.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center gap-2 px-4 mb-4">
@@ -731,17 +675,18 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
           <p className="px-4 text-xs mb-4" style={{ color: color.textMuted }}>
             {comparisonCounts[alsoComparedWith[0]?.id]?.toLocaleString() || 0}+ users compared these phones
           </p>
-          <MobileHorizontalPhoneScroll
+          <HorizontalPhoneScroll
+            title=""
             phones={alsoComparedWith}
             onPhoneClick={handlePhoneClick}
             onCompareClick={handleCompareWithPhone}
             showComparisonCount={true}
             comparisonCounts={comparisonCounts}
+            variant="mobile"
           />
         </div>
       )}
 
-      {/* Reviews Section - Only ReviewSection, no duplicate RatingsSummary */}
       <div className="px-4 pb-20">
         <div className="flex items-center gap-2 mb-4">
           <Star size={20} style={{ color: color.text }} />
@@ -752,7 +697,6 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
         <ReviewSection phoneId={phone.id} variant="mobile" />
       </div>
 
-      {/* Compare Floating Panel */}
       <CompareFloatingPanel
         compareList={compareList}
         onRemove={(id) => setCompareList(prev => prev.filter(p => p.id !== id))}
@@ -763,89 +707,12 @@ export default function MobileDetail({ phone, setView, setComparePhones, setSele
         }}
         variant="mobile"
       />
+
+      <PriceAlertModal
+        show={showPriceAlert}
+        onClose={() => setShowPriceAlert(false)}
+        phone={phone}
+      />
     </div>
   );
 }
-
-// Mobile-optimized horizontal scroll component
-interface MobileHorizontalPhoneScrollProps {
-  phones: Phone[];
-  onPhoneClick: (phone: Phone) => void;
-  onCompareClick: (phone: Phone) => void;
-  showComparisonCount?: boolean;
-  comparisonCounts?: { [key: number]: number };
-}
-
-const MobileHorizontalPhoneScroll: React.FC<MobileHorizontalPhoneScrollProps> = ({
-  phones,
-  onPhoneClick,
-  onCompareClick,
-  showComparisonCount,
-  comparisonCounts
-}) => {
-  return (
-    <div className="flex gap-4 overflow-x-auto px-4 pb-4 scrollbar-hide">
-      {phones.map((phone) => (
-        <div 
-          key={phone.id}
-          className="flex-shrink-0 w-56 rounded-xl overflow-hidden border"
-          style={{ backgroundColor: color.borderLight, borderColor: color.borderLight }}
-        >
-          <ButtonPressFeedback
-            onClick={() => onPhoneClick(phone)}
-            className="w-full"
-          >
-            <div 
-              className="h-40 flex items-center justify-center border-b"
-              style={{ background: `linear-gradient(135deg, ${color.borderLight} 0%, ${color.bg} 50%)`, borderColor: color.borderLight }}
-            >
-              {phone.main_image_url ? (
-                <img
-                  src={phone.main_image_url}
-                  alt={phone.model_name}
-                  className="w-full h-full object-contain p-4"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-              ) : (
-                <Smartphone size={48} style={{ color: color.textLight, opacity: 0.7 }} />
-              )}
-            </div>
-            <div className="p-3">
-              <p className="text-xs font-bold mb-1 truncate" style={{ color: color.textMuted }}>
-                {phone.brand}
-              </p>
-              <h4 className="text-sm font-bold mb-2 line-clamp-2" style={{ color: color.text }}>
-                {phone.model_name}
-              </h4>
-              {phone.price_usd && (
-                <p className="text-base font-bold" style={{ color: color.text, fontFamily: font.numeric }}>
-                  ${phone.price_usd.toLocaleString()}
-                </p>
-              )}
-            </div>
-          </ButtonPressFeedback>
-          
-          <div className="px-3 pb-3">
-            <ButtonPressFeedback
-              onClick={(e) => {
-                e.stopPropagation();
-                onCompareClick(phone);
-              }}
-              className="w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
-              style={{ backgroundColor: color.bg, color: color.text, border: `1px solid ${color.border}` }}
-            >
-              <GitCompare size={14} />
-              Compare
-            </ButtonPressFeedback>
-            
-            {showComparisonCount && comparisonCounts && (
-              <p className="text-[10px] text-center mt-1" style={{ color: color.textMuted }}>
-                {comparisonCounts[phone.id]?.toLocaleString() || 0} comparisons
-              </p>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};

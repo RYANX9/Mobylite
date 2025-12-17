@@ -1,18 +1,14 @@
-// ./app/login/LoginForm.tsx
+// app/login/LoginForm.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { TrendingDown, GitCompare, Star, ArrowRight, Eye, EyeOff } from 'lucide-react';
-import { FcGoogle } from 'react-icons/fc';
-
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { APP_ROUTES } from '@/lib/config';
 import { color, font } from '@/lib/tokens';
+import { FcGoogle } from 'react-icons/fc';
 
-/* ------------------------------------------------------------------ */
-/* Types                                                              */
-/* ------------------------------------------------------------------ */
 interface LoginFormProps {
   redirectUrl: string;
 }
@@ -23,18 +19,13 @@ declare global {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Component                                                          */
-/* ------------------------------------------------------------------ */
 export default function LoginForm({ redirectUrl }: LoginFormProps) {
   const router = useRouter();
   const { user, loading: authLoading, login, googleLogin } = useAuth();
 
-  /* ----- local state ---------------------------------------------- */
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -45,9 +36,6 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
     displayName: '',
   });
 
-  const [googleReady, setGoogleReady] = useState(false);
-
-  /* ----- derived state -------------------------------------------- */
   const passwordRequirements = {
     minLength: formData.password.length >= 8,
     hasUpper: /[A-Z]/.test(formData.password),
@@ -55,17 +43,15 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
     hasNumber: /[0-9]/.test(formData.password),
   };
 
-  const passwordsMatch =
-    formData.password === formData.confirmPassword && formData.confirmPassword.length > 0;
+  const passwordsMatch = formData.password === formData.confirmPassword && formData.confirmPassword.length > 0;
+  const allRequirementsMet = Object.values(passwordRequirements).every(req => req);
 
-  const allRequirementsMet = Object.values(passwordRequirements).every(Boolean);
-
-  /* ----- effects -------------------------------------------------- */
   useEffect(() => {
-    if (!authLoading && user) router.replace(redirectUrl);
+    if (!authLoading && user) {
+      router.replace(redirectUrl);
+    }
   }, [user, authLoading, router, redirectUrl]);
 
-  /* Google One-Tap script */
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
@@ -74,44 +60,47 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
     document.body.appendChild(script);
 
     script.onload = () => {
-      if (!window.google) return;
-      window.google.accounts.id.initialize({
-        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
-        callback: handleGoogleResponse,
-      });
-      window.google.accounts.id.renderButton(
-        document.getElementById('hiddenGoogleButton')!,
-        {
-          theme: 'outline',
-          size: 'large',
-          width: '100%',
-          text: 'signin_with',
-          shape: 'rectangular',
-        }
-      );
-      setGoogleReady(true);
+      if (window.google) {
+        window.google.accounts.id.initialize({
+          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+          callback: handleGoogleResponse,
+        });
+
+        window.google.accounts.id.renderButton(
+          document.getElementById('googleSignInButton'),
+          {
+            theme: 'outline',
+            size: 'large',
+            width: '100%',
+            text: isLogin ? 'signin_with' : 'signup_with',
+            shape: 'rectangular',
+          }
+        );
+      }
     };
 
     return () => {
-      if (document.body.contains(script)) document.body.removeChild(script);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isLogin]);
 
-  /* ----- handlers ------------------------------------------------- */
   const handleGoogleResponse = async (response: any) => {
     setLoading(true);
     setError('');
+
     try {
       await googleLogin(response.credential);
-
-      const returnUrl =
-        typeof window !== 'undefined'
-          ? sessionStorage.getItem('returnUrl') || APP_ROUTES.home
-          : APP_ROUTES.home;
-
-      if (typeof window !== 'undefined') sessionStorage.removeItem('returnUrl');
-
+      
+      const returnUrl = typeof window !== 'undefined' 
+        ? sessionStorage.getItem('returnUrl') || APP_ROUTES.home 
+        : APP_ROUTES.home;
+      
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('returnUrl');
+      }
+      
       router.replace(returnUrl);
     } catch (err: any) {
       setError(err.message || 'Google authentication failed');
@@ -122,8 +111,10 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
     if (loading) return;
-
+    
     setLoading(true);
     setError('');
 
@@ -141,19 +132,16 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
     }
 
     try {
-      await login(
-        formData.email,
-        formData.password,
-        isLogin ? undefined : formData.displayName
-      );
-
-      const returnUrl =
-        typeof window !== 'undefined'
-          ? sessionStorage.getItem('returnUrl') || APP_ROUTES.home
-          : APP_ROUTES.home;
-
-      if (typeof window !== 'undefined') sessionStorage.removeItem('returnUrl');
-
+      await login(formData.email, formData.password, isLogin ? undefined : formData.displayName);
+      
+      const returnUrl = typeof window !== 'undefined' 
+        ? sessionStorage.getItem('returnUrl') || APP_ROUTES.home 
+        : APP_ROUTES.home;
+      
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('returnUrl');
+      }
+      
       router.replace(returnUrl);
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
@@ -162,14 +150,10 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
     }
   };
 
-  /* ----- render --------------------------------------------------- */
   if (authLoading) {
     return (
       <div className="h-screen flex items-center justify-center" style={{ backgroundColor: color.bg }}>
-        <div
-          className="animate-spin w-8 h-8 border-4 rounded-full border-t-transparent"
-          style={{ borderColor: color.border }}
-        />
+        <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full" style={{ borderColor: color.border }} />
       </div>
     );
   }
@@ -177,18 +161,18 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
   return (
     <div className="min-h-screen" style={{ backgroundColor: color.bg }}>
       <div className="flex flex-col lg:flex-row lg:h-screen">
-        {/* --------------- LEFT (hero) ---------------- */}
+        
         <div
           className="order-2 lg:order-1 w-full lg:w-1/2 p-12 flex flex-col justify-between relative overflow-hidden"
           style={{ backgroundColor: color.bgInverse, minHeight: '100vh' }}
         >
-          {/* decorative logos */}
           <img
             src="/logo.svg"
             alt="Decorative logo"
             className="absolute -top-35 -right-48 w-96 h-96 opacity-30"
             style={{ filter: 'invert(1)' }}
           />
+
           <img
             src="/logo.svg"
             alt="Decorative logo"
@@ -199,11 +183,11 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-40">
               <img src="/logo.svg" alt="Mobylite" className="w-10 h-10 invert" />
-              <span
-                className="text-xl font-bold tracking-tight logo-heading-override"
+              <span 
+                className="text-xl font-bold tracking-tight logo-heading-override" 
                 style={{ color: color.primaryText }}
-              >
-                Mobylite
+              > 
+              Mobylite
               </span>
             </div>
 
@@ -211,27 +195,23 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
               className="text-4xl font-bold tracking-tight leading-tight mb-4"
               style={{ fontFamily: font.primary, color: color.primaryText }}
             >
-              Your next phone, <br /> perfectly chosen.
+              Your next phone,
+              <br />
+              perfectly chosen.
             </h1>
-
+            
             <div className="flex flex-col gap-4 mb-8 max-w-xs">
               <div className="flex items-center gap-3">
                 <GitCompare size={18} style={{ color: color.primaryText, opacity: 0.8 }} />
-                <span className="text-sm font-medium" style={{ color: color.primaryText, opacity: 0.8 }}>
-                  Compare side-by-side
-                </span>
+                <span className="text-sm font-medium" style={{ color: color.primaryText, opacity: 0.8 }}>Compare side-by-side</span>
               </div>
               <div className="flex items-center gap-3">
                 <TrendingDown size={18} style={{ color: color.primaryText, opacity: 0.8 }} />
-                <span className="text-sm font-medium" style={{ color: color.primaryText, opacity: 0.8 }}>
-                  Track price drops
-                </span>
+                <span className="text-sm font-medium" style={{ color: color.primaryText, opacity: 0.8 }}>Track price drops</span>
               </div>
               <div className="flex items-center gap-3">
                 <Star size={18} style={{ color: color.primaryText, opacity: 0.8 }} />
-                <span className="text-sm font-medium" style={{ color: color.primaryText, opacity: 0.8 }}>
-                  Expert reviews
-                </span>
+                <span className="text-sm font-medium" style={{ color: color.primaryText, opacity: 0.8 }}>Expert reviews</span>
               </div>
             </div>
           </div>
@@ -243,33 +223,23 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
               { val: '10K+', lab: 'Users' },
             ].map((s) => (
               <div key={s.lab}>
-                <div
-                  className="text-2xl font-bold"
-                  style={{ fontFamily: font.numeric, color: color.primaryText }}
-                >
+                <div className="text-2xl font-bold" style={{ fontFamily: font.numeric, color: color.primaryText }}>
                   {s.val}
                 </div>
-                <div className="text-sm" style={{ color: color.textMuted }}>
-                  {s.lab}
-                </div>
+                <div className="text-sm" style={{ color: color.textMuted }}>{s.lab}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* --------------- RIGHT (form) ---------------- */}
         <div className="order-1 lg:order-2 flex-1 flex items-center justify-center p-8 min-h-screen lg:min-h-0">
           <div className="w-full max-w-md space-y-6">
-            {/* mobile logo */}
             <div className="lg:hidden flex justify-center mb-6">
               <img src="/logo.svg" alt="Mobylite" className="w-12 h-12" />
             </div>
 
             <div className="text-center lg:text-left">
-              <h2
-                className="text-3xl font-bold"
-                style={{ fontFamily: font.primary, color: color.text }}
-              >
+              <h2 className="text-3xl font-bold" style={{ fontFamily: font.primary, color: color.text }}>
                 {isLogin ? 'Welcome back' : 'Join Mobylite'}
               </h2>
               <p style={{ color: color.textMuted }}>
@@ -287,7 +257,6 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
-              {/* ----- display name (signup) ----- */}
               {!isLogin && (
                 <div>
                   <label className="block text-sm font-semibold mb-2" style={{ color: color.text }}>
@@ -310,8 +279,7 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
                   />
                 </div>
               )}
-
-              {/* ----- email ----- */}
+              
               <div>
                 <label className="block text-sm font-semibold mb-2" style={{ color: color.text }}>
                   Email
@@ -332,15 +300,14 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
                   disabled={loading}
                 />
               </div>
-
-              {/* ----- password ----- */}
+              
               <div>
                 <label className="block text-sm font-semibold mb-2" style={{ color: color.text }}>
                   Password
                 </label>
                 <div className="relative">
                   <input
-                    type={showPassword ? 'text' : 'password'}
+                    type={showPassword ? "text" : "password"}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="w-full px-4 py-3 pr-12 rounded-xl focus:outline-none transition"
@@ -357,7 +324,7 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword((p) => !p)}
+                    onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2"
                     style={{ color: color.textMuted }}
                     disabled={loading}
@@ -367,7 +334,6 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
                 </div>
               </div>
 
-              {/* ----- confirm password (signup) ----- */}
               {!isLogin && (
                 <>
                   <div>
@@ -376,16 +342,12 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
                     </label>
                     <div className="relative">
                       <input
-                        type={showConfirmPassword ? 'text' : 'password'}
+                        type={showConfirmPassword ? "text" : "password"}
                         value={formData.confirmPassword}
-                        onChange={(e) =>
-                          setFormData({ ...formData, confirmPassword: e.target.value })
-                        }
+                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                         className="w-full px-4 py-3 pr-12 rounded-xl focus:outline-none transition"
                         style={{
-                          border: `1px solid ${
-                            formData.confirmPassword && (passwordsMatch ? color.success : color.danger)
-                          }`,
+                          border: `1px solid ${formData.confirmPassword && (passwordsMatch ? color.success : color.danger)}`,
                           backgroundColor: color.bg,
                           color: color.text,
                         }}
@@ -397,7 +359,7 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
                       />
                       <button
                         type="button"
-                        onClick={() => setShowConfirmPassword((p) => !p)}
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         className="absolute right-4 top-1/2 -translate-y-1/2"
                         style={{ color: color.textMuted }}
                         disabled={loading}
@@ -407,7 +369,6 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
                     </div>
                   </div>
 
-                  {/* requirements */}
                   {formData.password.length > 0 && !allRequirementsMet && (
                     <div className="space-y-1.5">
                       {!passwordRequirements.minLength && (
@@ -432,7 +393,7 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
                       )}
                     </div>
                   )}
-
+                  
                   {formData.confirmPassword.length > 0 && !passwordsMatch && (
                     <p className="text-xs font-medium" style={{ color: color.danger }}>
                       • Passwords do not match
@@ -441,16 +402,13 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
                 </>
               )}
 
-              {/* ----- submit ----- */}
               <button
                 type="submit"
                 disabled={loading || (!isLogin && (!allRequirementsMet || !passwordsMatch))}
                 className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ backgroundColor: color.primary, color: color.primaryText }}
               >
-                {loading ? (
-                  'Please wait…'
-                ) : (
+                {loading ? 'Please wait…' : (
                   <>
                     {isLogin ? 'Sign In' : 'Create Account'}
                     <ArrowRight className="w-5 h-5" />
@@ -459,8 +417,7 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
               </button>
             </form>
 
-            {/* ----- divider ----- */}
-            <div className="relative mt-2 mb-4">
+            <div className="relative my-8">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t" style={{ borderColor: color.border }} />
               </div>
@@ -471,31 +428,15 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
               </div>
             </div>
 
-            {/* ----- google button ----- */}
-            <div id="hiddenGoogleButton" style={{ display: 'none' }} />
-            <button
-              onClick={() => {
-                const googleButton = document
-                  .getElementById('hiddenGoogleButton')
-                  ?.querySelector('div[role="button"]');
-                if (googleButton) (googleButton as HTMLElement).click();
-              }}
-              disabled={!googleReady || loading}
-              className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: '#ffffff', color: '#3c4043', border: `1px solid ${color.border}` }}
-            >
-              <FcGoogle className="w-5 h-5" />
-              {isLogin ? 'Sign in with Google' : 'Sign up with Google'}
-            </button>
+            <div id="googleSignInButton" className="w-full"></div>
 
-            {/* ----- switch mode ----- */}
             <div className="text-center">
               <p style={{ color: color.textMuted }}>
                 {isLogin ? "Don't have an account?" : 'Already have one?'}{' '}
                 <button
                   type="button"
                   onClick={() => {
-                    setIsLogin((s) => !s);
+                    setIsLogin(!isLogin);
                     setError('');
                     setFormData({ email: '', password: '', confirmPassword: '', displayName: '' });
                   }}
@@ -508,7 +449,6 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
               </p>
             </div>
 
-            {/* ----- guest ----- */}
             <div className="text-center">
               <button
                 type="button"

@@ -1,7 +1,7 @@
-// app\components\desktop\DesktopHome.tsx
+// app/components/desktop/DesktopHome.tsx
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, Smartphone, SlidersHorizontal, GitCompare, Star } from 'lucide-react';
+import { Search, Loader2, Smartphone, GitCompare, Star, Sparkles } from 'lucide-react';
 import { Phone, Filters, User } from '@/lib/types';
 import { API_BASE_URL, APP_ROUTES, RECOMMENDATION_CATEGORIES } from '@/lib/config';
 import { createPhoneSlug } from '@/lib/config';
@@ -9,52 +9,24 @@ import { isAuthenticated, getAuthToken } from '@/lib/auth';
 import { ButtonPressFeedback } from '@/app/components/shared/ButtonPressFeedback';
 import { SearchBar } from '@/app/components/shared/SearchBar';
 import { PhoneCard } from '@/app/components/shared/PhoneCard';
-import RecommendationButtons  from '@/app/components/shared/RecommendationButtons';
+import { RecommendationButtons } from '@/app/components/shared/RecommendationButtons';
 import { CompareFloatingPanel } from '@/app/components/shared/CompareFloatingPanel';
-import  QuizModal  from '@/app/components/shared/QuizModal';
+import QuizModal from '@/app/components/shared/QuizModal';
 import { PriceAlertModal } from '@/app/components/shared/PriceAlertModal';
-import { UserMenu } from './UserMenu';
-import { FilterPanel } from './FilterPanel';
+import { UserMenu } from '@/app/components/shared/UserMenu';
+import { FilterPanel } from '@/app/components/shared/FilterPanel';
 import { useRouter } from 'next/navigation';
-
 import { color, font } from '@/lib/tokens';
-
 import { api } from '@/lib/api';
 
-// Then destructure where needed:
-const { auth, phones, reviews } = api;
-
-if (!phones) {
-  throw new Error("Phones API failed to initialize");
-}
-
-// Extended filters for UI features
 interface ExtendedFilters extends Filters {
   brands?: string[];
   has_5g?: boolean;
-  screen_size?: string | null;
-  comparison?: string | null;
 }
 
 const INITIAL_FILTERS: ExtendedFilters = {
-  q: undefined,
-  min_price: undefined,
-  max_price: undefined,
-  min_ram: undefined,
-  min_storage: undefined,
-  min_battery: undefined,
-  min_screen_size: undefined,
-  min_camera_mp: undefined,
-  brand: undefined,
-  min_year: undefined,
-  sort_by: undefined,
-  sort_order: undefined,
-  page: undefined,
-  page_size: undefined,
   brands: [],
   has_5g: undefined,
-  screen_size: undefined,
-  comparison: undefined,
 };
 
 interface DesktopHomeProps {
@@ -92,7 +64,6 @@ export default function DesktopHome({
 
   const heroRef = useRef<HTMLDivElement>(null);
 
-  // Auth check and user data fetch
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   useEffect(() => {
     const loadUser = async () => {
@@ -129,7 +100,7 @@ export default function DesktopHome({
 
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
-      if (activeRecommendation) setActiveRecommendation(null);
+      setActiveRecommendation(null);
       fetchPhones();
     }, 300);
     return () => clearTimeout(debounceTimer);
@@ -141,7 +112,6 @@ export default function DesktopHome({
   }, [filters, sortBy, sortOrder, currentPage]);
 
   useEffect(() => {
-    // Reset to page 1 when search or filters change
     setCurrentPage(1);
   }, [searchQuery, filters, sortBy, sortOrder]);
 
@@ -152,7 +122,6 @@ export default function DesktopHome({
         page_size: 50
       });
       
-      // Fetch stats for each phone to get real ratings
       const phonesWithRatings = await Promise.all(
         (data.results || []).slice(0, 20).map(async (phone) => {
           try {
@@ -171,11 +140,9 @@ export default function DesktopHome({
         })
       );
       
-      // Filter phones with reviews and sort by rating
       const ratedPhones = phonesWithRatings
         .filter(p => p.review_count > 0)
         .sort((a, b) => {
-          // Sort by rating first, then by review count
           if (b.rating !== a.rating) return b.rating - a.rating;
           return b.review_count - a.review_count;
         })
@@ -246,6 +213,20 @@ export default function DesktopHome({
     }
   };
 
+  const handleRecommendationClick = (id: string) => {
+    if (activeRecommendation === id) {
+      setActiveRecommendation(null);
+      setFilters(INITIAL_FILTERS);
+    } else {
+      fetchRecommendations(id);
+    }
+  };
+
+  const handleFiltersChange = (newFilters: ExtendedFilters) => {
+    setActiveRecommendation(null);
+    setFilters(newFilters);
+  };
+
   const handleResetFilters = () => {
     setFilters(INITIAL_FILTERS);
   };
@@ -257,7 +238,6 @@ export default function DesktopHome({
     }
     if (compareList.find(p => p.id === phone.id)) return;
     
-    // Add to comparison history
     if (isAuthenticated()) {
       fetch(`${API_BASE_URL}/comparisons`, {
         method: 'POST',
@@ -298,8 +278,8 @@ export default function DesktopHome({
   };
 
   const handleQuizComplete = (newFilters: Partial<Filters>, useCase?: string) => {
+    setActiveRecommendation(null);
     setFilters({ ...filters, ...newFilters });
-    if (useCase) fetchRecommendations(useCase);
     setShowQuiz(false);
   };
 
@@ -312,7 +292,6 @@ export default function DesktopHome({
     }
   };
 
-  // Tokenized styles
   const heroBgStyle: React.CSSProperties = {
     background: `linear-gradient(135deg, ${color.bgInverse} 0%, #000000 50%, ${color.bgInverse} 100%)`,
   };
@@ -328,29 +307,25 @@ export default function DesktopHome({
     backdropFilter: 'blur(4px)',
   };
 
-  // Pagination component
   const Pagination = () => {
     const totalPages = Math.ceil(totalResults / 40);
     if (totalPages <= 1) return null;
 
     const getPageNumbers = () => {
       const pages: (number | string)[] = [];
-      const showPages = 7; // Show max 7 page buttons
+      const showPages = 7;
       
       if (totalPages <= showPages) {
-        // Show all pages if total is small
         for (let i = 1; i <= totalPages; i++) {
           pages.push(i);
         }
       } else {
-        // Always show first page
         pages.push(1);
         
         if (currentPage > 3) {
           pages.push('...');
         }
         
-        // Show pages around current page
         const start = Math.max(2, currentPage - 1);
         const end = Math.min(totalPages - 1, currentPage + 1);
         
@@ -362,7 +337,6 @@ export default function DesktopHome({
           pages.push('...');
         }
         
-        // Always show last page
         pages.push(totalPages);
       }
       
@@ -373,7 +347,6 @@ export default function DesktopHome({
 
     return (
       <div className="flex items-center justify-center gap-2 mt-8 mb-12">
-        {/* Previous Button */}
         <ButtonPressFeedback
           onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
           disabled={currentPage === 1}
@@ -388,7 +361,6 @@ export default function DesktopHome({
           Previous
         </ButtonPressFeedback>
 
-        {/* Page Numbers */}
         <div className="flex items-center gap-2">
           {pageNumbers.map((page, idx) => {
             if (page === '...') {
@@ -419,7 +391,6 @@ export default function DesktopHome({
           })}
         </div>
 
-        {/* Next Button */}
         <ButtonPressFeedback
           onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
           disabled={currentPage === totalPages}
@@ -577,14 +548,7 @@ export default function DesktopHome({
               variant="desktop"
             />
 
-            <RecommendationButtons
-              activeRecommendation={activeRecommendation}
-              onRecommendationClick={fetchRecommendations}
-              onQuizClick={() => setShowQuiz(true)}
-              variant="desktop"
-            />
-
-            <UserMenu />
+            <UserMenu variant="desktop" />
           </div>
         </div>
       </div>
@@ -615,13 +579,38 @@ export default function DesktopHome({
         )}
 
         <div className="flex gap-8">
-          <FilterPanel 
-            filters={filters}
-            setFilters={setFilters}
-            onReset={handleResetFilters}
-          />
+          <div className="w-80 flex-shrink-0">
+            <div className="sticky top-24 space-y-6">
+              <ButtonPressFeedback
+                onClick={() => setShowQuiz(true)}
+                className="w-full py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-3"
+                style={{ 
+                  backgroundColor: color.primary,
+                  color: color.primaryText
+                }}
+              >
+                <Sparkles size={20} strokeWidth={2.5} />
+                Find Your Perfect Phone
+              </ButtonPressFeedback>
+
+              <FilterPanel 
+                filters={filters}
+                setFilters={handleFiltersChange}
+                onReset={handleResetFilters}
+                variant="desktop"
+              />
+            </div>
+          </div>
 
           <div className="flex-1">
+            <div className="mb-6">
+              <RecommendationButtons
+                activeRecommendation={activeRecommendation}
+                onRecommendationClick={handleRecommendationClick}
+                variant="desktop"
+              />
+            </div>
+
             <div className="mb-6">
               <div className="flex items-center justify-between mb-4 pb-4 border-b-2" style={{ borderColor: color.text }}>
                 <h2 
@@ -686,7 +675,6 @@ export default function DesktopHome({
                   ))}
                 </div>
                 
-                {/* ✅ Add Pagination */}
                 <Pagination />
               </>
             )}
@@ -704,8 +692,6 @@ export default function DesktopHome({
     </div>
   );
 }
-
-// Internal component for top rated cards
 
 interface TopRatedCardProps {
   phone: Phone & { rating?: number; review_count?: number };
@@ -730,10 +716,9 @@ const TopRatedCard: React.FC<TopRatedCardProps> = ({ phone, onClick }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Image Section - Left */}
       <div 
-        className="w-32 h-32 flex items-center justify-center flex-shrink-0 transition-colors duration-300"
-        style={{ background: `linear-gradient(135deg, ${isHovered ? color.border : color.borderLight} 0%, ${color.bg} 50%)` }}
+        className="w-32 h-32 flex items-center justify-center flex-shrink-0 transition-colors duration-300 border-r"
+        style={{ backgroundColor: '#FFFFFF', borderColor: color.border }}
       >
         {phone.main_image_url ? (
           <img
@@ -748,9 +733,7 @@ const TopRatedCard: React.FC<TopRatedCardProps> = ({ phone, onClick }) => {
         )}
       </div>
       
-      {/* Content Section - Middle (Full Width) */}
       <div className="flex-1 p-6 flex flex-col justify-center min-w-0">
-        {/* Header Row: Brand + Rating */}
         <div className="flex items-center gap-3 mb-2">
           <p 
             className="text-xs font-extrabold uppercase tracking-widest"
@@ -759,7 +742,6 @@ const TopRatedCard: React.FC<TopRatedCardProps> = ({ phone, onClick }) => {
             {phone.brand}
           </p>
           
-          {/* Star Rating Badge */}
           {rating > 0 && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}>
               <span className="text-[13px] font-extrabold" style={{ color: color.text }}>
@@ -772,7 +754,6 @@ const TopRatedCard: React.FC<TopRatedCardProps> = ({ phone, onClick }) => {
           )}
         </div>
 
-        {/* Model Name - Primary Focus */}
         <h3 
           className="font-extrabold text-base leading-snug mb-2 text-left line-clamp-2"
           style={{ color: color.text, fontFamily: font.primary }}
@@ -780,7 +761,6 @@ const TopRatedCard: React.FC<TopRatedCardProps> = ({ phone, onClick }) => {
           {phone.model_name}
         </h3>
         
-        {/* Price - Strong Accent */}
         {phone.price_usd && (
           <p 
             className="font-extrabold text-lg text-left"
@@ -790,7 +770,6 @@ const TopRatedCard: React.FC<TopRatedCardProps> = ({ phone, onClick }) => {
           </p>
         )}
         
-        {/* Review Count - Subtle */}
         {reviewCount > 0 && (
           <p className="text-[11px] font-medium mt-1" style={{ color: color.textLight }}>
             {reviewCount.toLocaleString()} reviews
@@ -798,7 +777,6 @@ const TopRatedCard: React.FC<TopRatedCardProps> = ({ phone, onClick }) => {
         )}
       </div>
 
-      {/* Optional CTA Indicator - Right */}
       <div className="flex-shrink-0 w-12 flex items-center justify-center pr-4">
         <div 
           className="w-8 h-8 rounded-full flex items-center justify-center opacity-0 transition-all duration-300"
@@ -814,4 +792,3 @@ const TopRatedCard: React.FC<TopRatedCardProps> = ({ phone, onClick }) => {
     </ButtonPressFeedback>
   );
 };
-

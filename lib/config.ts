@@ -3,8 +3,6 @@ import { Zap, Camera, Battery, Trophy, DollarSign, Settings } from 'lucide-react
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://renderphones.onrender.com";
 
-// Update lib/config.ts
-
 export const API_ENDPOINTS = {
   auth: {
     signup: "/auth/signup",
@@ -15,10 +13,9 @@ export const API_ENDPOINTS = {
   phones: {
     search: "/phones/search",
     detail: (id: number) => `/phones/${id}`,
-    bySlug: (brand: string, model: string) => `/phones/slug/${brand}/${model}`,
-    compareBySlug: (slugs: string) => `/phones/compare-by-slug/${slugs}`,
     latest: "/phones/latest",
     recommend: "/phones/recommend",
+    compare: "/phones/compare",
     stats: (id: number) => `/phones/${id}/stats`,
     alsoCompared: (id: number) => `/phones/${id}/also-compared`,
   },
@@ -43,6 +40,7 @@ export const API_ENDPOINTS = {
   },
 } as const;
 
+// ✅ FIXED: Simple type for slug function
 export const createPhoneSlug = (phone: { brand: string; model_name: string }) => {
   return phone.model_name
     .toLowerCase()
@@ -50,20 +48,20 @@ export const createPhoneSlug = (phone: { brand: string; model_name: string }) =>
     .replace(/^-+|-+$/g, '');
 };
 
-export const createCompareUrl = (phones: Array<{brand: string, model_name: string}>) => {
-  const slugs = phones.map(p => createPhoneSlug(p)).join('-vs-');
-  return `/compare/${slugs}`;
+export const parsePhoneSlug = (slug: string): string => {
+  return slug.split('-').join(' ');
 };
 
 export const APP_ROUTES = {
   home: "/",
   login: "/login",
   account: "/account",
-  phoneDetail: (brand: string, model: string) => {
-    const brandSlug = brand.toLowerCase().replace(/\s+/g, '-');
-    const modelSlug = createPhoneSlug({ brand, model_name: model });
-    return `/${brandSlug}/${modelSlug}`;
-  },
+  accountFavorites: "/account#favorites",
+  accountReviews: "/account#reviews",
+  accountAlerts: "/account#alerts",
+  accountComparisons: "/account#comparisons",
+  accountSettings: "/account#settings",
+  phoneDetail: (brand: string, model: string) => `/${brand}/${model}`,
   compare: (phoneSlugs: string[]) => `/compare/${phoneSlugs.join("-vs-")}`,
 } as const;
 

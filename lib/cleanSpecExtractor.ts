@@ -12,28 +12,28 @@ export function extractCleanSpecs(phone: any): CleanSpec[] {
   return [
     {
       icon: "📱",
-      label: `${phone.screen_size}" ${extractDisplayType(quick.displaytype)}`,
+      label: "Display",
       value: `${phone.screen_size}" ${extractDisplayType(quick.displaytype)}`
     },
     {
       icon: "☀️",
-      label: extractBrightness(quick.displaytype),
+      label: "Brightness",
       value: extractBrightness(quick.displaytype)
     },
     {
       icon: "🔧",
-      label: phone.chipset || "N/A",
+      label: "Chipset",
       value: phone.chipset || "N/A"
     },
     ...extractCameras(specs["Main Camera"], quick.cam1modules),
     {
       icon: "🔍",
-      label: extractOpticalZoom(quick.cam1modules),
+      label: "Optical Zoom",
       value: extractOpticalZoom(quick.cam1modules)
     },
     {
       icon: "🤳",
-      label: extractFrontCamera(specs["Selfie Camera"], quick.cam2modules),
+      label: "Front Camera",
       value: extractFrontCamera(specs["Selfie Camera"], quick.cam2modules)
     },
     {
@@ -53,22 +53,22 @@ export function extractCleanSpecs(phone: any): CleanSpec[] {
     },
     {
       icon: "🏗️",
-      label: extractFrameMaterial(specs.Body?.Build),
+      label: "Frame Material",
       value: extractFrameMaterial(specs.Body?.Build)
     },
     {
       icon: "📡",
-      label: extractWiFi(quick.wlan),
+      label: "Wi-Fi",
       value: extractWiFi(quick.wlan)
     },
     {
       icon: "⚡",
-      label: `${phone.fast_charging_w || "N/A"}W (${extractChargingType(specs.Battery?.Charging)})`,
+      label: "Charging",
       value: `${phone.fast_charging_w || "N/A"}W (${extractChargingType(specs.Battery?.Charging)})`
     },
     {
       icon: "📏",
-      label: extractDimensions(specs.Body?.Dimensions, phone.weight_g),
+      label: "Dimensions",
       value: extractDimensions(specs.Body?.Dimensions, phone.weight_g)
     },
     ...extractSpecialFeatures(specs, quick),
@@ -155,7 +155,7 @@ function extractCameras(mainCamera: any, cam1modules?: string): CleanSpec[] {
     .slice(0, 3)
     .map(cam => ({
       icon: cam.icon,
-      label: `${cam.mp}MP (${cam.cleanType}, f/${cam.aperture})`,
+      label: `${cam.mp}MP ${cam.cleanType}`,
       value: `${cam.mp}MP (${cam.cleanType}, f/${cam.aperture})`
     }));
 }

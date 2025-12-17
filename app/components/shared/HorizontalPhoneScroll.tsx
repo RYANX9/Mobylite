@@ -1,4 +1,4 @@
-// app\components\shared\HorizontalPhoneScroll.tsx
+// app/components/shared/HorizontalPhoneScroll.tsx
 'use client';
 import React, { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Smartphone, GitCompare } from 'lucide-react';
@@ -14,6 +14,7 @@ interface HorizontalPhoneScrollProps {
   onCompareClick?: (phone: Phone) => void;
   showComparisonCount?: boolean;
   comparisonCounts?: { [key: number]: number };
+  variant?: 'desktop' | 'mobile';
 }
 
 export const HorizontalPhoneScroll: React.FC<HorizontalPhoneScrollProps> = ({
@@ -23,7 +24,8 @@ export const HorizontalPhoneScroll: React.FC<HorizontalPhoneScrollProps> = ({
   onPhoneClick,
   onCompareClick,
   showComparisonCount = false,
-  comparisonCounts = {}
+  comparisonCounts = {},
+  variant = 'desktop'
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
@@ -31,7 +33,7 @@ export const HorizontalPhoneScroll: React.FC<HorizontalPhoneScrollProps> = ({
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
-      const scrollAmount = 300;
+      const scrollAmount = variant === 'mobile' ? 240 : 300;
       const newScrollLeft = scrollContainerRef.current.scrollLeft + (direction === 'left' ? -scrollAmount : scrollAmount);
       scrollContainerRef.current.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
     }
@@ -46,6 +48,89 @@ export const HorizontalPhoneScroll: React.FC<HorizontalPhoneScrollProps> = ({
   };
 
   if (phones.length === 0) return null;
+
+  if (variant === 'mobile') {
+    return (
+      <div className="mb-8">
+        <div className="flex items-center justify-between px-4 mb-4">
+          <div>
+            <h3 className="text-lg font-bold" style={{ fontFamily: font.primary, color: color.text }}>{title}</h3>
+            {subtitle && <p className="text-xs font-medium mt-1" style={{ color: color.textMuted }}>{subtitle}</p>}
+          </div>
+        </div>
+
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="flex gap-4 overflow-x-auto px-4 pb-4 scrollbar-hide"
+        >
+          {phones.map((phone) => (
+            <div 
+              key={phone.id}
+              className="flex-shrink-0 w-56 rounded-xl overflow-hidden border"
+              style={{ backgroundColor: color.borderLight, borderColor: color.borderLight }}
+            >
+              <ButtonPressFeedback
+                onClick={() => onPhoneClick(phone)}
+                className="w-full"
+              >
+                <div 
+                  className="h-40 flex items-center justify-center border-b"
+                  style={{ background: `linear-gradient(135deg, ${color.borderLight} 0%, ${color.bg} 50%)`, borderColor: color.borderLight }}
+                >
+                  {phone.main_image_url ? (
+                    <img
+                      src={phone.main_image_url}
+                      alt={phone.model_name}
+                      className="w-full h-full object-contain p-4"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <Smartphone size={48} style={{ color: color.textLight, opacity: 0.7 }} />
+                  )}
+                </div>
+                <div className="p-3">
+                  <p className="text-xs font-bold mb-1 truncate" style={{ color: color.textMuted }}>
+                    {phone.brand}
+                  </p>
+                  <h4 className="text-sm font-bold mb-2 line-clamp-2" style={{ color: color.text }}>
+                    {phone.model_name}
+                  </h4>
+                  {phone.price_usd && (
+                    <p className="text-base font-bold" style={{ color: color.text, fontFamily: font.numeric }}>
+                      ${phone.price_usd.toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </ButtonPressFeedback>
+              
+              {onCompareClick && (
+                <div className="px-3 pb-3">
+                  <ButtonPressFeedback
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCompareClick(phone);
+                    }}
+                    className="w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
+                    style={{ backgroundColor: color.bg, color: color.text, border: `1px solid ${color.border}` }}
+                  >
+                    <GitCompare size={14} />
+                    Compare
+                  </ButtonPressFeedback>
+                  
+                  {showComparisonCount && comparisonCounts[phone.id] && (
+                    <p className="text-[10px] text-center mt-1" style={{ color: color.textMuted }}>
+                      {comparisonCounts[phone.id].toLocaleString()} comparisons
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const arrowButtonStyle = (enabled: boolean): React.CSSProperties => ({
     border: `2px solid ${color.border}`,

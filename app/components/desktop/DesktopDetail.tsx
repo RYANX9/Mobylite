@@ -1,37 +1,71 @@
-// app\components\desktop\DesktopDetail.tsx
+// app/components/desktop/DesktopDetail.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
 import {
   Camera, Battery, Bolt, Smartphone, ArrowLeft, Heart, Maximize2, 
-  Plus, Cpu, MemoryStick, HardDrive, Search, Monitor, Zap, 
+  Cpu, MemoryStick, HardDrive, Search, Monitor, Zap, 
   Video, Wifi, Weight, Ruler, Calendar, Award, Signal, Volume2, Info, Package, Bell
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Phone, Review, Favorite } from '@/lib/types';
+import { Phone, Favorite } from '@/lib/types';
 import { API_BASE_URL, APP_ROUTES } from '@/lib/config';
 import { api } from '@/lib/api';
 import { cleanHTMLText } from '@/lib/utils';
 import { isAuthenticated, getAuthToken } from '@/lib/auth';
+import { extractCleanSpecs } from '@/lib/cleanSpecExtractor';
 import { ButtonPressFeedback } from '@/app/components/shared/ButtonPressFeedback';
 import { Tooltip } from '@/app/components/shared/Tooltip';
-import { ReviewCard } from '@/app/components/shared/ReviewCard';
 import { RatingsSummary } from '@/app/components/shared/RatingsSummary';
 import { HorizontalPhoneScroll } from '@/app/components/shared/HorizontalPhoneScroll';
-import { UserMenu } from './UserMenu';
-import { color, font } from '@/lib/tokens';
-import { createPhoneSlug } from '@/lib/config';
+import { UserMenu } from '@/app/components/shared/UserMenu';
 import { PriceAlertModal } from '@/app/components/shared/PriceAlertModal';
 import { ReviewSection } from '@/app/components/shared/ReviewSection';
-
+import { color, font } from '@/lib/tokens';
+import { createPhoneSlug } from '@/lib/config';
 
 interface DesktopDetailProps {
   phone: Phone;
-  setView: (view: string) => void;
-  setComparePhones: (phones: Phone[]) => void;
-  setSelectedPhone: (phone: Phone) => void;
+  initialReviews?: any[];
+  initialStats?: any;
 }
 
-export default function DesktopDetail({ phone, setView, setComparePhones, setSelectedPhone }: DesktopDetailProps) {
+const ICON_MAP: Record<string, any> = {
+  '📱': Maximize2,
+  '☀️': Zap,
+  '🔧': Cpu,
+  '📷': Camera,
+  '🔍': Search,
+  '🤳': Camera,
+  '🔋': Battery,
+  '💾': MemoryStick,
+  '📂': HardDrive,
+  '🏗️': Package,
+  '📡': Wifi,
+  '⚡': Bolt,
+  '📏': Ruler,
+  '🔘': Info,
+  '✏️': Info,
+  '🛰️': Signal,
+  '💰': Info,
+  '📸': Camera,
+  '🔭': Video,
+  '🔬': Camera,
+};
+
+const SPEC_TOOLTIPS: Record<string, { layman: string; nerd: string }> = {
+  'Display': { layman: 'Screen size and type', nerd: 'Display diagonal, resolution, and panel technology' },
+  'Chipset': { layman: 'Brain of the phone', nerd: 'System on Chip processor' },
+  'RAM': { layman: 'Memory for running apps', nerd: 'LPDDR5/5X RAM capacity' },
+  'Storage': { layman: 'Space for files', nerd: 'UFS 3.1/4.0 storage' },
+  'Camera': { layman: 'Photo quality', nerd: 'Main sensor resolution' },
+  'Video': { layman: 'Video quality', nerd: 'Max video resolution' },
+  'Battery': { layman: 'Battery life', nerd: 'Battery capacity' },
+  'Charging': { layman: 'Charging speed', nerd: 'Max charging power' },
+  'Weight': { layman: 'Device weight', nerd: 'Total weight in grams' },
+  'AnTuTu': { layman: 'Performance score', nerd: 'AnTuTu benchmark' },
+};
+
+export default function DesktopDetail({ phone, initialReviews, initialStats }: DesktopDetailProps) {
   const router = useRouter();
   const [isExpertMode, setIsExpertMode] = useState(false);
   const [similarPhones, setSimilarPhones] = useState<Phone[]>([]);
@@ -39,14 +73,12 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
   const [comparisonCounts, setComparisonCounts] = useState<{ [key: number]: number }>({});
   const [isFavorite, setIsFavorite] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [phoneStats, setPhoneStats] = useState<any>(null);
+  const [phoneStats, setPhoneStats] = useState<any>(initialStats || null);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
 
-  // Check if phone is in user's favorites
   useEffect(() => {
     const checkFavorite = async () => {
       if (!isAuthenticated()) return;
-
       try {
         const data = await api.favorites.list();
         setIsFavorite(data.favorites?.some((f: Favorite) => f.phone_id === phone.id));
@@ -54,16 +86,14 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
         console.error('Failed to check favorite:', error);
       }
     };
-
     checkFavorite();
   }, [phone.id]);
 
   useEffect(() => {
     fetchSimilarPhones();
     fetchAlsoComparedWith();
-    fetchPhoneStats();
+    if (!initialStats) fetchPhoneStats();
     
-    // Add to view history
     if (isAuthenticated()) {
       fetch(`${API_BASE_URL}/history/views`, {
         method: 'POST',
@@ -78,7 +108,6 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [phone]);
 
-
   const fetchPhoneStats = async () => {
     try {
       const data = await api.phones.getStats(phone.id);
@@ -87,7 +116,6 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
       }
     } catch (error: any) {
       console.error('Error fetching phone stats:', error);
-      // Set defaults on error
       setPhoneStats({
         average_rating: 0,
         total_reviews: 0,
@@ -98,7 +126,6 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
 
   const fetchAlsoComparedWith = async () => {
     try {
-      // Using custom endpoint - keep as fetch for now
       const result = await fetch(`${API_BASE_URL}/phones/${phone.id}/also-compared`);
       const data = await result.json();
       
@@ -118,20 +145,16 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
       };
       
       if (phone.price_usd) {
-        const minPrice = Math.floor(phone.price_usd * 0.7);
-        const maxPrice = Math.ceil(phone.price_usd * 1.3);
-        params.min_price = minPrice;
-        params.max_price = maxPrice;
+        params.min_price = Math.floor(phone.price_usd * 0.7);
+        params.max_price = Math.ceil(phone.price_usd * 1.3);
       }
       
       if (phone.ram_options && phone.ram_options.length > 0) {
-        const avgRam = Math.max(...phone.ram_options);
-        params.min_ram = Math.max(avgRam - 2, 4);
+        params.min_ram = Math.max(Math.max(...phone.ram_options) - 2, 4);
       }
       
       if (phone.storage_options && phone.storage_options.length > 0) {
-        const avgStorage = Math.max(...phone.storage_options);
-        params.min_storage = Math.max(avgStorage / 2, 64);
+        params.min_storage = Math.max(Math.max(...phone.storage_options) / 2, 64);
       }
       
       if (phone.release_year) {
@@ -147,13 +170,10 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
           if (p.brand === phone.brand) score += 40;
           if (phone.price_usd && p.price_usd) {
             const priceDiff = Math.abs(phone.price_usd - p.price_usd);
-            const priceScore = Math.max(0, 25 - (priceDiff / phone.price_usd) * 25);
-            score += priceScore;
+            score += Math.max(0, 25 - (priceDiff / phone.price_usd) * 25);
           }
           if (phone.ram_options && p.ram_options && phone.ram_options.length && p.ram_options.length) {
-            const phoneRam = Math.max(...phone.ram_options);
-            const pRam = Math.max(...p.ram_options);
-            const ramDiff = Math.abs(phoneRam - pRam);
+            const ramDiff = Math.abs(Math.max(...phone.ram_options) - Math.max(...p.ram_options));
             if (ramDiff === 0) score += 15;
             else if (ramDiff <= 2) score += 10;
             else if (ramDiff <= 4) score += 5;
@@ -180,12 +200,10 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
       setSimilarPhones(scoredPhones);
     } catch (error) {
       console.error('Error fetching similar phones:', error);
+      setSimilarPhones([]);
     }
   };
 
-
-
-  // Update handleStartCompare
   const handleStartCompare = () => {
     if (isAuthenticated()) {
       fetch(`${API_BASE_URL}/comparisons`, {
@@ -202,7 +220,6 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
     router.push(APP_ROUTES.compare([phoneSlug]));
   };
 
-  // Update handleCompareWithPhone
   const handleCompareWithPhone = async (comparePhone: Phone) => {
     try {
       if (isAuthenticated()) {
@@ -223,8 +240,6 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
     }
   };
 
-
-
   const handlePhoneClick = (clickedPhone: Phone) => {
     const brandSlug = clickedPhone.brand.toLowerCase().replace(/\s+/g, '-');
     const modelSlug = createPhoneSlug(clickedPhone);
@@ -233,7 +248,6 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
 
   const toggleFavorite = async () => {
     if (!isAuthenticated()) {
-      // ✅ Save current URL before redirecting
       const currentPath = window.location.pathname + window.location.search + window.location.hash;
       sessionStorage.setItem('returnUrl', currentPath);
       
@@ -255,74 +269,31 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
     }
   };
 
-  const simpleSpecs = [
-    { 
-      icon: Cpu, 
-      label: 'Chipset', 
-      value: phone.chipset || 'N/A',
-      tooltip: { layman: 'Brain of the phone', nerd: 'System on Chip processor' }
-    },
-    {
-      icon: MemoryStick,
-      label: 'RAM',
-      value: phone.ram_options && phone.ram_options.length > 0 ? phone.ram_options.join(' / ') + ' GB' : 'N/A',
-      tooltip: { layman: 'Memory for running apps', nerd: 'LPDDR5/5X RAM capacity' }
-    },
-    {
-      icon: HardDrive,
-      label: 'Storage',
-      value: phone.storage_options && phone.storage_options.length > 0 ? phone.storage_options.join(' / ') + ' GB' : 'N/A',
-      tooltip: { layman: 'Space for files', nerd: 'UFS 3.1/4.0 storage' }
-    },
-    { 
-      icon: Maximize2, 
-      label: 'Display', 
-      value: phone.screen_size ? `${phone.screen_size}" ${phone.screen_resolution || ''}` : 'N/A',
-      tooltip: { layman: 'Screen size', nerd: 'Display diagonal and resolution' }
-    },
-    { 
-      icon: Camera, 
-      label: 'Camera', 
-      value: phone.main_camera_mp ? `${phone.main_camera_mp}MP` : 'N/A',
-      tooltip: { layman: 'Photo quality', nerd: 'Main sensor resolution' }
-    },
-    { 
-      icon: Video, 
-      label: 'Video', 
-      value: phone.video_resolution || 'N/A',
-      tooltip: { layman: 'Video quality', nerd: 'Max video resolution' }
-    },
-    { 
-      icon: Battery, 
-      label: 'Battery', 
-      value: phone.battery_capacity ? `${phone.battery_capacity} mAh` : 'N/A',
-      tooltip: { layman: 'Battery life', nerd: 'Battery capacity' }
-    },
-    { 
-      icon: Bolt, 
-      label: 'Charging', 
-      value: phone.fast_charging_w ? `${phone.fast_charging_w}W` : 'N/A',
-      tooltip: { layman: 'Charging speed', nerd: 'Max charging power' }
-    },
-    {
-      icon: Weight,
-      label: 'Weight',
-      value: phone.weight_g ? `${phone.weight_g}g` : 'N/A',
-      tooltip: { layman: 'Device weight', nerd: 'Total weight in grams' }
-    },
-    {
-      icon: Ruler,
-      label: 'Thickness',
-      value: phone.thickness_mm ? `${phone.thickness_mm}mm` : 'N/A',
-      tooltip: { layman: 'How thin it is', nerd: 'Device thickness' }
-    },
-    {
-      icon: Award,
-      label: 'AnTuTu',
-      value: phone.antutu_score || 'N/A',
-      tooltip: { layman: 'Performance score', nerd: 'AnTuTu benchmark' }
-    }
-  ];
+  const cleanSpecs = extractCleanSpecs(phone);
+  const simpleSpecs = cleanSpecs
+    .filter(spec => !['Price'].includes(spec.label))
+    .map(spec => {
+      // Extract category name for camera specs
+      let categoryLabel = spec.label;
+      
+      // Map camera types to their category names
+      if (spec.label.includes('Wide') && !spec.label.includes('Ultrawide')) {
+        categoryLabel = 'Main Camera';
+      } else if (spec.label.includes('Ultrawide')) {
+        categoryLabel = 'Ultrawide Camera';
+      } else if (spec.label.includes('Telephoto') || spec.label.includes('Periscope')) {
+        categoryLabel = 'Telephoto Camera';
+      }
+      
+      const IconComponent = ICON_MAP[spec.icon] || Info;
+      
+      return {
+        icon: IconComponent,
+        label: categoryLabel,
+        value: spec.value,
+        tooltip: SPEC_TOOLTIPS[categoryLabel] || SPEC_TOOLTIPS[spec.label]
+      };
+    });
 
   const getIconForCategory = (category: string) => {
     const icons: { [key: string]: any } = {
@@ -355,41 +326,22 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
 
   const fullSpecs = phone.full_specifications?.specifications || {};
 
-  // Tokenized styles
-  const containerBgStyle: React.CSSProperties = {
-    backgroundColor: color.bg,
-  };
-
-  const navbarBgStyle: React.CSSProperties = {
-    backgroundColor: color.bg,
-    borderColor: color.borderLight,
-  };
-
+  const containerBgStyle: React.CSSProperties = { backgroundColor: color.bg };
+  const navbarBgStyle: React.CSSProperties = { backgroundColor: color.bg, borderColor: color.borderLight };
   const searchInputStyle: React.CSSProperties = {
     backgroundColor: color.borderLight,
     border: `1px solid ${color.border}`,
     color: color.text,
   };
-
   const searchInputFocusStyle: React.CSSProperties = {
     borderColor: color.primary,
     boxShadow: `0 0 0 2px ${color.primary}1A`,
   };
-
-  const priceCardStyle: React.CSSProperties = {
-    backgroundColor: color.text,
-    color: color.bg,
-  };
-
+  const priceCardStyle: React.CSSProperties = { backgroundColor: color.text, color: color.bg };
   const specCardStyle: React.CSSProperties = {
     backgroundColor: color.bg,
     border: `1px solid ${color.borderLight}`,
   };
-
-  const specCardHoverStyle: React.CSSProperties = {
-    borderColor: color.text,
-  };
-
   const categoryHeaderStyle: React.CSSProperties = {
     backgroundColor: color.borderLight,
     borderColor: color.borderLight,
@@ -428,7 +380,7 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
             </div>
 
             <ButtonPressFeedback
-              className={`p-2.5 rounded-full transition-all`}
+              className="p-2.5 rounded-full transition-all"
               style={{ 
                 color: isFavorite ? color.danger : color.textMuted,
                 backgroundColor: isFavorite ? color.dangerBg : 'transparent'
@@ -438,7 +390,7 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
               <Heart size={24} fill={isFavorite ? 'currentColor' : 'none'} />
             </ButtonPressFeedback>
 
-            <UserMenu />
+            <UserMenu variant="desktop" />
           </div>
         </div>
       </div>
@@ -486,10 +438,7 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
               {phone.price_usd && (
                 <div className="rounded-2xl p-6 mb-4" style={priceCardStyle}>
                   <p className="text-sm font-bold mb-1 opacity-70">PRICE</p>
-                  <p 
-                    className="text-4xl font-bold"
-                    style={{ fontFamily: font.numeric }}
-                  >
+                  <p className="text-4xl font-bold" style={{ fontFamily: font.numeric }}>
                     ${phone.price_usd}
                   </p>
                   {phone.price_original && phone.currency && (
@@ -538,30 +487,20 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
 
           <div className="col-span-3">
             <div className="flex items-center justify-between mb-8">
-              <h2 
-                className="text-3xl font-bold"
-                style={{ fontFamily: font.primary, color: color.text }}
-              >
+              <h2 className="text-3xl font-bold" style={{ fontFamily: font.primary, color: color.text }}>
                 Specifications
               </h2>
-              <div 
-                className="inline-flex p-1 rounded-xl"
-                style={{ backgroundColor: color.borderLight }}
-              >
+              <div className="inline-flex p-1 rounded-xl" style={{ backgroundColor: color.borderLight }}>
                 <button
                   onClick={() => setIsExpertMode(false)}
-                  className={`px-6 py-2.5 text-xs font-bold transition-all rounded-lg ${
-                    !isExpertMode ? 'shadow-sm' : ''
-                  }`}
+                  className={`px-6 py-2.5 text-xs font-bold transition-all rounded-lg ${!isExpertMode ? 'shadow-sm' : ''}`}
                   style={!isExpertMode ? { backgroundColor: color.bg, color: color.text } : { color: color.textMuted }}
                 >
                   SIMPLE
                 </button>
                 <button
                   onClick={() => setIsExpertMode(true)}
-                  className={`px-6 py-2.5 text-xs font-bold transition-all rounded-lg ${
-                    isExpertMode ? 'shadow-sm' : ''
-                  }`}
+                  className={`px-6 py-2.5 text-xs font-bold transition-all rounded-lg ${isExpertMode ? 'shadow-sm' : ''}`}
                   style={isExpertMode ? { backgroundColor: color.bg, color: color.text } : { color: color.textMuted }}
                 >
                   EXPERT
@@ -602,10 +541,7 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
                         )}
                       </div>
                     </div>
-                    <p 
-                      className="text-base font-bold leading-snug"
-                      style={{ color: color.text }}
-                    >
+                    <p className="text-base font-bold leading-snug" style={{ color: color.text }}>
                       {spec.value}
                     </p>
                   </div>
@@ -616,7 +552,7 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
                 {(() => {
                   const categoryOrder = [
                     'Launch','Body', 'Display', 'Platform', 'Memory', 'Main Camera', 
-                    'Selfie camera', 'Selfie Camera','Battery', 'Comms', 'Sound', 
+                    'Selfie camera','Battery', 'Comms', 'Sound', 
                     'Features',  'Network', 'Misc',  'Our Tests'
                   ];
                   
@@ -657,15 +593,12 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
                                 className="grid grid-cols-12 py-3 border-b last:border-0 items-start" 
                                 style={{ borderColor: color.borderLight }}
                               >
-                                {/* Label Column - spans 4 of 12 columns */}
                                 <span 
                                   className="col-span-2 text-xs font-bold uppercase tracking-wide pr-4" 
                                   style={{ color: color.textMuted }}
                                 >
                                   {key}
                                 </span>
-                                
-                                {/* Value Column - spans 8 of 12 columns */}
                                 <span 
                                   className="col-span-10 text-xs font-medium leading-relaxed text-left" 
                                   style={{ color: color.text }}
@@ -692,6 +625,7 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
             phones={similarPhones}
             onPhoneClick={handlePhoneClick}
             onCompareClick={handleCompareWithPhone}
+            variant="desktop"
           />
         )}
 
@@ -704,22 +638,23 @@ export default function DesktopDetail({ phone, setView, setComparePhones, setSel
             onCompareClick={handleCompareWithPhone}
             showComparisonCount={true}
             comparisonCounts={comparisonCounts}
+            variant="desktop"
           />
         )}
 
         <div className="mt-16">
-            <h3 className="text-2xl font-bold mb-8" style={{ color: color.text }}>
-              Reviews & Ratings
-            </h3>
-            
-            <ReviewSection phoneId={phone.id} />
-          </div>
+          <h3 className="text-2xl font-bold mb-8" style={{ color: color.text }}>
+            Reviews & Ratings
+          </h3>
+          <ReviewSection phoneId={phone.id} />
+        </div>
       </div>
+
       <PriceAlertModal
-          show={showPriceAlert}
-          onClose={() => setShowPriceAlert(false)}
-          phone={phone}
-        />
+        show={showPriceAlert}
+        onClose={() => setShowPriceAlert(false)}
+        phone={phone}
+      />
     </div>
   );
 }

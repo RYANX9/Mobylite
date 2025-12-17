@@ -1,78 +1,96 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Phone } from '@/lib/types';
-
 import Loader from './Loader';
+
 import MobileHome from './components/mobile/MobileHome';
 import MobileDetail from './components/mobile/MobileDetail';
+import MobileCompare from './components/mobile/MobileCompare';
+
 import DesktopHome from './components/desktop/DesktopHome';
 import DesktopDetail from './components/desktop/DesktopDetail';
+import DesktopCompare from './components/desktop/DesktopCompare';
 
 export default function Page() {
-  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
-  const [view, setView] = useState<'home' | 'pdp'>('home');
-  const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null);
-  const [comparePhones, setComparePhones] = useState<Phone[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [view, setView] = useState<'home' | 'pdp' | 'compare'>('home');
+  const [selectedPhone, setSelectedPhone] = useState<any>(null);
+  const [comparePhones, setComparePhones] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const checkScreenSize = () => {
-      if (typeof window !== 'undefined') {
-        setIsDesktop(window.innerWidth >= 1024);
-      }
-    };
-    
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize, { passive: true });
-    return () => window.removeEventListener('resize', checkScreenSize);
+    const checkScreen = () => setIsDesktop(window.innerWidth >= 1024);
+    checkScreen();
+    window.addEventListener('resize', checkScreen);
+    return () => window.removeEventListener('resize', checkScreen);
   }, []);
 
-  if (isDesktop === null) {
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
     return <Loader />;
   }
 
-  if (isLoading) return <Loader />;
+  if (!isDesktop) {
+    if (view === 'compare' && comparePhones.length > 0) {
+      return (
+        <MobileCompare
+          phones={comparePhones}
+          setComparePhones={setComparePhones}
+          setView={setView}
+        />
+      );
+    }
 
-  const renderMobile = () => {
     if (view === 'pdp' && selectedPhone) {
       return (
-        <MobileDetail 
-          phone={selectedPhone} 
-          setView={setView} 
-          setComparePhones={setComparePhones} 
+        <MobileDetail
+          phone={selectedPhone}
+          setView={setView}
+          setComparePhones={setComparePhones}
           setSelectedPhone={setSelectedPhone}
         />
       );
     }
+
     return (
-      <MobileHome 
-        setSelectedPhone={setSelectedPhone} 
-        setView={setView} 
-        setComparePhones={setComparePhones} 
+      <MobileHome
+        setSelectedPhone={setSelectedPhone}
+        setView={setView}
+        setComparePhones={setComparePhones}
       />
     );
-  };
+  }
 
-  const renderDesktop = () => {
-    if (view === 'pdp' && selectedPhone) {
-      return (
-        <DesktopDetail 
-          phone={selectedPhone} 
-          setView={setView} 
-          setComparePhones={setComparePhones} 
-          setSelectedPhone={setSelectedPhone}
-        />
-      );
-    }
+  if (view === 'compare' && comparePhones.length > 0) {
     return (
-      <DesktopHome 
-        setSelectedPhone={setSelectedPhone} 
-        setView={setView} 
-        setComparePhones={setComparePhones} 
+      <DesktopCompare
+        phones={comparePhones}
+        setComparePhones={setComparePhones}
+        setView={setView}
       />
     );
-  };
+  }
 
-  return isDesktop ? renderDesktop() : renderMobile();
+  if (view === 'pdp' && selectedPhone) {
+    return (
+      <DesktopDetail
+        phone={selectedPhone}
+        setView={setView}
+        setComparePhones={setComparePhones}
+        setSelectedPhone={setSelectedPhone}
+      />
+    );
+  }
+
+  return (
+    <DesktopHome
+      setSelectedPhone={setSelectedPhone}
+      setView={setView}
+      setComparePhones={setComparePhones}
+    />
+  );
 }

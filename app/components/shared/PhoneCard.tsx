@@ -1,13 +1,14 @@
-// app\components\shared\PhoneCard.tsx
+// app/components/shared/PhoneCard.tsx
 'use client';
 import React, { useState } from 'react';
-import { Smartphone, TrendingDown, Heart } from 'lucide-react';
+import { Smartphone, TrendingDown, Heart, GitCompare } from 'lucide-react';
 import { ButtonPressFeedback } from './ButtonPressFeedback';
 import { Phone } from '@/lib/types';
 import { isNewRelease } from '@/lib/utils';
 import { getAuthToken } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { APP_ROUTES } from '@/lib/config';
 import { color } from '@/lib/tokens';
 
 interface PhoneCardProps {
@@ -42,7 +43,6 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
     
     const token = getAuthToken();
     if (!token) {
-      // ✅ Save current URL before redirecting
       const currentPath = window.location.pathname + window.location.search + window.location.hash;
       sessionStorage.setItem('returnUrl', currentPath);
       
@@ -67,14 +67,8 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
         throw new Error('Failed to update favorite');
       }
     } catch (error: any) {
-      console.error('Favorite error details:', {
-        message: error?.message,
-        status: error?.status,
-        fullError: error
-      });
-      
-      const errorMsg = error?.message || error?.toString() || 'Failed to update favorite';
-      alert(errorMsg);
+      console.error('Favorite error:', error);
+      alert(error?.message || 'Failed to update favorite');
     } finally {
       setFavoriteLoading(false);
     }
@@ -103,50 +97,49 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
   };
 
   if (variant === 'tiny') {
-    const tinyStyle: React.CSSProperties = {
-      ...cardBaseStyle,
-      width: '192px',
-      flexShrink: 0,
-      position: 'relative', // ADD THIS
-    };
-
     return (
       <div 
-        className="rounded-xl p-3 transition-all"
-        style={tinyStyle}
+        className="rounded-xl p-3 transition-all relative"
+        style={cardBaseStyle}
         onMouseEnter={(e) => e.currentTarget.style.borderColor = color.border}
         onMouseLeave={(e) => e.currentTarget.style.borderColor = color.borderLight}
       >
-        <div 
-          className="h-32 rounded-lg mb-2 flex items-center justify-center overflow-hidden"
-          style={{ backgroundColor: color.borderLight }}
-        >
-          {phone.main_image_url ? (
-            <img
-              src={phone.main_image_url}
-              alt={phone.model_name}
-              className="h-full object-contain"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-          ) : (
-            <Smartphone size={32} style={{ color: color.textLight }} />
+        <ButtonPressFeedback className="w-full" onClick={() => onPhoneClick?.(phone)}>
+          <div 
+            className="h-32 rounded-lg mb-2 flex items-center justify-center overflow-hidden border"
+            style={{ backgroundColor: '#FFFFFF', borderColor: color.border }}
+          >
+            {phone.main_image_url ? (
+              <img
+                src={phone.main_image_url}
+                alt={phone.model_name}
+                className="h-full object-contain p-2"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : (
+              <Smartphone size={32} style={{ color: color.textLight }} />
+            )}
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: color.textMuted }}>
+            {phone.brand}
+          </p>
+          <h3 className="font-bold text-sm line-clamp-2 min-h-[40px] mb-2" style={{ color: color.text }}>
+            {phone.model_name}
+          </h3>
+          {phone.price_usd && (
+            <p className="font-bold text-base" style={{ color: color.text }}>${phone.price_usd}</p>
           )}
+        </ButtonPressFeedback>
+        <div className="mt-2 flex gap-1">
+          <ButtonPressFeedback
+            onClick={handleFavorite}
+            disabled={favoriteLoading}
+            className="flex-1 p-2 rounded-lg transition-all"
+            style={favoriteButtonStyle}
+          >
+            <Heart size={14} fill={isInFavorites ? 'currentColor' : 'none'} />
+          </ButtonPressFeedback>
         </div>
-        <p className="text-[10px]" style={{ color: color.textMuted }}>{phone.brand}</p>
-        <h3 className="font-semibold text-sm line-clamp-2 min-h-[40px] mb-1" style={{ color: color.text }}>
-          {phone.model_name}
-        </h3>
-        {phone.price_usd && (
-          <p className="font-bold" style={{ color: color.text }}>${phone.price_usd}</p>
-        )}
-        <button
-          onClick={handleFavorite}
-          disabled={favoriteLoading}
-          className="mt-2 p-1 rounded-full transition-all"
-          style={favoriteButtonStyle}
-        >
-          <Heart size={16} fill={isInFavorites ? 'currentColor' : 'none'} />
-        </button>
       </div>
     );
   }
@@ -169,8 +162,8 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
         )}
         <ButtonPressFeedback className="w-full" onClick={() => onPhoneClick?.(phone)}>
           <div 
-            className="w-full h-44 flex items-center justify-center p-4 transition-colors"
-            style={{ backgroundColor: color.borderLight }}
+            className="w-full h-44 flex items-center justify-center p-4 transition-colors border-b"
+            style={{ backgroundColor: '#FFFFFF', borderColor: color.border }}
           >
             {phone.main_image_url ? (
               <img
@@ -184,7 +177,9 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
             )}
           </div>
           <div className="p-4">
-            <p className="text-[9px] mb-1 font-medium uppercase" style={{ color: color.textMuted }}>{phone.brand}</p>
+            <p className="text-[9px] mb-1 font-bold uppercase tracking-wide" style={{ color: color.textMuted }}>
+              {phone.brand}
+            </p>
             <h3 className="font-bold text-sm leading-snug mb-2 line-clamp-2 min-h-[40px]" style={{ color: color.text }}>
               {phone.model_name}
             </h3>
@@ -201,9 +196,10 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
               e.stopPropagation();
               onCompareToggle?.(phone);
             }}
-            className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all min-w-[60px]"
+            className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1"
             style={compareButtonStyle}
           >
+            <GitCompare size={14} />
             {isInCompare ? 'Remove' : 'Compare'}
           </ButtonPressFeedback>
           <ButtonPressFeedback
@@ -211,7 +207,7 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
               e.stopPropagation();
               onPriceAlert?.(phone);
             }}
-            className="px-2.5 py-2.5 rounded-xl transition-all flex-0"
+            className="px-3 py-2.5 rounded-xl transition-all"
             style={{ backgroundColor: color.borderLight }}
           >
             <TrendingDown size={16} style={{ color: color.text }} />
@@ -219,7 +215,7 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
           <ButtonPressFeedback
             onClick={handleFavorite}
             disabled={favoriteLoading}
-            className="px-2.5 py-2.5 rounded-xl transition-all flex-0"
+            className="px-3 py-2.5 rounded-xl transition-all"
             style={favoriteButtonStyle}
           >
             <Heart size={16} fill={isInFavorites ? 'currentColor' : 'none'} />
@@ -246,8 +242,8 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
       )}
       <ButtonPressFeedback className="w-full" onClick={() => onPhoneClick?.(phone)}>
         <div 
-          className="w-full h-48 flex items-center justify-center overflow-hidden rounded-t-2xl transition-colors p-6"
-          style={{ backgroundColor: color.borderLight }}
+          className="w-full h-48 flex items-center justify-center overflow-hidden rounded-t-2xl transition-colors p-6 border-b"
+          style={{ backgroundColor: '#FFFFFF', borderColor: color.border }}
         >
           {phone.main_image_url ? (
             <img
@@ -261,12 +257,16 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
           )}
         </div>
         <div className="p-5">
-          <p className="text-[10px] mb-1 font-medium" style={{ color: color.textMuted }}>{phone.brand}</p>
-          <h3 className="font-semibold text-sm leading-tight mb-2 min-h-[36px] line-clamp-2" style={{ color: color.text }}>
+          <p className="text-[10px] mb-1 font-bold uppercase tracking-wide" style={{ color: color.textMuted }}>
+            {phone.brand}
+          </p>
+          <h3 className="font-bold text-sm leading-tight mb-2 min-h-[36px] line-clamp-2" style={{ color: color.text }}>
             {phone.model_name}
           </h3>
           {phone.release_date_full && (
-            <p className="text-[10px] mb-2" style={{ color: color.textLight }}>{phone.release_date_full}</p>
+            <p className="text-[10px] mb-2" style={{ color: color.textLight }}>
+              {phone.release_date_full}
+            </p>
           )}
           {phone.price_usd ? (
             <p className="font-bold text-xl" style={{ color: color.text }}>${phone.price_usd}</p>
@@ -281,9 +281,10 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
             e.stopPropagation();
             onCompareToggle?.(phone);
           }}
-          className="flex-1 py-2 rounded-lg text-xs font-bold transition-all min-w-[55px]"
+          className="flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1"
           style={compareButtonStyle}
         >
+          <GitCompare size={14} />
           {isInCompare ? 'Remove' : 'Compare'}
         </ButtonPressFeedback>
         <ButtonPressFeedback
@@ -291,7 +292,7 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
             e.stopPropagation();
             onPriceAlert?.(phone);
           }}
-          className="px-2 py-2 rounded-lg transition-all flex-0"
+          className="px-2.5 py-2 rounded-lg transition-all"
           style={{ backgroundColor: color.borderLight }}
         >
           <TrendingDown size={16} style={{ color: color.text }} />
@@ -299,7 +300,7 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
         <ButtonPressFeedback
           onClick={handleFavorite}
           disabled={favoriteLoading}
-          className="px-2 py-2 rounded-lg transition-all flex-0"
+          className="px-2.5 py-2 rounded-lg transition-all"
           style={favoriteButtonStyle}
         >
           <Heart size={16} fill={isInFavorites ? 'currentColor' : 'none'} />

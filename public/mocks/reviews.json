@@ -1,0 +1,71 @@
+{
+  "reviews": [
+    {
+      "id": 1,
+      "phone_id": 1,
+      "user_name": "Alex Chen",
+      "rating": 5,
+      "verified_owner": true,
+      "title": "Best camera phone I've owned",
+      "review_text": "The camera quality is absolutely phenomenal. Low-light performance is leagues ahead of my previous phone. Battery life easily gets me through a full day of heavy use. The 120Hz display is incredibly smooth.",
+      "helpful_count": 234,
+      "date": "2025-01-15",
+      "pros": ["Amazing camera", "Great battery life", "Smooth display"],
+      "cons": ["Bit heavy", "Expensive"]
+    },
+    {
+      "id": 2,
+      "phone_id": 1,
+      "user_name": "Sarah Martinez",
+      "rating": 4,
+      "verified_owner": true,
+      "title": "Solid flagship experience",
+      "review_text": "Really impressed with the performance. Gaming is butter smooth and the phone doesn't get too hot. Only complaint is the price, but you get what you pay for.",
+      "helpful_count": 156,
+      "date": "2025-01-10",
+      "pros": ["Fast performance", "Great for gaming", "Premium build"],
+      "cons": ["High price"]
+    },
+    {
+      "id": 3,
+      "phone_id": 1,
+      "user_name": "Michael Thompson",
+      "rating": 5,
+      "verified_owner": false,
+      "title": "Worth every penny",
+      "review_text": "Upgraded from a 3-year-old phone and the difference is night and day. The screen is gorgeous, photos look professional, and the speed is incredible.",
+      "helpful_count": 89,
+      "date": "2025-01-05",
+      "pros": ["Beautiful display", "Fast", "Great photos"],
+      "cons": []
+    }
+  ],
+  "comparisons": [
+    {
+      "phone_id": 1,
+      "compared_with_ids": [2, 3, 5, 8, 12, 15],
+      "comparison_count": 1847
+    },
+    {
+      "phone_id": 2,
+      "compared_with_ids": [1, 4, 6, 9, 11, 14],
+      "comparison_count": 1523
+    }
+  ],
+  "phone_stats": [
+    {
+      "phone_id": 1,
+      "average_rating": 4.7,
+      "total_reviews": 2847,
+      "owners_count": 1234,
+      "want_count": 892
+    },
+    {
+      "phone_id": 2,
+      "average_rating": 4.5,
+      "total_reviews": 1923,
+      "owners_count": 987,
+      "want_count": 654
+    }
+  ]
+}

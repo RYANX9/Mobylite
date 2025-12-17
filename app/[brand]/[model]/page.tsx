@@ -1,83 +1,109 @@
-// app/[brand]/[model]/page.tsx
-import { notFound, redirect } from 'next/navigation';
+// app\[brand]\[model]\page.tsx
+'use client';
+import { useState, useEffect } from 'react';
+import { notFound, useParams } from 'next/navigation';
 import { Phone } from '../../../lib/types';
-import { API_BASE_URL } from '@/lib/config';
+import { api } from '@/lib/api'; // ✅ UPDATED IMPORT
 import DesktopDetail from '../../components/desktop/DesktopDetail';
 import MobileDetail from '../../components/mobile/MobileDetail';
 
-async function getPhoneBySlug(brand: string, model: string) {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/phones/slug/${brand}/${model}`,
-      { 
-        cache: 'no-store',
-        next: { revalidate: 3600 }
+
+
+export default function PhoneDetailPage() {
+  const params = useParams();
+  const [phone, setPhone] = useState<Phone | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [view, setView] = useState('pdp');
+  const [comparePhones, setComparePhones] = useState<Phone[]>([]);
+
+  // Device detection
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  // Fetch phone by brand/model slug
+// app/[brand]/[model]/page.tsx  ←  ONLY THIS BLOCK
+
+  useEffect(() => {
+    const fetchPhone = async () => {
+      if (!params.brand || !params.model) return;
+
+      try {
+        const brand = decodeURIComponent(params.brand as string);
+        const modelSlug = decodeURIComponent(params.model as string);
+
+        // ← THIS IS THE FIX
+        const modelName = modelSlug
+          .split('-')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+
+        const fullSearchQuery = `${brand} ${modelName}`;
+
+        const searchData = await api.phones.search({ 
+          q: fullSearchQuery, 
+          page_size: 1 
+        });
+        
+        if (searchData.results?.length > 0) {
+          const fullPhone = await api.phones.getDetails(searchData.results[0].id);
+          setPhone(fullPhone);
+        } else {
+          // Extra safety – fallback to exact model match if somehow the above fails
+          const fallback = await api.phones.search({ 
+            q: modelName, 
+            page_size: 1 
+          });
+          if (fallback.results?.length > 0 && fallback.results[0].brand.toLowerCase() === brand.toLowerCase()) {
+            const fullPhone = await api.phones.getDetails(fallback.results[0].id);
+            setPhone(fullPhone);
+          } else {
+            setPhone(null);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching phone:', error);
+        setPhone(null);
+      } finally {
+        setLoading(false);
       }
-    );
+    };
 
-    if (!response.ok) return null;
-    
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error fetching phone:', error);
-    return null;
-  }
-}
+    fetchPhone();
+  }, [params.brand, params.model]);
 
-export async function generateMetadata({ 
-  params 
-}: { 
-  params: { brand: string; model: string } 
-}) {
-  const data = await getPhoneBySlug(params.brand, params.model);
-  
-  if (!data?.phone) {
-    return { title: 'Phone Not Found | Mobylite' };
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
-  const phone = data.phone;
-  
-  return {
-    title: `${phone.model_name} - Full Specs, Reviews & Price | Mobylite`,
-    description: `${phone.model_name} specifications: ${phone.chipset || 'Latest processor'}, ${phone.battery_capacity}mAh battery, ${phone.main_camera_mp}MP camera. Compare prices and read user reviews.`,
-    openGraph: {
-      title: phone.model_name,
-      description: `${phone.chipset} • ${phone.battery_capacity}mAh • ${phone.main_camera_mp}MP`,
-      images: [phone.main_image_url],
-    },
-  };
-}
-
-export default async function PhoneDetailPage({
-  params,
-}: {
-  params: { brand: string; model: string }
-}) {
-  const data = await getPhoneBySlug(params.brand, params.model);
-
-  if (!data?.phone) {
+  if (!phone) {
     notFound();
   }
 
-  const { phone, reviews, stats } = data;
+  // Reuse existing components
+  if (!isDesktop) {
+    return (
+      <MobileDetail
+        phone={phone}
+        setView={setView}
+        setComparePhones={setComparePhones}
+        setSelectedPhone={setPhone}
+      />
+    );
+  }
 
   return (
-    <>
-      <div className="hidden lg:block">
-        <DesktopDetail 
-          phone={phone} 
-          initialReviews={reviews}
-          initialStats={stats}
-        />
-      </div>
-      <div className="block lg:hidden">
-        <MobileDetail 
-          phone={phone}
-          initialReviews={reviews}
-          initialStats={stats}
-        />
-      </div>
-    </>
+    <DesktopDetail
+      phone={phone}
+      setView={setView}
+      setComparePhones={setComparePhones}
+      setSelectedPhone={setPhone}
+    />
   );
 }

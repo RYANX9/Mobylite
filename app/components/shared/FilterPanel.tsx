@@ -1,10 +1,10 @@
-// app\components\mobile\FilterPanel.tsx
+// app/components/shared/FilterPanel.tsx
 'use client';
 import React from 'react';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { Filters } from '@/lib/types';
-import { ButtonPressFeedback } from '../shared/ButtonPressFeedback';
-import { Tooltip } from '../shared/Tooltip';
+import { ButtonPressFeedback } from './ButtonPressFeedback';
+import { Tooltip } from './Tooltip';
 import { color, font } from '@/lib/tokens';
 import { BRANDS } from '@/lib/config';
 
@@ -12,9 +12,15 @@ interface FilterPanelProps {
   filters: Filters;
   setFilters: (filters: Filters) => void;
   onReset: () => void;
+  variant?: 'desktop' | 'mobile';
 }
 
-export const FilterPanel: React.FC<FilterPanelProps> = ({ filters, setFilters, onReset }) => {
+export const FilterPanel: React.FC<FilterPanelProps> = ({ 
+  filters, 
+  setFilters, 
+  onReset,
+  variant = 'desktop' 
+}) => {
   const panelStyle: React.CSSProperties = {
     backgroundColor: color.bg,
     border: `1px solid ${color.borderLight}`,
@@ -62,10 +68,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ filters, setFilters, o
     });
   };
 
+  const containerClass = variant === 'mobile' 
+    ? 'w-full' 
+    : 'w-80 flex-shrink-0';
+
+  const stickyClass = variant === 'mobile'
+    ? ''
+    : 'sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto';
+
   return (
-    <div className="w-80 flex-shrink-0">
+    <div className={containerClass}>
       <div 
-        className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto p-6 rounded-2xl scrollbar-thin"
+        className={`${stickyClass} p-6 rounded-2xl scrollbar-thin`}
         style={{ ...panelStyle, ...scrollbarStyle }}
       >
         <div className="flex items-center justify-between mb-6">
@@ -87,7 +101,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ filters, setFilters, o
         </div>
 
         <div className="space-y-6">
-          {/* Price Range */}
           <div>
             <label className="block text-sm font-semibold mb-3" style={sectionTitleStyle}>
               Price Range (USD)
@@ -125,7 +138,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ filters, setFilters, o
             </div>
           </div>
 
-          {/* Brands */}
           <div>
             <label className="block text-sm font-semibold mb-3" style={sectionTitleStyle}>
               Brand
@@ -165,7 +177,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ filters, setFilters, o
             )}
           </div>
 
-          {/* OS */}
           <div>
             <label className="block text-sm font-semibold mb-3" style={sectionTitleStyle}>
               Operating System
@@ -184,7 +195,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ filters, setFilters, o
             </select>
           </div>
 
-          {/* RAM */}
           <div>
             <label className="block text-sm font-semibold mb-3" style={sectionTitleStyle}>
               Minimum RAM
@@ -211,7 +221,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ filters, setFilters, o
             </select>
           </div>
 
-          {/* Storage */}
           <div>
             <label className="block text-sm font-semibold mb-3" style={sectionTitleStyle}>
               Minimum Storage
@@ -238,7 +247,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ filters, setFilters, o
             </select>
           </div>
 
-          {/* Battery */}
           <div>
             <label className="block text-sm font-semibold mb-3" style={sectionTitleStyle}>
               Minimum Battery
@@ -264,7 +272,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ filters, setFilters, o
             </select>
           </div>
 
-          {/* Camera */}
           <div>
             <label className="block text-sm font-semibold mb-3" style={sectionTitleStyle}>
               Minimum Camera
@@ -290,7 +297,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ filters, setFilters, o
             </select>
           </div>
 
-          {/* 5G Support */}
           <div>
             <label className="flex items-center gap-3 cursor-pointer">
               <input
@@ -307,7 +313,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ filters, setFilters, o
             </label>
           </div>
 
-          {/* Release Year */}
           <div>
             <label className="block text-sm font-semibold mb-3" style={sectionTitleStyle}>
               Release Year

@@ -1,29 +1,25 @@
+// app/components/shared/RecommendationButtons.tsx
 'use client';
 import React from 'react';
-import { Zap } from 'lucide-react';
 import { ButtonPressFeedback } from './ButtonPressFeedback';
 import { RECOMMENDATION_CATEGORIES } from '@/lib/config';
-import { color, font } from '@/lib/tokens';
+import { color } from '@/lib/tokens';
 
 interface RecommendationButtonsProps {
   activeRecommendation: string | null;
   onRecommendationClick: (id: string) => void;
-  onQuizClick: () => void;
   variant?: 'desktop' | 'mobile';
-  showQuizButton?: boolean;
 }
 
-export default function RecommendationButtons({
+export const RecommendationButtons: React.FC<RecommendationButtonsProps> = ({
   activeRecommendation,
   onRecommendationClick,
-  onQuizClick,
-  variant = 'desktop',
-  showQuizButton = true
-}: RecommendationButtonsProps) {
+  variant = 'desktop'
+}) => {
   const isMobile = variant === 'mobile';
   const containerClasses = isMobile 
     ? "flex gap-2 overflow-x-auto pb-2 scrollbar-none -mx-4 px-4" 
-    : "flex gap-2";
+    : "flex gap-2 flex-wrap";
 
   const buttonBaseStyle: React.CSSProperties = {
     border: `2px solid ${color.border}`,
@@ -37,26 +33,6 @@ export default function RecommendationButtons({
     borderColor: color.text,
   };
 
-  const quizButtonStyle: React.CSSProperties = {
-    backgroundColor: color.primary,
-    color: color.primaryText,
-    borderColor: color.primary,
-  };
-
-  // ✅ MOVED BEFORE RETURN - FIXES THE ERROR
-  const quizButton = showQuizButton && (
-    <ButtonPressFeedback
-      onClick={onQuizClick}
-      className={`flex items-center gap-2 rounded-xl font-bold flex-shrink-0 transition-all ${
-        isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-xs'
-      }`}
-      style={quizButtonStyle}
-    >
-      <Zap size={isMobile ? 14 : 16} strokeWidth={2.5} />
-      <span className="whitespace-nowrap">{isMobile ? 'Find Phone' : 'Quiz'}</span>
-    </ButtonPressFeedback>
-  );
-
   const renderButton = (id: string, label: string, icon: React.ElementType, isActive: boolean) => {
     if (!icon) return null;
     
@@ -68,10 +44,10 @@ export default function RecommendationButtons({
         key={id}
         onClick={() => onRecommendationClick(id)}
         className={`flex items-center gap-2 rounded-xl font-bold flex-shrink-0 transition-all ${
-          isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-xs'
+          isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2.5 text-xs'
         }`}
         style={style}
-        hoverStyle={isActive ? activeButtonStyle : buttonBaseStyle}
+        hoverStyle={isActive ? activeButtonStyle : { borderColor: color.text }}
       >
         <Icon size={isMobile ? 14 : 16} strokeWidth={2.5} />
         <span className="whitespace-nowrap">{label}</span>
@@ -79,10 +55,8 @@ export default function RecommendationButtons({
     );
   };
 
-  // ✅ NOW quizButton IS DEFINED BEFORE IT'S USED
   return (
     <div className={containerClasses}>
-      {quizButton}
       {Object.entries(RECOMMENDATION_CATEGORIES).map(([key, rec]) => {
         if (!rec.icon) {
           console.error(`Missing icon for ${key}`);
@@ -92,4 +66,4 @@ export default function RecommendationButtons({
       })}
     </div>
   );
-}
+};
