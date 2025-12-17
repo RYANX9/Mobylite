@@ -145,85 +145,85 @@ export const PhoneCard: React.FC<PhoneCardProps> = ({
   }
   
   if (variant === 'mobile') {
-    return (
-      <div 
-        className="rounded-2xl overflow-hidden transition-all shadow-sm relative"
-        style={cardBaseStyle}
-        onMouseEnter={(e) => e.currentTarget.style.borderColor = color.border}
-        onMouseLeave={(e) => e.currentTarget.style.borderColor = color.borderLight}
-      >
-        {isNew && (
-          <div 
-            className="absolute top-2 right-2 text-[8px] font-bold px-2 py-1 rounded-full z-10"
-            style={newBadgeStyle}
-          >
-            NEW
-          </div>
-        )}
-        <ButtonPressFeedback className="w-full" onClick={() => onPhoneClick?.(phone)}>
-          <div 
-            className="w-full h-44 flex items-center justify-center p-4 transition-colors border-b"
-            style={{ backgroundColor: '#FFFFFF', borderColor: color.border }}
-          >
-            {phone.main_image_url ? (
-              <img
-                src={phone.main_image_url}
-                alt={phone.model_name}
-                className="w-full h-full object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            ) : (
-              <Smartphone size={40} style={{ color: color.textLight }} />
-            )}
-          </div>
-          <div className="p-4">
-            <p className="text-[9px] mb-1 font-bold uppercase tracking-wide" style={{ color: color.textMuted }}>
-              {phone.brand}
-            </p>
-            <h3 className="font-bold text-sm leading-snug mb-2 line-clamp-2 min-h-[40px]" style={{ color: color.text }}>
-              {phone.model_name}
-            </h3>
-            {phone.price_usd ? (
-              <p className="font-bold text-lg" style={{ color: color.text }}>${phone.price_usd}</p>
-            ) : (
-              <p className="text-xs" style={{ color: color.textLight }}>Price unavailable</p>
-            )}
-          </div>
-        </ButtonPressFeedback>
-        <div className="px-4 pb-4 flex gap-2">
-          <ButtonPressFeedback
-            onClick={(e) => {
-              e.stopPropagation();
-              onCompareToggle?.(phone);
-            }}
-            className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1"
-            style={compareButtonStyle}
-          >
-            <GitCompare size={14} />
-            {isInCompare ? 'Remove' : 'Compare'}
+      return (
+        <div 
+          className="rounded-2xl overflow-hidden transition-all shadow-sm relative"
+          style={cardBaseStyle}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = color.border}
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = color.borderLight}
+        >
+          {isNew && (
+            <div 
+              className="absolute top-3 left-3 text-[8px] font-bold px-2 py-1 rounded-full z-10"
+              style={newBadgeStyle}
+            >
+              NEW
+            </div>
+          )}
+          <ButtonPressFeedback className="w-full" onClick={() => onPhoneClick?.(phone)}>
+            <div 
+              className="w-full h-44 flex items-center justify-center p-4 transition-colors border-b"
+              style={{ backgroundColor: '#FFFFFF', borderColor: color.border }}
+            >
+              {phone.main_image_url ? (
+                <img
+                  src={phone.main_image_url}
+                  alt={phone.model_name}
+                  className="w-full h-full object-contain"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              ) : (
+                <Smartphone size={40} style={{ color: color.textLight }} />
+              )}
+            </div>
+            <div className="p-4">
+              <p className="text-[9px] mb-1 font-bold uppercase tracking-wide" style={{ color: color.textMuted }}>
+                {phone.brand}
+              </p>
+              <h3 className="font-bold text-sm leading-snug mb-2 line-clamp-2 min-h-[40px]" style={{ color: color.text }}>
+                {phone.model_name}
+              </h3>
+              {phone.price_usd ? (
+                <p className="font-bold text-lg" style={{ color: color.text }}>${phone.price_usd}</p>
+              ) : (
+                <p className="text-xs" style={{ color: color.textLight }}>Price unavailable</p>
+              )}
+            </div>
           </ButtonPressFeedback>
-          <ButtonPressFeedback
-            onClick={(e) => {
-              e.stopPropagation();
-              onPriceAlert?.(phone);
-            }}
-            className="px-3 py-2.5 rounded-xl transition-all"
-            style={{ backgroundColor: color.borderLight }}
-          >
-            <TrendingDown size={16} style={{ color: color.text }} />
-          </ButtonPressFeedback>
-          <ButtonPressFeedback
-            onClick={handleFavorite}
-            disabled={favoriteLoading}
-            className="px-3 py-2.5 rounded-xl transition-all"
-            style={favoriteButtonStyle}
-          >
-            <Heart size={16} fill={isInFavorites ? 'currentColor' : 'none'} />
-          </ButtonPressFeedback>
+          <div className="px-3 pb-4 flex gap-1.5">
+            <ButtonPressFeedback
+              onClick={(e) => {
+                e.stopPropagation();
+                onCompareToggle?.(phone);
+              }}
+              className="flex-[2] py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+              style={compareButtonStyle}
+            >
+              <GitCompare size={14} />
+              {isInCompare ? 'Remove' : 'Compare'}
+            </ButtonPressFeedback>
+            <ButtonPressFeedback
+              onClick={(e) => {
+                e.stopPropagation();
+                onPriceAlert?.(phone);
+              }}
+              className="flex-1 py-2 rounded-xl transition-all flex items-center justify-center"
+              style={{ backgroundColor: color.borderLight }}
+            >
+              <TrendingDown size={16} style={{ color: color.text }} />
+            </ButtonPressFeedback>
+            <ButtonPressFeedback
+              onClick={handleFavorite}
+              disabled={favoriteLoading}
+              className="flex-1 py-2 rounded-xl transition-all flex items-center justify-center"
+              style={favoriteButtonStyle}
+            >
+              <Heart size={16} fill={isInFavorites ? 'currentColor' : 'none'} />
+            </ButtonPressFeedback>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
   return (
     <div 
