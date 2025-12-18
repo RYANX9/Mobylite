@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Camera, Battery, Bolt, Smartphone, ArrowLeft, Heart, Maximize2, 
   Cpu, MemoryStick, HardDrive, Search, Monitor, Zap, 
-  Video, Wifi, Weight, Ruler, Calendar, Award, Signal, Volume2, Info, Package, Bell
+  Video, Wifi, Weight, Ruler, Calendar, Award, Signal, Volume2, Info, Package, Bell, Sparkles 
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Phone, Favorite } from '@/lib/types';
@@ -20,8 +20,11 @@ import { HorizontalPhoneScroll } from '@/app/components/shared/HorizontalPhoneSc
 import { UserMenu } from '@/app/components/shared/UserMenu';
 import { PriceAlertModal } from '@/app/components/shared/PriceAlertModal';
 import { ReviewSection } from '@/app/components/shared/ReviewSection';
+import MobyMonCard from '@/app/components/shared/MobyMonCard'; 
 import { color, font } from '@/lib/tokens';
 import { createPhoneSlug } from '@/lib/config';
+
+  
 
 interface DesktopDetailProps {
   phone: Phone;
@@ -75,6 +78,8 @@ export default function DesktopDetail({ phone, initialReviews, initialStats }: D
   const [searchQuery, setSearchQuery] = useState('');
   const [phoneStats, setPhoneStats] = useState<any>(initialStats || null);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
+
+  const [showMobyMon, setShowMobyMon] = useState(false); 
 
   useEffect(() => {
     const checkFavorite = async () => {
@@ -349,6 +354,7 @@ export default function DesktopDetail({ phone, initialReviews, initialStats }: D
 
   return (
     <div className="min-h-screen" style={containerBgStyle}>
+      {/* Navbar - ADD MOBYMON BUTTON HERE */}
       <div className="sticky top-0 z-30 border-b" style={navbarBgStyle}>
         <div className="max-w-7xl mx-auto px-8 py-4">
           <div className="flex items-center gap-6">
@@ -378,6 +384,19 @@ export default function DesktopDetail({ phone, initialReviews, initialStats }: D
                 placeholder="Search phones..."
               />
             </div>
+
+            {/* ← ADD THIS MOBYMON BUTTON */}
+            <ButtonPressFeedback
+              onClick={() => setShowMobyMon(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg"
+              style={{ 
+                background: '#0f0f0fff',
+                color: '#FFFFFF'
+              }}
+            >
+              <Sparkles size={18} />
+              <span>MobyMon Card</span>
+            </ButtonPressFeedback>
 
             <ButtonPressFeedback
               className="p-2.5 rounded-full transition-all"
@@ -649,6 +668,13 @@ export default function DesktopDetail({ phone, initialReviews, initialStats }: D
           <ReviewSection phoneId={phone.id} />
         </div>
       </div>
+      {/* ADD THIS AT THE VERY END, BEFORE CLOSING </div> */}
+      {showMobyMon && (
+        <MobyMonCard 
+          phone={phone} 
+          onClose={() => setShowMobyMon(false)} 
+        />
+      )}
 
       <PriceAlertModal
         show={showPriceAlert}
