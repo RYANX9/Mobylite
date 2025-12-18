@@ -5,7 +5,7 @@ import {
   Camera, Battery, Bolt, Smartphone, ArrowLeft, Heart, Maximize2, 
   Cpu, MemoryStick, HardDrive, Search, Monitor, Zap, 
   Video, Wifi, Weight, Ruler, Calendar, Award, Signal, Volume2, Info, Package, Bell,
-  ChevronDown, ChevronUp, Star, Users, TrendingUp
+  ChevronDown, ChevronUp, Star, Users, TrendingUp, Sparkles
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Phone, Favorite } from '@/lib/types';
@@ -20,6 +20,7 @@ import { HorizontalPhoneScroll } from '@/app/components/shared/HorizontalPhoneSc
 import { UserMenu } from '@/app/components/shared/UserMenu';
 import { PriceAlertModal } from '@/app/components/shared/PriceAlertModal';
 import { CompareFloatingPanel } from '@/app/components/shared/CompareFloatingPanel';
+import MobyMonCard from '@/app/components/shared/MobyMonCard'; 
 import { color, font } from '@/lib/tokens';
 import { createPhoneSlug } from '@/lib/config';
 
@@ -78,6 +79,8 @@ export default function MobileDetail({ phone, initialReviews, initialStats }: Mo
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Launch', 'Body', 'Display']));
   const [expandedSpec, setExpandedSpec] = useState<number | null>(null);
   const [compareList, setCompareList] = useState<Phone[]>([]);
+  const [showMobyMon, setShowMobyMon] = useState(false); 
+
 
   useEffect(() => {
     const checkFavorite = async () => {
@@ -455,13 +458,19 @@ export default function MobileDetail({ phone, initialReviews, initialStats }: Mo
         )}
         
         <div className="flex gap-3">
-          {phone.brand_link && (
-            <ButtonPressFeedback onClick={() => window.open(phone.brand_link, '_blank')} className="flex-1">
-              <div className="w-full py-3 text-center font-bold rounded-xl text-sm" style={{ backgroundColor: color.borderLight, color: color.text }}>
-                Visit Brand Site
-              </div>
-            </ButtonPressFeedback>
-          )}
+        {/* ← ADD THIS MOBYMON BUTTON */}
+        <ButtonPressFeedback
+          onClick={() => setShowMobyMon(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg"
+          style={{ 
+            background: '#0f0f0fff',
+            color: '#FFFFFF'
+          }}
+        >
+          <Sparkles size={18} />
+          <span>MobyMon Card</span>
+        </ButtonPressFeedback>
+
           
           <ButtonPressFeedback 
             onClick={() => setShowPriceAlert(true)}
@@ -707,6 +716,14 @@ export default function MobileDetail({ phone, initialReviews, initialStats }: Mo
         }}
         variant="mobile"
       />
+
+      {/* ADD THIS AT THE VERY END, BEFORE CLOSING </div> */}
+      {showMobyMon && (
+        <MobyMonCard 
+          phone={phone} 
+          onClose={() => setShowMobyMon(false)} 
+        />
+      )}
 
       <PriceAlertModal
         show={showPriceAlert}
