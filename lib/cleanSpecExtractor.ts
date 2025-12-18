@@ -82,12 +82,29 @@ export function extractCleanSpecs(phone: any): CleanSpec[] {
 
 function extractDisplayType(displaytype?: string): string {
   if (!displaytype) return "OLED";
+  
   const match = displaytype.match(/(LTPO\s+)?(AMOLED|OLED|LCD|IPS|Super Retina|Dynamic AMOLED)/i);
-  const refreshMatch = displaytype.match(/(\d+)Hz/);
   const type = match ? match[0] : "OLED";
-  const refresh = refreshMatch ? ` (${refreshMatch[1]}Hz)` : "";
-  return `${type}${refresh}`;
-}
+  
+  // Extract refresh rate - only valid display refresh rates (60, 90, 120, 144, etc.)
+  // Ignore PWM frequencies which are typically 1000Hz+
+  const allHzMatches = displaytype.match(/(\d+)Hz/g);
+  let refreshRate = "";
+  
+  if (allHzMatches) {
+    for (const match of allHzMatches) {
+      const value = parseInt(match);
+      // Standard display refresh rates are typically between 30-240Hz
+      // PWM frequencies are usually 1000Hz+
+      if (value >= 30 && value <= 240) {
+        refreshRate = ` (${value}Hz)`;
+        break;
+      }
+    }
+  }
+  
+  return `${type}${refreshRate}`;
+} 
 
 function extractBrightness(displaytype?: string): string {
   if (!displaytype) return "N/A";
