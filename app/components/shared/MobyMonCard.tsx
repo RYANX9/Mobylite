@@ -315,11 +315,28 @@ const MobyMonCard = ({ phone, onClose }) => {
 // Helper functions (identical to previous version)
 function extractDisplayType(displaytype) {
   if (!displaytype) return "OLED";
+  
   const match = displaytype.match(/(LTPO\s+)?(AMOLED|OLED|LCD|IPS|Super Retina|Dynamic AMOLED)/i);
-  const refreshMatch = displaytype.match(/(\d+)Hz/);
   const type = match ? match[0] : "OLED";
-  const refresh = refreshMatch ? ` (${refreshMatch[1]}Hz)` : "";
-  return `${type}${refresh}`;
+  
+  // Extract refresh rate - only valid display refresh rates
+  // Ignore PWM frequencies (typically 1000Hz+)
+  const allHzMatches = displaytype.match(/(\d+)Hz/g);
+  let refreshRate = "";
+  
+  if (allHzMatches) {
+    for (const match of allHzMatches) {
+      const value = parseInt(match);
+      // Standard display refresh rates are between 30-240Hz
+      // PWM frequencies are usually 1000Hz+
+      if (value >= 30 && value <= 240) {
+        refreshRate = ` (${value}Hz)`;
+        break;
+      }
+    }
+  }
+  
+  return `${type}${refreshRate}`;
 }
 
 function extractBrightness(displaytype) {
