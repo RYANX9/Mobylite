@@ -145,34 +145,60 @@ const MobyMonCard = ({ phone, onClose }) => {
     if (!cardRef.current || isGenerating) return;
     setIsGenerating(true);
     
-    setTimeout(async () => {
+    try {
+      const { toPng } = await import('html-to-image');
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const dataUrl = await toPng(cardRef.current, {
+        quality: 1.0,
+        pixelRatio: 3,
+        width: 708,
+        height: 1454,
+        cacheBust: true,
+        backgroundColor: '#ffffff',
+      });
+      
+      const link = document.createElement('a');
+      link.download = `mobyspec-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setIsGenerating(false);
+    } catch (error) {
+      console.error('Export failed, trying fallback:', error);
+      
       try {
-        const html2canvas = (await import('html2canvas-pro')).default;
+        const domtoimage = await import('dom-to-image');
         
-        const canvas = await html2canvas(cardRef.current, {
-          scale: 3,
-          backgroundColor: '#ffffff',
-          useCORS: true,
-          allowTaint: true,
-          width: 708,
-          height: 1454,
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const dataUrl = await domtoimage.toPng(cardRef.current, {
+          quality: 1.0,
+          width: 708 * 3,
+          height: 1454 * 3,
+          style: {
+            transform: 'scale(3)',
+            transformOrigin: 'top left',
+          }
         });
-
-        const dataUrl = canvas.toDataURL('image/png', 1.0);
         
         const link = document.createElement('a');
+        link.download = `mobyspec-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
         link.href = dataUrl;
-        link.download = `mobyspec-${cleanModelName.replace(/\s+/g, '-').toLowerCase()}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         
         setIsGenerating(false);
-      } catch (error) {
-        console.error('Download failed:', error);
+      } catch (fallbackError) {
+        console.error('All export methods failed:', fallbackError);
+        alert('Failed to download card. Please try again.');
         setIsGenerating(false);
       }
-    }, 100);
+    }
   };
 
   if (!phone) return null;
@@ -226,12 +252,12 @@ const MobyMonCard = ({ phone, onClose }) => {
               {keySpecs.map((spec, i) => (
                 <div key={i} className="flex flex-col justify-start">
                   <div className="flex items-center gap-3 mb-2">
-                    <spec.icon className="w-[32px] h-[32px] text-black/50 flex-shrink-0" strokeWidth={1.5} />
-                    <p className="text-[12px] font-bold text-black/40 tracking-[0.2em] uppercase">
+                    <spec.icon className="w-[35px] h-[35px] text-black/50 flex-shrink-0" strokeWidth={1.5} />
+                    <p className="text-[13px] font-bold text-black/40 tracking-[0.2em] uppercase">
                       {spec.label}
                     </p>
                   </div>
-                  <p className="text-[26px] font-semibold text-black leading-tight">
+                  <p className="text-[29px] font-semibold text-black leading-tight">
                     {spec.value}
                   </p>
                 </div>
@@ -239,10 +265,10 @@ const MobyMonCard = ({ phone, onClose }) => {
               {Array(emptySlots).fill(0).map((_, i) => (
                 <div key={`empty-${i}`} className="flex flex-col justify-start opacity-0">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-[32px] h-[32px]" />
-                    <p className="text-[12px]">EMPTY</p>
+                    <div className="w-[35px] h-[35px]" />
+                    <p className="text-[13px]">EMPTY</p>
                   </div>
-                  <p className="text-[26px]">-</p>
+                  <p className="text-[29px]">-</p>
                 </div>
               ))}
             </div>
@@ -250,8 +276,8 @@ const MobyMonCard = ({ phone, onClose }) => {
 
           <div className="bg-black text-white border-t-[3px] border-black" style={{ height: '220px', padding: '20px 50px 25px 50px' }}>
             <div className="flex flex-col h-full">
-              <div className="flex-shrink-0 mb-2 flex justify-center" style={{ width: '100%' }}>
-                <div style={{ width: '83px', height: '83px' }}>
+              <div className="flex-shrink-0 mb-3 flex justify-center" style={{ width: '100%' }}>
+                <div style={{ width: '84px', height: '84px' }}>
                   <img 
                     src="/logowhite.svg" 
                     alt="Logo" 
@@ -260,27 +286,27 @@ const MobyMonCard = ({ phone, onClose }) => {
                 </div>
               </div>
               
-              <div className="flex justify-between items-end w-full mb-1">
+              <div className="flex justify-between items-end w-full mb-3">
                 <div>
-                  <p className="text-[12px] font-black tracking-[0.25em] uppercase opacity-80">
+                  <p className="text-[14px] font-black tracking-[0.25em] uppercase opacity-80">
                     MOBYMON ARCHIVE
                   </p>
-                  <p className="text-[10px] font-light opacity-50 mt-1">
+                  <p className="text-[12px] font-light opacity-50 mt-1">
                     {phone.release_year || '2025'}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[63px] font-extralight leading-none tracking-tighter">
+                  <p className="text-[72px] font-extralight leading-none tracking-tighter">
                     {formattedPrice}
                   </p>
-                  <p className="text-[11px] font-bold tracking-[0.2em] mt-1 uppercase opacity-70">
+                  <p className="text-[13px] font-bold tracking-[0.2em] mt-1 uppercase opacity-70">
                     GLOBAL LAUNCH PRICE
                   </p>
                 </div>
               </div>
               
-              <div className="flex justify-center mt-auto pb-1">
-                <p className="text-[12px] font-bold tracking-[0.25em] uppercase opacity-70">
+              <div className="flex justify-center mt-auto pb-2">
+                <p className="text-[14px] font-bold tracking-[0.25em] uppercase opacity-70">
                   MOBYLITE.VERCEL.APP
                 </p>
               </div>
