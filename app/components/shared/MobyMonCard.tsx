@@ -31,11 +31,6 @@ const MobyMonCard = ({ phone, onClose }) => {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [onClose]);
 
-  const logoUrl = useMemo(() => {
-    const logoPath = `${window.location.origin}/logowhite.svg`;
-    return `/api/proxy-image?url=${encodeURIComponent(logoPath)}`;
-  }, []);  
-
   // Generate the Proxy URL to bypass CORS
   const proxiedImageUrl = useMemo(() => {
     if (!phone?.main_image_url) return null;
@@ -204,12 +199,12 @@ const MobyMonCard = ({ phone, onClose }) => {
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <span className="text-[10px] font-black tracking-[0.4em] text-black/30 uppercase">TECH PASSPORT</span>
-                <h2 className="text-4xl font-grey leading-[0.9] tracking-tight mt-1">
+                <h1 className="text-4xl font-black leading-[0.9] tracking-tight mt-1">
                   {phone.brand?.toUpperCase()}
-                </h2>
-                <h1 className="text-xl font-light text-black/70 mt-1 leading-tight">
-                  {phone.model_name}
                 </h1>
+                <h2 className="text-xl font-light text-black/70 mt-1 leading-tight">
+                  {phone.model_name}
+                </h2>
                 {releaseDate && (
                   <p className="text-[10px] font-bold text-black/40 mt-1 uppercase tracking-wider">
                     {releaseDate}
@@ -254,12 +249,15 @@ const MobyMonCard = ({ phone, onClose }) => {
 
           {/* Footer */}
           <div className="p-2 border-t-2 border-black bg-black text-white flex flex-col items-center">
-            <img 
-              src={logoUrl}
-              alt="MobyLite Logo" 
-              crossOrigin="anonymous"
-              className="w-14 h-14 mb-1"
-            />
+            <div className="w-14 h-14 mb-1 flex items-center justify-center overflow-hidden">
+              <img 
+                src="/logowhite.svg"
+                alt="MobyLite Logo" 
+                crossOrigin="anonymous"
+                className="w-full h-full object-contain"
+                style={{ filter: 'invert(1)' }}
+              />
+            </div>
             <div className="flex justify-between items-end w-full mb-3 px-4">
               <div>
                 <p className="text-[9px] font-black tracking-[0.3em] uppercase opacity-70">
@@ -279,7 +277,7 @@ const MobyMonCard = ({ phone, onClose }) => {
               </div>
             </div>
             <a 
-              href="https://mobylite.vercel.app " 
+              href="https://mobylite.vercel.app" 
               target="_blank"
               rel="noopener noreferrer"
               className="text-[9px] font-bold tracking-[0.3em] uppercase opacity-70 hover:underline mb-2"
@@ -312,31 +310,14 @@ const MobyMonCard = ({ phone, onClose }) => {
   );
 };
 
-// Helper functions (identical to previous version)
+// Helper functions
 function extractDisplayType(displaytype) {
   if (!displaytype) return "OLED";
-  
   const match = displaytype.match(/(LTPO\s+)?(AMOLED|OLED|LCD|IPS|Super Retina|Dynamic AMOLED)/i);
+  const refreshMatch = displaytype.match(/(\d+)Hz/);
   const type = match ? match[0] : "OLED";
-  
-  // Extract refresh rate - only valid display refresh rates
-  // Ignore PWM frequencies (typically 1000Hz+)
-  const allHzMatches = displaytype.match(/(\d+)Hz/g);
-  let refreshRate = "";
-  
-  if (allHzMatches) {
-    for (const match of allHzMatches) {
-      const value = parseInt(match);
-      // Standard display refresh rates are between 30-240Hz
-      // PWM frequencies are usually 1000Hz+
-      if (value >= 30 && value <= 240) {
-        refreshRate = ` (${value}Hz)`;
-        break;
-      }
-    }
-  }
-  
-  return `${type}${refreshRate}`;
+  const refresh = refreshMatch ? ` (${refreshMatch[1]}Hz)` : "";
+  return `${type}${refresh}`;
 }
 
 function extractBrightness(displaytype) {
