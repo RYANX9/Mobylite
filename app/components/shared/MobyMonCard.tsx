@@ -607,4 +607,8 @@ function extractWiFi(wlan) {
 
 function extractDimensions(dimensions) {
   if (!dimensions) return "N/A";
-  const match = dimensions.match(/([\d.]+\s*x\s*[\
+  const match = dimensions.match(/([\d.]+\s*x\s*[\d.]+\s*x\s*[\d.]+)\s*mm/i);
+  return match ? `${match[1]} mm` : dimensions;
+}
+
+export default MobyMonCard;
