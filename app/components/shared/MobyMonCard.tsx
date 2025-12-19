@@ -204,10 +204,10 @@ const MobyMonCard = ({ phone, onClose }) => {
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <span className="text-[10px] font-black tracking-[0.4em] text-black/30 uppercase">TECH PASSPORT</span>
-                <h2 className="text-4xl font-grey leading-[0.9] tracking-tight mt-1">
+                <h2 className="text-sm font-medium text-[#808080] mt-1">
                   {phone.brand?.toUpperCase()}
                 </h2>
-                <h1 className="text-xl font-light text-black/70 mt-1 leading-tight">
+                <h1 className="text-4xl font-black text-black leading-[0.9] tracking-tight mt-1">
                   {phone.model_name}
                 </h1>
                 {releaseDate && (
