@@ -255,7 +255,6 @@ const MobyMonCard = ({ phone, onClose }) => {
                 alt="MobyLite Logo" 
                 crossOrigin="anonymous"
                 className="w-full h-full object-contain"
-                style={{ filter: 'invert(1)' }}
               />
             </div>
             <div className="flex justify-between items-end w-full mb-3 px-4">
