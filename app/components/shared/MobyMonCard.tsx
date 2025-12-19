@@ -129,6 +129,22 @@ const MobyMonCard = ({ phone, onClose }) => {
     return result.slice(0, 12);
   }, [phone]);
 
+  const textSizeConfig = useMemo(() => {
+    if (keySpecs.length === 0) return { labelSize: 13, valueSize: 29, iconSize: 35, gapY: 8 };
+    
+    const totalChars = keySpecs.reduce((sum, spec) => sum + spec.value.length, 0);
+    const avgCharsPerSpec = totalChars / keySpecs.length;
+    const maxValueLength = Math.max(...keySpecs.map(spec => spec.value.length));
+    
+    if (maxValueLength > 40 || avgCharsPerSpec > 25) {
+      return { labelSize: 11, valueSize: 20, iconSize: 28, gapY: 6 };
+    } else if (maxValueLength > 30 || avgCharsPerSpec > 20) {
+      return { labelSize: 12, valueSize: 24, iconSize: 31, gapY: 7 };
+    } else {
+      return { labelSize: 13, valueSize: 29, iconSize: 35, gapY: 8 };
+    }
+  }, [keySpecs]);
+
   const emptySlots = useMemo(() => {
     return Math.max(0, 12 - keySpecs.length);
   }, [keySpecs.length]);
@@ -248,16 +264,26 @@ const MobyMonCard = ({ phone, onClose }) => {
           </div>
 
           <div style={{ height: '864px', padding: '50px 50px' }}>
-            <div className="grid grid-cols-2 gap-x-12 gap-y-8 h-full">
+            <div className="grid grid-cols-2 gap-x-12 h-full" style={{ rowGap: `${textSizeConfig.gapY * 4}px` }}>
               {keySpecs.map((spec, i) => (
                 <div key={i} className="flex flex-col justify-start">
                   <div className="flex items-center gap-3 mb-2">
-                    <spec.icon className="w-[35px] h-[35px] text-black/50 flex-shrink-0" strokeWidth={1.5} />
-                    <p className="text-[13px] font-bold text-black/40 tracking-[0.2em] uppercase">
+                    <spec.icon 
+                      className="text-black/50 flex-shrink-0" 
+                      strokeWidth={1.5}
+                      style={{ width: `${textSizeConfig.iconSize}px`, height: `${textSizeConfig.iconSize}px` }}
+                    />
+                    <p 
+                      className="font-bold text-black/40 tracking-[0.2em] uppercase"
+                      style={{ fontSize: `${textSizeConfig.labelSize}px` }}
+                    >
                       {spec.label}
                     </p>
                   </div>
-                  <p className="text-[29px] font-semibold text-black leading-tight">
+                  <p 
+                    className="font-semibold text-black leading-tight"
+                    style={{ fontSize: `${textSizeConfig.valueSize}px` }}
+                  >
                     {spec.value}
                   </p>
                 </div>
@@ -265,10 +291,10 @@ const MobyMonCard = ({ phone, onClose }) => {
               {Array(emptySlots).fill(0).map((_, i) => (
                 <div key={`empty-${i}`} className="flex flex-col justify-start opacity-0">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-[35px] h-[35px]" />
-                    <p className="text-[13px]">EMPTY</p>
+                    <div style={{ width: `${textSizeConfig.iconSize}px`, height: `${textSizeConfig.iconSize}px` }} />
+                    <p style={{ fontSize: `${textSizeConfig.labelSize}px` }}>EMPTY</p>
                   </div>
-                  <p className="text-[29px]">-</p>
+                  <p style={{ fontSize: `${textSizeConfig.valueSize}px` }}>-</p>
                 </div>
               ))}
             </div>
