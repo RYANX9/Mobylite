@@ -198,7 +198,7 @@ const MobyMonCard = ({ phone, onClose }) => {
           {/* Header - 25% height */}
           <div 
             className="relative border-b-2 border-black flex-shrink-0"
-            style={{ height: '25%' }}
+            style={{ height: '20%' }}
           >
             <div className="h-full flex justify-between items-start p-[4%] pb-[2%]">
               {/* Left: Text Content */}
@@ -266,7 +266,7 @@ const MobyMonCard = ({ phone, onClose }) => {
           {/* Specs Grid - 55% height */}
           <div 
             className="flex-1 overflow-y-auto"
-            style={{ height: '55%' }}
+            style={{ height: '60%' }}
           >
             <div 
               className="h-full grid grid-cols-2 gap-x-[5%] gap-y-[3%]"
