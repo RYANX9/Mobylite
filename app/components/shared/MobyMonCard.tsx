@@ -1,376 +1,3 @@
-
-import React, { useRef, useState, useMemo, useEffect } from 'react';
-import { 
-  Download, 
-  Smartphone, 
-  Camera, 
-  Cpu, 
-  Battery,
-  Bolt,
-  Monitor,
-  Sun,
-  MemoryStick,
-  Wifi,
-  Ruler as RulerIcon,
-  Weight as WeightIcon
-} from 'lucide-react';
-
-const MobyMonCard = ({ phone, onClose }) => {
-  const cardRef = useRef(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [imageError, setImageError] = useState(false);
-
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
-
-  const logoUrl = useMemo(() => {
-    const logoPath = `${window.location.origin}/logowhite.svg`;
-    return `/api/proxy-image?url=${encodeURIComponent(logoPath)}`;
-  }, []);  
-
-  const proxiedImageUrl = useMemo(() => {
-    if (!phone?.main_image_url) return null;
-    return `/api/proxy-image?url=${encodeURIComponent(phone.main_image_url)}`;
-  }, [phone?.main_image_url]);
-
-  const releaseDate = useMemo(() => {
-    const specs = phone?.full_specifications?.specifications || {};
-    const launch = specs.Launch;
-    if (launch?.Released) return launch.Released;
-    if (launch?.Announced) return `Announced ${launch.Announced}`;
-    if (phone?.release_year) return phone.release_year;
-    return null;
-  }, [phone]);
-
-  const keySpecs = useMemo(() => {
-    if (!phone) return [];
-
-    const specs = phone.full_specifications?.specifications || {};
-    const quick = phone.full_specifications?.quick_specs || {};
-    const result = [];
-
-    const displayType = extractDisplayType(quick.displaytype);
-    if (phone.screen_size || displayType) {
-      result.push({ 
-        icon: Monitor, 
-        label: 'Display', 
-        value: phone.screen_size ? `${phone.screen_size}" ${displayType}` : displayType
-      });
-    }
-
-    const brightness = extractBrightness(quick.displaytype);
-    if (brightness !== "N/A") {
-      result.push({ icon: Sun, label: 'Brightness', value: brightness });
-    }
-
-    if (phone.chipset) {
-      result.push({ icon: Cpu, label: 'Chipset', value: phone.chipset });
-    }
-
-    const ram = phone.ram_options?.[0] ? `${phone.ram_options[0]} GB` : null;
-    const storage = extractStorage(quick.internalmemory);
-    if (ram || storage !== "N/A") {
-      const value = ram && storage !== "N/A" ? `${ram} / ${storage}` : (ram || storage);
-      result.push({ icon: MemoryStick, label: 'RAM + Storage', value });
-    }
-
-    const mainCam = extractMainCamera(quick.cam1modules);
-    if (mainCam) {
-      result.push({ icon: Camera, label: 'Main Camera', value: mainCam });
-    }
-
-    const ultrawideCam = extractUltrawideCamera(quick.cam1modules);
-    if (ultrawideCam) {
-      result.push({ icon: Camera, label: 'Ultrawide Camera', value: ultrawideCam });
-    }
-
-    const frontCam = extractFrontCamera(quick.cam2modules);
-    if (frontCam) {
-      result.push({ icon: Camera, label: 'Front Camera', value: frontCam });
-    }
-
-    if (phone.battery_capacity) {
-      result.push({ icon: Battery, label: 'Battery', value: `${phone.battery_capacity} mAh` });
-    }
-
-    if (phone.fast_charging_w) {
-      const chargingType = extractChargingType(specs.Battery?.Charging);
-      result.push({ 
-        icon: Bolt, 
-        label: 'Charging', 
-        value: `${phone.fast_charging_w}W (${chargingType})`
-      });
-    }
-
-    const wifi = extractWiFi(quick.wlan);
-    if (wifi !== "N/A") {
-      result.push({ icon: Wifi, label: 'Wi-Fi', value: wifi });
-    }
-
-    const dimensions = extractDimensions(specs.Body?.Dimensions);
-    if (dimensions !== "N/A") {
-      result.push({ icon: RulerIcon, label: 'Dimensions', value: dimensions });
-    }
-
-    if (phone.weight_g) {
-      result.push({ icon: WeightIcon, label: 'Weight', value: `${phone.weight_g}g` });
-    }
-
-    return result;
-  }, [phone]);
-
-  const formattedPrice = useMemo(() => {
-    return phone?.price_usd ? new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    }).format(phone.price_usd) : 'N/A';
-  }, [phone?.price_usd]);
-
-  const downloadCard = async () => {
-    if (!cardRef.current) return;
-    setIsGenerating(true);
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 400));
-      
-      let html2canvas;
-      try {
-        html2canvas = (await import('html2canvas-pro')).default;
-      } catch (importError) {
-        console.error('Failed to import html2canvas-pro:', importError);
-        alert('Image export library not available. Please contact support.');
-        setIsGenerating(false);
-        return;
-      }
-      
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 3,
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: '#ffffff',
-        logging: false,
-        imageTimeout: 15000,
-        removeContainer: true,
-      });
-
-      const link = document.createElement('a');
-      link.download = `moby-spec-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
-      link.href = canvas.toDataURL('image/png', 1.0);
-      link.click();
-    } catch (error) {
-      console.error('Export failed:', error);
-      
-      if (error.message?.includes('CORS')) {
-        alert('Image loading failed due to CORS. Some images may not be exportable.');
-      } else if (error.message?.includes('html2canvas')) {
-        alert('Export library error. Please refresh and try again.');
-      } else {
-        alert(`Failed to generate image: ${error.message || 'Unknown error'}`);
-      }
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  if (!phone) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50/90 backdrop-blur-md">
-      {/* Responsive Container */}
-      <div className="relative w-full h-full max-w-[500px] max-h-[95vh] flex flex-col items-center justify-center p-4 md:p-6">
-        
-        {/* Card - Maintains 9:16 ratio */}
-        <div 
-          ref={cardRef}
-          className="relative w-full bg-white shadow-2xl flex flex-col overflow-hidden"
-          style={{ 
-            aspectRatio: '9/16',
-            border: '4px solid #000',
-            maxHeight: 'calc(95vh - 120px)' // Leave space for button
-          }}
-        >
-          {/* Header - 25% height */}
-          <div 
-            className="relative border-b-2 border-black flex-shrink-0"
-            style={{ height: '20%' }}
-          >
-            <div className="h-full flex justify-between items-start p-[4%] pb-[2%]">
-              {/* Left: Text Content */}
-              <div className="flex-1 flex flex-col justify-between h-full pr-[2%]">
-                <div>
-                  <span 
-                    className="font-black tracking-[0.4em] text-black/30 uppercase block"
-                    style={{ fontSize: 'clamp(8px, 1.2vw, 10px)' }}
-                  >
-                    TECH PASSPORT
-                  </span>
-                  <h2 
-                    className="font-black leading-[0.9] tracking-tight mt-[2%]"
-                    style={{ fontSize: 'clamp(24px, 4.5vw, 40px)' }}
-                  >
-                    {phone.brand?.toUpperCase()}
-                  </h2>
-                  <h1 
-                    className="font-light text-black/70 leading-tight"
-                    style={{ 
-                      fontSize: 'clamp(14px, 2.2vw, 20px)',
-                      marginTop: '2%'
-                    }}
-                  >
-                    {phone.model_name}
-                  </h1>
-                </div>
-                {releaseDate && (
-                  <p 
-                    className="font-bold text-black/40 uppercase tracking-wider"
-                    style={{ fontSize: 'clamp(8px, 1.2vw, 10px)' }}
-                  >
-                    {releaseDate}
-                  </p>
-                )}
-              </div>
-              
-              {/* Right: Phone Image */}
-              <div 
-                className="flex-shrink-0 flex items-center justify-center overflow-hidden border-4 border-black/10 bg-gray-50"
-                style={{ 
-                  width: '38%',
-                  height: '90%'
-                }}
-              >
-                {proxiedImageUrl && !imageError ? (
-                  <img 
-                    src={proxiedImageUrl} 
-                    alt={phone.model_name}
-                    crossOrigin="anonymous"
-                    onError={() => setImageError(true)}
-                    className="w-full h-full object-contain"
-                    style={{ padding: '15%' }}
-                  />
-                ) : (
-                  <Smartphone 
-                    className="text-black/20"
-                    style={{ width: '60%', height: '60%' }}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Specs Grid - 55% height */}
-          <div 
-            className="flex-1 overflow-y-auto"
-            style={{ height: '60%' }}
-          >
-            <div 
-              className="h-full grid grid-cols-2 gap-x-[5%] gap-y-[3%]"
-              style={{ 
-                padding: '4%',
-                alignContent: 'start'
-              }}
-            >
-              {keySpecs.map((spec, i) => (
-                <div key={i} className="flex flex-col">
-                  <div className="flex items-center gap-[6%] mb-[6%]">
-                    <spec.icon 
-                      className="text-black/60 flex-shrink-0"
-                      style={{ width: '18%', height: 'auto' }}
-                    />
-                    <p 
-                      className="font-bold text-black/40 tracking-widest uppercase leading-tight"
-                      style={{ fontSize: 'clamp(7px, 1.1vw, 9px)' }}
-                    >
-                      {spec.label}
-                    </p>
-                  </div>
-                  <p 
-                    className="font-semibold text-black leading-tight"
-                    style={{ 
-                      fontSize: 'clamp(11px, 1.6vw, 14px)',
-                      paddingLeft: '24%'
-                    }}
-                  >
-                    {spec.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Footer - 20% height */}
-          <div 
-            className="border-t-2 border-black bg-black text-white flex flex-col items-center flex-shrink-0"
-            style={{ 
-              height: '20%',
-              padding: '2% 4%'
-            }}
-          >
-            <img 
-              src={logoUrl}
-              alt="MobyLite Logo" 
-              crossOrigin="anonymous"
-              className="mb-[2%]"
-              style={{ 
-                width: 'clamp(40px, 6vw, 56px)',
-                height: 'clamp(40px, 6vw, 56px)'
-              }}
-            />
-            <div className="flex justify-between items-end w-full mb-[3%]">
-              <div>
-                <p 
-                  className="font-black tracking-[0.3em] uppercase opacity-70"
-                  style={{ fontSize: 'clamp(7px, 1.1vw, 9px)' }}
-                >
-                  MOBYMON ARCHIVE
-                </p>
-                <p 
-                  className="font-light opacity-50"
-                  style={{ 
-                    fontSize: 'clamp(6px, 0.9vw, 7px)',
-                    marginTop: '4%'
-                  }}
-                >
-                  {phone.release_year || new Date().getFullYear()}
-                </p>
-              </div>
-              <div className="text-right">
-                <p 
-                  className="font-extralight leading-none tracking-tighter"
-                  style={{ fontSize: 'clamp(28px, 5vw, 40px)' }}
-                >
-                  {formattedPrice}
-                </p>
-                <p 
-                  className="font-bold tracking-widest uppercase opacity-70"
-                  style={{ 
-                    fontSize: 'clamp(6px, 1vw, 8px)',
-                    marginTop: '4%'
-                  }}
-                >
-                  Global Launch Price
-                </p>
-              </div>
-            </div>
-            <a 
-              href="https://mobylite.vercel.app" 
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-bold tracking-[0.3em] uppercase opacity-70 hover:underline"
-              style={{ fontSize: 'clamp(7px, 1.1vw, 9px)' }}
-            >
-              mobylite.vercel.app
-            </a>
-          </div>
-        </div>
-
-        {/* Controls - Outside card */}
-        <div className="mt-4 md:mt-6 w-full flex items-center justify-between">
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { 
   Download, 
@@ -390,15 +17,20 @@ import {
 const CANVAS_WIDTH = 1080;
 const CANVAS_HEIGHT = 1920;
 
-const MobyMonCard = ({ phone, onClose }) => {
-  const canvasRef = useRef(null);
-  const previewRef = useRef(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [previewScale, setPreviewScale] = useState(1);
+interface MobyMonCardProps {
+  phone: any;
+  onClose: () => void;
+}
+
+const MobyMonCard: React.FC<MobyMonCardProps> = ({ phone, onClose }) => {
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [imageError, setImageError] = useState<boolean>(false);
+  const [previewScale, setPreviewScale] = useState<number>(1);
 
   useEffect(() => {
-    const handleEscape = (e) => {
+    const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleEscape);
@@ -549,17 +181,17 @@ const MobyMonCard = ({ phone, onClose }) => {
       
       const images = canvasRef.current.querySelectorAll('img');
       await Promise.all(
-        Array.from(images).map(img => {
+        Array.from(images).map((img: HTMLImageElement) => {
           if (img.complete) return Promise.resolve();
-          return new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = resolve;
-            setTimeout(resolve, 3000);
+          return new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+            setTimeout(() => resolve(), 3000);
           });
         })
       );
       
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 500));
       
       const html2canvas = (await import('html2canvas-pro')).default;
       
@@ -574,8 +206,8 @@ const MobyMonCard = ({ phone, onClose }) => {
         height: CANVAS_HEIGHT,
         windowWidth: CANVAS_WIDTH,
         windowHeight: CANVAS_HEIGHT,
-        onclone: (clonedDoc) => {
-          const clonedCanvas = clonedDoc.querySelector('[data-canvas="true"]');
+        onclone: (clonedDoc: Document) => {
+          const clonedCanvas = clonedDoc.querySelector('[data-canvas="true"]') as HTMLElement;
           if (clonedCanvas) {
             clonedCanvas.style.transform = 'none';
           }
@@ -975,8 +607,4 @@ function extractWiFi(wlan) {
 
 function extractDimensions(dimensions) {
   if (!dimensions) return "N/A";
-  const match = dimensions.match(/([\d.]+\s*x\s*[\d.]+\s*x\s*[\d.]+)\s*mm/i);
-  return match ? `${match[1]} mm` : dimensions;
-}
-
-export default MobyMonCard;    
+  const match = dimensions.match(/([\d.]+\s*x\s*[\
