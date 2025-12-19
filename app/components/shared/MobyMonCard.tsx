@@ -231,10 +231,10 @@ const MobyMonCard = ({ phone, onClose }) => {
                 <span className="block text-[13px] font-bold tracking-[0.35em] text-black/25 uppercase mb-2">
                   TECH PASSPORT
                 </span>
-                <h2 className="text-[20px] font-normal text-[#9ca3af] uppercase tracking-wide mb-1">
+                <h2 className="text-[18px] font-normal text-[#9ca3af] uppercase tracking-wide mb-1">
                   {phone.brand?.toUpperCase() || 'XIAOMI'}
                 </h2>
-                <h1 className="text-[68px] font-black text-black leading-[0.95] tracking-tight" style={{ fontFamily: 'Rockwell, serif' }}>
+                <h1 className="text-[45px] font-black text-black leading-[0.95] tracking-tight" style={{ fontFamily: 'Rockwell, serif' }}>
                   {phone.model_name}
                 </h1>
                 {releaseDate && (
@@ -318,7 +318,7 @@ const MobyMonCard = ({ phone, onClose }) => {
                 </div>
               </div>
               
-              <div className="flex justify-center mb-3">
+              <div className="flex justify-center mb-5">
                 <p className="text-[12px] font-bold tracking-[0.25em] uppercase opacity-70">
                   MOBYLITE.VERCEL.APP
                 </p>
