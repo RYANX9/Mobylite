@@ -3,9 +3,10 @@ import {
   Download, 
   Smartphone, 
   Camera, 
+  Video,
   Cpu, 
   Battery,
-  Bolt,
+  Zap,
   Scaling,
   Sun,
   MemoryStick,
@@ -31,6 +32,16 @@ const MobyMonCard = ({ phone, onClose }) => {
     if (!phone?.main_image_url) return null;
     return `/api/proxy-image?url=${encodeURIComponent(phone.main_image_url)}`;
   }, [phone?.main_image_url]);
+
+  const cleanModelName = useMemo(() => {
+    if (!phone?.model_name || !phone?.brand) return phone?.model_name || '';
+    
+    const modelName = phone.model_name.trim();
+    const brand = phone.brand.trim();
+    
+    const regex = new RegExp(`^${brand}\\s+`, 'i');
+    return modelName.replace(regex, '').trim();
+  }, [phone?.model_name, phone?.brand]);
 
   const releaseDate = useMemo(() => {
     const specs = phone?.full_specifications?.specifications || {};
@@ -80,12 +91,12 @@ const MobyMonCard = ({ phone, onClose }) => {
 
     const ultrawideCam = extractUltrawideCamera(quick.cam1modules);
     if (ultrawideCam) {
-      result.push({ icon: Camera, label: 'ULTRAWIDE CAMERA', value: ultrawideCam });
+      result.push({ icon: Video, label: 'ULTRAWIDE CAMERA', value: ultrawideCam });
     }
 
     const frontCam = extractFrontCamera(quick.cam2modules);
     if (frontCam) {
-      result.push({ icon: Camera, label: 'FRONT CAMERA', value: frontCam });
+      result.push({ icon: Smartphone, label: 'FRONT CAMERA', value: frontCam });
     }
 
     if (phone.battery_capacity) {
@@ -95,7 +106,7 @@ const MobyMonCard = ({ phone, onClose }) => {
     if (phone.fast_charging_w) {
       const chargingType = extractChargingType(specs.Battery?.Charging);
       result.push({ 
-        icon: Bolt, 
+        icon: Zap, 
         label: 'CHARGING', 
         value: `${phone.fast_charging_w}W (${chargingType})`
       });
@@ -131,87 +142,37 @@ const MobyMonCard = ({ phone, onClose }) => {
   }, [phone?.price_usd]);
 
   const downloadCard = async () => {
-    if (!cardRef.current) return;
+    if (!cardRef.current || isGenerating) return;
     setIsGenerating(true);
     
-    try {
-      const html2canvas = (await import('html2canvas-pro')).default;
-      
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: true,
-        imageTimeout: 0,
-        width: 708,
-        height: 1454,
-      });
-
-      if (!canvas) {
-        throw new Error('Canvas generation failed');
-      }
-
-      return new Promise((resolve, reject) => {
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              reject(new Error('Blob creation failed'));
-              return;
-            }
-
-            try {
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              const filename = `mobyspec-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
-              
-              link.href = url;
-              link.download = filename;
-              link.style.display = 'none';
-              
-              document.body.appendChild(link);
-              link.click();
-              
-              setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-                setIsGenerating(false);
-                resolve();
-              }, 100);
-            } catch (err) {
-              reject(err);
-            }
-          },
-          'image/png',
-          1.0
-        );
-      });
-    } catch (error) {
-      console.error('Download error:', error);
-      setIsGenerating(false);
-      
+    setTimeout(async () => {
       try {
         const html2canvas = (await import('html2canvas-pro')).default;
-        const canvas = await html2canvas(cardRef.current, {
-          scale: 2,
-          backgroundColor: '#ffffff',
-          logging: true,
-        });
         
-        const dataUrl = canvas.toDataURL('image/png');
+        const canvas = await html2canvas(cardRef.current, {
+          scale: 3,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          allowTaint: true,
+          width: 708,
+          height: 1454,
+        });
+
+        const dataUrl = canvas.toDataURL('image/png', 1.0);
+        
         const link = document.createElement('a');
         link.href = dataUrl;
-        link.download = `mobyspec-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
+        link.download = `mobyspec-${cleanModelName.replace(/\s+/g, '-').toLowerCase()}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        
         setIsGenerating(false);
-      } catch (fallbackError) {
-        console.error('Fallback download failed:', fallbackError);
-        alert('Unable to download. Please try taking a screenshot instead.');
+      } catch (error) {
+        console.error('Download failed:', error);
         setIsGenerating(false);
       }
-    }
+    }, 100);
   };
 
   if (!phone) return null;
@@ -231,11 +192,11 @@ const MobyMonCard = ({ phone, onClose }) => {
                 <span className="block text-[13px] font-bold tracking-[0.35em] text-black/25 uppercase mb-2">
                   TECH PASSPORT
                 </span>
-                <h2 className="text-[18px] font-normal text-[#9ca3af] uppercase tracking-wide mb-1">
+                <h2 className="text-[20px] font-normal text-[#9ca3af] uppercase tracking-wide mb-1">
                   {phone.brand?.toUpperCase() || 'XIAOMI'}
                 </h2>
-                <h1 className="text-[55px] font-black text-black leading-[0.95] tracking-tight" style={{ fontFamily: 'Rockwell, serif' }}>
-                  {phone.model_name}
+                <h1 className="text-[68px] font-black text-black leading-[0.95] tracking-tight" style={{ fontFamily: 'Rockwell, serif' }}>
+                  {cleanModelName}
                 </h1>
                 {releaseDate && (
                   <p className="text-[13px] font-semibold text-black/35 mt-3 uppercase tracking-[0.15em]">
@@ -287,10 +248,10 @@ const MobyMonCard = ({ phone, onClose }) => {
             </div>
           </div>
 
-          <div className="bg-black text-white border-t-[3px] border-black" style={{ height: '220px', padding: '20px 50px 20px 50px' }}>
+          <div className="bg-black text-white border-t-[3px] border-black" style={{ height: '220px', padding: '20px 50px 25px 50px' }}>
             <div className="flex flex-col h-full">
               <div className="flex-shrink-0 mb-3 flex justify-center" style={{ width: '100%' }}>
-                <div style={{ width: '90px', height: '90px' }}>
+                <div style={{ width: '73px', height: '73px' }}>
                   <img 
                     src="/logowhite.svg" 
                     alt="Logo" 
@@ -299,7 +260,7 @@ const MobyMonCard = ({ phone, onClose }) => {
                 </div>
               </div>
               
-              <div className="flex justify-between items-end w-full mb-4">
+              <div className="flex justify-between items-end w-full mb-3">
                 <div>
                   <p className="text-[12px] font-black tracking-[0.25em] uppercase opacity-80">
                     MOBYMON ARCHIVE
@@ -318,7 +279,7 @@ const MobyMonCard = ({ phone, onClose }) => {
                 </div>
               </div>
               
-              <div className=" justify-center mb-5">
+              <div className="flex justify-center mt-auto pb-2">
                 <p className="text-[12px] font-bold tracking-[0.25em] uppercase opacity-70">
                   MOBYLITE.VERCEL.APP
                 </p>
