@@ -251,7 +251,7 @@ const MobyMonCard = ({ phone, onClose }) => {
           <div className="bg-black text-white border-t-[3px] border-black" style={{ height: '220px', padding: '20px 50px 25px 50px' }}>
             <div className="flex flex-col h-full">
               <div className="flex-shrink-0 mb-3 flex justify-center" style={{ width: '100%' }}>
-                <div style={{ width: '73px', height: '73px' }}>
+                <div style={{ width: '83px', height: '83px' }}>
                   <img 
                     src="/logowhite.svg" 
                     alt="Logo" 
@@ -279,7 +279,7 @@ const MobyMonCard = ({ phone, onClose }) => {
                 </div>
               </div>
               
-              <div className="flex justify-center mt-auto pb-2">
+              <div className="flex justify-center mt-auto pb-5">
                 <p className="text-[12px] font-bold tracking-[0.25em] uppercase opacity-70">
                   MOBYLITE.VERCEL.APP
                 </p>
