@@ -15,10 +15,6 @@ import {
   Weight as WeightIcon
 } from 'lucide-react';
 
-/**
- * MobyMonCard Component - Fixed Size Social Card
- * FIXED: 1080x1920px (9:16) - No scrolling, perfect for social media
- */
 const MobyMonCard = ({ phone, onClose }) => {
   const cardRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -45,15 +41,9 @@ const MobyMonCard = ({ phone, onClose }) => {
   const releaseDate = useMemo(() => {
     const specs = phone?.full_specifications?.specifications || {};
     const launch = specs.Launch;
-    if (launch?.Released) {
-      return launch.Released;
-    }
-    if (launch?.Announced) {
-      return `Announced ${launch.Announced}`;
-    }
-    if (phone?.release_year) {
-      return phone.release_year;
-    }
+    if (launch?.Released) return launch.Released;
+    if (launch?.Announced) return `Announced ${launch.Announced}`;
+    if (phone?.release_year) return phone.release_year;
     return null;
   }, [phone]);
 
@@ -131,7 +121,7 @@ const MobyMonCard = ({ phone, onClose }) => {
       result.push({ icon: WeightIcon, label: 'Weight', value: `${phone.weight_g}g` });
     }
 
-    return result.slice(0, 12);
+    return result;
   }, [phone]);
 
   const formattedPrice = useMemo(() => {
@@ -167,8 +157,6 @@ const MobyMonCard = ({ phone, onClose }) => {
         logging: false,
         imageTimeout: 15000,
         removeContainer: true,
-        width: 1080,
-        height: 1920,
       });
 
       const link = document.createElement('a');
@@ -193,73 +181,121 @@ const MobyMonCard = ({ phone, onClose }) => {
   if (!phone) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50/90 backdrop-blur-md overflow-auto">
-      <div className="relative my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50/90 backdrop-blur-md">
+      {/* Responsive Container */}
+      <div className="relative w-full h-full max-w-[500px] max-h-[95vh] flex flex-col items-center justify-center p-4 md:p-6">
         
-        {/* FIXED SIZE CARD: 1080x1920px (9:16) */}
+        {/* Card - Maintains 9:16 ratio */}
         <div 
           ref={cardRef}
-          className="relative bg-white border-4 border-black shadow-2xl flex flex-col"
+          className="relative w-full bg-white shadow-2xl flex flex-col overflow-hidden"
           style={{ 
-            width: '1080px',
-            height: '1920px',
+            aspectRatio: '9/16',
+            border: '4px solid #000',
+            maxHeight: 'calc(95vh - 120px)' // Leave space for button
           }}
         >
-          {/* Header - Fixed Height */}
-          <div className="relative border-b-2 border-black" style={{ height: '360px', padding: '48px' }}>
-            <div className="flex justify-between items-start h-full">
-              <div className="flex-1 flex flex-col justify-between" style={{ paddingRight: '32px' }}>
+          {/* Header - 25% height */}
+          <div 
+            className="relative border-b-2 border-black flex-shrink-0"
+            style={{ height: '25%' }}
+          >
+            <div className="h-full flex justify-between items-start p-[4%] pb-[2%]">
+              {/* Left: Text Content */}
+              <div className="flex-1 flex flex-col justify-between h-full pr-[2%]">
                 <div>
-                  <span style={{ fontSize: '20px', fontWeight: 900, letterSpacing: '0.4em', color: 'rgba(0,0,0,0.3)', textTransform: 'uppercase' }}>
+                  <span 
+                    className="font-black tracking-[0.4em] text-black/30 uppercase block"
+                    style={{ fontSize: 'clamp(8px, 1.2vw, 10px)' }}
+                  >
                     TECH PASSPORT
                   </span>
-                  <h2 style={{ fontSize: '96px', fontWeight: 900, lineHeight: 0.9, letterSpacing: '-0.02em', marginTop: '12px' }}>
+                  <h2 
+                    className="font-black leading-[0.9] tracking-tight mt-[2%]"
+                    style={{ fontSize: 'clamp(24px, 4.5vw, 40px)' }}
+                  >
                     {phone.brand?.toUpperCase()}
                   </h2>
-                  <h1 style={{ fontSize: '48px', fontWeight: 300, color: 'rgba(0,0,0,0.7)', marginTop: '12px', lineHeight: 1.2 }}>
+                  <h1 
+                    className="font-light text-black/70 leading-tight"
+                    style={{ 
+                      fontSize: 'clamp(14px, 2.2vw, 20px)',
+                      marginTop: '2%'
+                    }}
+                  >
                     {phone.model_name}
                   </h1>
                 </div>
                 {releaseDate && (
-                  <p style={{ fontSize: '20px', fontWeight: 700, color: 'rgba(0,0,0,0.4)', marginTop: '12px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  <p 
+                    className="font-bold text-black/40 uppercase tracking-wider"
+                    style={{ fontSize: 'clamp(8px, 1.2vw, 10px)' }}
+                  >
                     {releaseDate}
                   </p>
                 )}
               </div>
               
-              <div style={{ width: '280px', height: '280px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '8px solid rgba(0,0,0,0.1)', backgroundColor: '#f9fafb' }}>
+              {/* Right: Phone Image */}
+              <div 
+                className="flex-shrink-0 flex items-center justify-center overflow-hidden border-4 border-black/10 bg-gray-50"
+                style={{ 
+                  width: '38%',
+                  height: '90%'
+                }}
+              >
                 {proxiedImageUrl && !imageError ? (
                   <img 
                     src={proxiedImageUrl} 
                     alt={phone.model_name}
                     crossOrigin="anonymous"
                     onError={() => setImageError(true)}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '40px' }}
+                    className="w-full h-full object-contain"
+                    style={{ padding: '15%' }}
                   />
                 ) : (
-                  <Smartphone style={{ width: '160px', height: '160px', color: 'rgba(0,0,0,0.2)' }} />
+                  <Smartphone 
+                    className="text-black/20"
+                    style={{ width: '60%', height: '60%' }}
+                  />
                 )}
               </div>
             </div>
           </div>
 
-          {/* Specs Grid - Fixed Height, No Scroll */}
-          <div style={{ flex: 1, padding: '48px', display: 'flex', alignItems: 'center' }}>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
-              gap: '32px',
-              width: '100%'
-            }}>
+          {/* Specs Grid - 55% height */}
+          <div 
+            className="flex-1 overflow-y-auto"
+            style={{ height: '55%' }}
+          >
+            <div 
+              className="h-full grid grid-cols-2 gap-x-[5%] gap-y-[3%]"
+              style={{ 
+                padding: '4%',
+                alignContent: 'start'
+              }}
+            >
               {keySpecs.map((spec, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <spec.icon style={{ width: '32px', height: '32px', color: 'rgba(0,0,0,0.6)' }} />
-                    <p style={{ fontSize: '18px', fontWeight: 700, color: 'rgba(0,0,0,0.4)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                <div key={i} className="flex flex-col">
+                  <div className="flex items-center gap-[6%] mb-[6%]">
+                    <spec.icon 
+                      className="text-black/60 flex-shrink-0"
+                      style={{ width: '18%', height: 'auto' }}
+                    />
+                    <p 
+                      className="font-bold text-black/40 tracking-widest uppercase leading-tight"
+                      style={{ fontSize: 'clamp(7px, 1.1vw, 9px)' }}
+                    >
                       {spec.label}
                     </p>
                   </div>
-                  <p style={{ fontSize: '28px', fontWeight: 600, color: '#000', lineHeight: 1.3, paddingLeft: '44px' }}>
+                  <p 
+                    className="font-semibold text-black leading-tight"
+                    style={{ 
+                      fontSize: 'clamp(11px, 1.6vw, 14px)',
+                      paddingLeft: '24%'
+                    }}
+                  >
                     {spec.value}
                   </p>
                 </div>
@@ -267,28 +303,56 @@ const MobyMonCard = ({ phone, onClose }) => {
             </div>
           </div>
 
-          {/* Footer - Fixed Height */}
-          <div style={{ padding: '32px', borderTop: '4px solid #000', backgroundColor: '#000', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '320px' }}>
+          {/* Footer - 20% height */}
+          <div 
+            className="border-t-2 border-black bg-black text-white flex flex-col items-center flex-shrink-0"
+            style={{ 
+              height: '20%',
+              padding: '2% 4%'
+            }}
+          >
             <img 
               src={logoUrl}
               alt="MobyLite Logo" 
               crossOrigin="anonymous"
-              style={{ width: '100px', height: '100px', marginBottom: '16px' }}
+              className="mb-[2%]"
+              style={{ 
+                width: 'clamp(40px, 6vw, 56px)',
+                height: 'clamp(40px, 6vw, 56px)'
+              }}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', marginBottom: '24px', paddingLeft: '32px', paddingRight: '32px' }}>
+            <div className="flex justify-between items-end w-full mb-[3%]">
               <div>
-                <p style={{ fontSize: '18px', fontWeight: 900, letterSpacing: '0.3em', textTransform: 'uppercase', opacity: 0.7 }}>
+                <p 
+                  className="font-black tracking-[0.3em] uppercase opacity-70"
+                  style={{ fontSize: 'clamp(7px, 1.1vw, 9px)' }}
+                >
                   MOBYMON ARCHIVE
                 </p>
-                <p style={{ fontSize: '14px', fontWeight: 300, opacity: 0.5, marginTop: '4px' }}>
+                <p 
+                  className="font-light opacity-50"
+                  style={{ 
+                    fontSize: 'clamp(6px, 0.9vw, 7px)',
+                    marginTop: '4%'
+                  }}
+                >
                   {phone.release_year || new Date().getFullYear()}
                 </p>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: '80px', fontWeight: 200, lineHeight: 1, letterSpacing: '-0.02em' }}>
+              <div className="text-right">
+                <p 
+                  className="font-extralight leading-none tracking-tighter"
+                  style={{ fontSize: 'clamp(28px, 5vw, 40px)' }}
+                >
                   {formattedPrice}
                 </p>
-                <p style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '0.15em', marginTop: '8px', textTransform: 'uppercase', opacity: 0.7 }}>
+                <p 
+                  className="font-bold tracking-widest uppercase opacity-70"
+                  style={{ 
+                    fontSize: 'clamp(6px, 1vw, 8px)',
+                    marginTop: '4%'
+                  }}
+                >
                   Global Launch Price
                 </p>
               </div>
@@ -297,20 +361,20 @@ const MobyMonCard = ({ phone, onClose }) => {
               href="https://mobylite.vercel.app" 
               target="_blank"
               rel="noopener noreferrer"
-              style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '0.3em', textTransform: 'uppercase', opacity: 0.7, textDecoration: 'none', color: '#fff', marginBottom: '16px' }}
+              className="font-bold tracking-[0.3em] uppercase opacity-70 hover:underline"
+              style={{ fontSize: 'clamp(7px, 1.1vw, 9px)' }}
             >
               mobylite.vercel.app
             </a>
           </div>
         </div>
 
-        {/* Controls - Outside the card */}
-        <div style={{ marginTop: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: '16px', paddingRight: '16px' }}>
+        {/* Controls - Outside card */}
+        <div className="mt-4 md:mt-6 w-full flex items-center justify-between">
           <button 
             onClick={onClose}
-            style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '0.3em', color: 'rgba(0,0,0,0.4)', background: 'none', border: 'none', cursor: 'pointer', textTransform: 'uppercase', padding: '16px' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#dc2626'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(0,0,0,0.4)'}
+            className="font-bold tracking-[0.3em] text-black/40 hover:text-red-600 uppercase transition-colors"
+            style={{ fontSize: 'clamp(8px, 1.2vw, 10px)' }}
           >
             CLOSE
           </button>
@@ -318,26 +382,14 @@ const MobyMonCard = ({ phone, onClose }) => {
           <button
             onClick={downloadCard}
             disabled={isGenerating}
+            className="bg-black text-white font-bold tracking-[0.3em] hover:bg-slate-800 flex items-center gap-3 disabled:opacity-50 transition-all"
             style={{ 
-              backgroundColor: '#000', 
-              color: '#fff', 
-              padding: '32px 80px', 
-              fontSize: '20px', 
-              fontWeight: 700, 
-              letterSpacing: '0.3em', 
-              border: 'none', 
-              cursor: isGenerating ? 'not-allowed' : 'pointer',
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '32px',
-              opacity: isGenerating ? 0.5 : 1,
-              textTransform: 'uppercase'
+              fontSize: 'clamp(8px, 1.2vw, 10px)',
+              padding: 'clamp(12px, 2vw, 16px) clamp(24px, 4vw, 40px)'
             }}
-            onMouseEnter={(e) => !isGenerating && (e.currentTarget.style.backgroundColor = '#1e293b')}
-            onMouseLeave={(e) => !isGenerating && (e.currentTarget.style.backgroundColor = '#000')}
           >
             {isGenerating ? 'EXPORTING...' : 'DOWNLOAD FOR STORY'}
-            <Download style={{ width: '32px', height: '32px' }} />
+            <Download style={{ width: 'clamp(16px, 2vw, 20px)', height: 'clamp(16px, 2vw, 20px)' }} />
           </button>
         </div>
       </div>
@@ -345,7 +397,7 @@ const MobyMonCard = ({ phone, onClose }) => {
   );
 };
 
-// Helper functions with FIXED refresh rate detection
+// Helper functions with fixed refresh rate detection
 function extractDisplayType(displaytype) {
   if (!displaytype) return "OLED";
   
