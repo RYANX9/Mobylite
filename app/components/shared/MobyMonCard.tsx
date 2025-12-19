@@ -14,64 +14,35 @@ import {
   Weight as WeightIcon
 } from 'lucide-react';
 
-const CANVAS_WIDTH = 1080;
-const CANVAS_HEIGHT = 1920;
-
-interface MobyMonCardProps {
-  phone: any;
-  onClose: () => void;
-}
-
-const MobyMonCard: React.FC<MobyMonCardProps> = ({ phone, onClose }) => {
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [imageError, setImageError] = useState<boolean>(false);
-  const [previewScale, setPreviewScale] = useState<number>(1);
+/**
+ * MobyMonCard Component - Ultra-Compact Vertical Social Edition
+ * Optimized for Instagram/TikTok Stories & Reels (1080x1920)
+ */
+const MobyMonCard = ({ phone, onClose }) => {
+  const cardRef = useRef(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
+    const handleEscape = (e) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
   }, [onClose]);
 
-  useEffect(() => {
-    const updateScale = () => {
-      if (!previewRef.current) return;
-      
-      const isMobile = window.innerWidth <= 768;
-      
-      if (isMobile) {
-        setPreviewScale(0.7);
-      } else {
-        const maxWidth = window.innerWidth - 100;
-        const maxHeight = window.innerHeight - 200;
-        
-        const scaleX = maxWidth / CANVAS_WIDTH;
-        const scaleY = maxHeight / CANVAS_HEIGHT;
-        const scale = Math.min(scaleX, scaleY, 1);
-        
-        setPreviewScale(scale);
-      }
-    };
-
-    updateScale();
-    window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
-  }, []);
-
   const logoUrl = useMemo(() => {
     const logoPath = `${window.location.origin}/logowhite.svg`;
     return `/api/proxy-image?url=${encodeURIComponent(logoPath)}`;
   }, []);  
 
+  // Generate the Proxy URL to bypass CORS
   const proxiedImageUrl = useMemo(() => {
     if (!phone?.main_image_url) return null;
     return `/api/proxy-image?url=${encodeURIComponent(phone.main_image_url)}`;
   }, [phone?.main_image_url]);
 
+  // Extract Release Date
   const releaseDate = useMemo(() => {
     const specs = phone?.full_specifications?.specifications || {};
     const launch = specs.Launch;
@@ -87,6 +58,7 @@ const MobyMonCard: React.FC<MobyMonCardProps> = ({ phone, onClose }) => {
     return null;
   }, [phone]);
 
+  // Extract key specs for the card
   const keySpecs = useMemo(() => {
     if (!phone) return [];
 
@@ -94,6 +66,7 @@ const MobyMonCard: React.FC<MobyMonCardProps> = ({ phone, onClose }) => {
     const quick = phone.full_specifications?.quick_specs || {};
     const result = [];
 
+    // Display
     const displayType = extractDisplayType(quick.displaytype);
     if (phone.screen_size || displayType) {
       result.push({ 
@@ -103,15 +76,18 @@ const MobyMonCard: React.FC<MobyMonCardProps> = ({ phone, onClose }) => {
       });
     }
 
+    // Brightness
     const brightness = extractBrightness(quick.displaytype);
     if (brightness !== "N/A") {
       result.push({ icon: Sun, label: 'Brightness', value: brightness });
     }
 
+    // Chipset
     if (phone.chipset) {
       result.push({ icon: Cpu, label: 'Chipset', value: phone.chipset });
     }
 
+    // RAM + Storage
     const ram = phone.ram_options?.[0] ? `${phone.ram_options[0]} GB` : null;
     const storage = extractStorage(quick.internalmemory);
     if (ram || storage !== "N/A") {
@@ -119,25 +95,30 @@ const MobyMonCard: React.FC<MobyMonCardProps> = ({ phone, onClose }) => {
       result.push({ icon: MemoryStick, label: 'RAM + Storage', value });
     }
 
+    // Main Camera
     const mainCam = extractMainCamera(quick.cam1modules);
     if (mainCam) {
       result.push({ icon: Camera, label: 'Main Camera', value: mainCam });
     }
 
+    // Ultrawide Camera
     const ultrawideCam = extractUltrawideCamera(quick.cam1modules);
     if (ultrawideCam) {
       result.push({ icon: Camera, label: 'Ultrawide Camera', value: ultrawideCam });
     }
 
+    // Front Camera
     const frontCam = extractFrontCamera(quick.cam2modules);
     if (frontCam) {
       result.push({ icon: Camera, label: 'Front Camera', value: frontCam });
     }
 
+    // Battery
     if (phone.battery_capacity) {
       result.push({ icon: Battery, label: 'Battery', value: `${phone.battery_capacity} mAh` });
     }
 
+    // Charging
     if (phone.fast_charging_w) {
       const chargingType = extractChargingType(specs.Battery?.Charging);
       result.push({ 
@@ -147,21 +128,24 @@ const MobyMonCard: React.FC<MobyMonCardProps> = ({ phone, onClose }) => {
       });
     }
 
+    // Wi-Fi
     const wifi = extractWiFi(quick.wlan);
     if (wifi !== "N/A") {
       result.push({ icon: Wifi, label: 'Wi-Fi', value: wifi });
     }
 
+    // Dimensions
     const dimensions = extractDimensions(specs.Body?.Dimensions);
     if (dimensions !== "N/A") {
       result.push({ icon: RulerIcon, label: 'Dimensions', value: dimensions });
     }
 
+    // Weight
     if (phone.weight_g) {
       result.push({ icon: WeightIcon, label: 'Weight', value: `${phone.weight_g}g` });
     }
 
-    return result.slice(0, 12);
+    return result;
   }, [phone]);
 
   const formattedPrice = useMemo(() => {
@@ -173,61 +157,28 @@ const MobyMonCard: React.FC<MobyMonCardProps> = ({ phone, onClose }) => {
   }, [phone?.price_usd]);
 
   const downloadCard = async () => {
-    if (!canvasRef.current) return;
+    if (!cardRef.current) return;
     setIsGenerating(true);
     
     try {
-      await document.fonts.ready;
-      
-      const images = canvasRef.current.querySelectorAll('img');
-      await Promise.all(
-        Array.from(images).map((img: HTMLImageElement) => {
-          if (img.complete) return Promise.resolve();
-          return new Promise<void>((resolve) => {
-            img.onload = () => resolve();
-            img.onerror = () => resolve();
-            setTimeout(() => resolve(), 3000);
-          });
-        })
-      );
-      
-      await new Promise<void>(resolve => setTimeout(() => resolve(), 500));
+      await new Promise(resolve => setTimeout(resolve, 400));
       
       const html2canvas = (await import('html2canvas-pro')).default;
       
-      const canvas = await html2canvas(canvasRef.current, {
-        scale: 2,
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 3,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: '#ffffff',
         logging: false,
-        imageTimeout: 0,
-        width: CANVAS_WIDTH,
-        height: CANVAS_HEIGHT,
-        windowWidth: CANVAS_WIDTH,
-        windowHeight: CANVAS_HEIGHT,
-        onclone: (clonedDoc: Document) => {
-          const clonedCanvas = clonedDoc.querySelector('[data-canvas="true"]') as HTMLElement;
-          if (clonedCanvas) {
-            clonedCanvas.style.transform = 'none';
-          }
-        }
+        imageTimeout: 15000,
+        removeContainer: true,
       });
 
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          throw new Error('Failed to create image blob');
-        }
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.download = `moby-spec-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
-        link.href = url;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }, 'image/png', 1.0);
-      
+      const link = document.createElement('a');
+      link.download = `moby-spec-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.href = canvas.toDataURL('image/png', 1.0);
+      link.click();
     } catch (error) {
       console.error('Export failed:', error);
       alert('Failed to generate image. Please try again.');
@@ -238,284 +189,111 @@ const MobyMonCard: React.FC<MobyMonCardProps> = ({ phone, onClose }) => {
 
   if (!phone) return null;
 
-  const leftColSpecs = keySpecs.filter((_, i) => i % 2 === 0);
-  const rightColSpecs = keySpecs.filter((_, i) => i % 2 === 1);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/95 backdrop-blur-md overflow-auto">
-      <div className="relative flex flex-col items-center gap-6 my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-50/90 backdrop-blur-md">
+      <div className="relative w-full max-w-md">
         
+        {/* Compact Vertical Card - 1080x1920 optimized */}
         <div 
-          ref={previewRef}
-          style={{
-            transform: `scale(${previewScale})`,
-            transformOrigin: 'center center',
-          }}
-          className="transition-transform duration-300"
+          ref={cardRef}
+          className="relative w-full bg-white border-4 border-black shadow-2xl flex flex-col overflow-hidden"
+          style={{ aspectRatio: '9/16' }}
         >
-          <div 
-            ref={canvasRef}
-            data-canvas="true"
-            style={{
-              width: `${CANVAS_WIDTH}px`,
-              height: `${CANVAS_HEIGHT}px`,
-              position: 'relative',
-              fontFamily: "'Rockwell', 'Rockwell Nova', 'Courier New', serif",
-            }}
-            className="bg-white border-8 border-black shadow-2xl"
-          >
-            
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '370px',
-              borderBottom: '4px solid black',
-              padding: '50px 60px',
-            }}>
-              <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                <div style={{ position: 'absolute', left: 0, top: 0, maxWidth: '580px' }}>
-                  <div style={{
-                    fontSize: '11px',
-                    fontWeight: 900,
-                    letterSpacing: '0.35em',
-                    color: 'rgba(0,0,0,0.3)',
-                    marginBottom: '8px',
-                  }}>
-                    TECH PASSPORT
-                  </div>
-                  <div style={{
-                    fontSize: '14px',
-                    fontWeight: 400,
-                    letterSpacing: '0.02em',
-                    color: '#999999',
-                    marginBottom: '2px',
-                  }}>
-                    {phone.brand?.toUpperCase() || 'XIAOMI'}
-                  </div>
-                  <h1 style={{
-                    fontSize: '54px',
-                    fontWeight: 700,
-                    lineHeight: '0.9',
-                    color: '#000000',
-                    marginBottom: '10px',
-                    fontFamily: "'Rockwell', 'Rockwell Nova', 'Courier New', serif",
-                  }}>
-                    {phone.model_name}
-                  </h1>
-                  {releaseDate && (
-                    <div style={{
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      letterSpacing: '0.15em',
-                      color: 'rgba(0,0,0,0.4)',
-                    }}>
-                      ANNOUNCED {releaseDate.toUpperCase()}
-                    </div>
-                  )}
-                </div>
-                
-                <div style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: 0,
-                  width: '280px',
-                  height: '280px',
-                  border: '8px solid rgba(0,0,0,0.08)',
-                  backgroundColor: '#f8f8f8',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  {proxiedImageUrl && !imageError ? (
-                    <img 
-                      src={proxiedImageUrl} 
-                      alt={phone.model_name}
-                      crossOrigin="anonymous"
-                      onError={() => setImageError(true)}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                        padding: '40px',
-                      }}
-                    />
-                  ) : (
-                    <Smartphone style={{ width: '120px', height: '120px', color: 'rgba(0,0,0,0.15)' }} />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div style={{
-              position: 'absolute',
-              top: '374px',
-              left: 0,
-              right: 0,
-              bottom: '340px',
-              padding: '40px 60px',
-            }}>
-              
-              <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                {leftColSpecs.map((spec, i) => (
-                  <div 
-                    key={`left-${i}`}
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: `${i * 100}px`,
-                      width: '450px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
-                      <spec.icon style={{ width: '20px', height: '20px', color: 'rgba(0,0,0,0.45)' }} />
-                      <div style={{
-                        fontSize: '9px',
-                        fontWeight: 700,
-                        letterSpacing: '0.25em',
-                        color: 'rgba(0,0,0,0.35)',
-                        marginLeft: '10px',
-                      }}>
-                        {spec.label.toUpperCase()}
-                      </div>
-                    </div>
-                    <div style={{
-                      fontSize: '17px',
-                      fontWeight: 600,
-                      color: '#000000',
-                      lineHeight: '1.25',
-                      paddingLeft: '30px',
-                    }}>
-                      {spec.value}
-                    </div>
-                  </div>
-                ))}
-
-                {rightColSpecs.map((spec, i) => (
-                  <div 
-                    key={`right-${i}`}
-                    style={{
-                      position: 'absolute',
-                      right: 0,
-                      top: `${i * 100}px`,
-                      width: '450px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
-                      <spec.icon style={{ width: '20px', height: '20px', color: 'rgba(0,0,0,0.45)' }} />
-                      <div style={{
-                        fontSize: '9px',
-                        fontWeight: 700,
-                        letterSpacing: '0.25em',
-                        color: 'rgba(0,0,0,0.35)',
-                        marginLeft: '10px',
-                      }}>
-                        {spec.label.toUpperCase()}
-                      </div>
-                    </div>
-                    <div style={{
-                      fontSize: '17px',
-                      fontWeight: 600,
-                      color: '#000000',
-                      lineHeight: '1.25',
-                      paddingLeft: '30px',
-                    }}>
-                      {spec.value}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: '340px',
-              borderTop: '4px solid black',
-              backgroundColor: '#000000',
-              color: '#ffffff',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              padding: '30px 60px',
-            }}>
-              <img 
-                src={logoUrl}
-                alt="MobyLite Logo" 
-                crossOrigin="anonymous"
-                style={{
-                  width: '80px',
-                  height: '80px',
-                  marginBottom: '20px',
-                }}
-              />
-              
-              <div style={{
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-end',
-                marginBottom: '30px',
-              }}>
-                <div>
-                  <div style={{
-                    fontSize: '10px',
-                    fontWeight: 900,
-                    letterSpacing: '0.3em',
-                    opacity: 0.7,
-                  }}>
-                    MOBYMON ARCHIVE
-                  </div>
-                  <div style={{
-                    fontSize: '8px',
-                    fontWeight: 300,
-                    opacity: 0.5,
-                    marginTop: '4px',
-                  }}>
-                    {phone.release_year || new Date().getFullYear()}
-                  </div>
-                </div>
-                
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{
-                    fontSize: '72px',
-                    fontWeight: 200,
-                    lineHeight: '1',
-                    letterSpacing: '-0.02em',
-                  }}>
-                    {formattedPrice}
-                  </div>
-                  <div style={{
-                    fontSize: '9px',
-                    fontWeight: 700,
-                    letterSpacing: '0.25em',
-                    opacity: 0.7,
-                    marginTop: '8px',
-                  }}>
-                    GLOBAL LAUNCH PRICE
-                  </div>
-                </div>
+          {/* Header */}
+          <div className="relative p-6 pb-4 border-b-2 border-black">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <span className="text-[10px] font-black tracking-[0.4em] text-black/30 uppercase">TECH PASSPORT</span>
+                <h2 className="text-4xl font-grey leading-[0.9] tracking-tight mt-1">
+                  {phone.brand?.toUpperCase()}
+                </h2>
+                <h1 className="text-xl font-light text-black/70 mt-1 leading-tight">
+                  {phone.model_name}
+                </h1>
+                {releaseDate && (
+                  <p className="text-[10px] font-bold text-black/40 mt-1 uppercase tracking-wider">
+                    {releaseDate}
+                  </p>
+                )}
               </div>
               
-              <div style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                letterSpacing: '0.3em',
-                opacity: 0.7,
-              }}>
-                MOBYLITE.VERCEL.APP
+              <div className="w-40 h-40 flex-shrink-0 flex items-center justify-center overflow-hidden border-4 border-black/10 bg-gray-50">
+                {proxiedImageUrl && !imageError ? (
+                  <img 
+                    src={proxiedImageUrl} 
+                    alt={phone.model_name}
+                    crossOrigin="anonymous"
+                    onError={() => setImageError(true)}
+                    className="w-full h-full object-contain p-8"
+                  />
+                ) : (
+                  <Smartphone className="w-28 h-28 text-black/20" />
+                )}
               </div>
             </div>
           </div>
+
+          {/* Dense Spec Grid */}
+          <div className="flex-1 px-6 py-5 overflow-y-auto">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+              {keySpecs.map((spec, i) => (
+                <div key={i} className="flex flex-col">
+                  <div className="flex items-center gap-2 mb-1">
+                    <spec.icon className="w-5 h-5 text-black/60" />
+                    <p className="text-[9px] font-bold text-black/40 tracking-widest uppercase">
+                      {spec.label}
+                    </p>
+                  </div>
+                  <p className="text-sm font-semibold text-black leading-tight pl-7">
+                    {spec.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-2 border-t-2 border-black bg-black text-white flex flex-col items-center">
+            <img 
+              src={logoUrl}
+              alt="MobyLite Logo" 
+              crossOrigin="anonymous"
+              className="w-14 h-14 mb-1"
+            />
+            <div className="flex justify-between items-end w-full mb-3 px-4">
+              <div>
+                <p className="text-[9px] font-black tracking-[0.3em] uppercase opacity-70">
+                  MOBYMON ARCHIVE
+                </p>
+                <p className="text-[7px] font-light opacity-50 mt-0.5">
+                  {phone.release_year || new Date().getFullYear()}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-4xl font-extralight leading-none tracking-tighter">
+                  {formattedPrice}
+                </p>
+                <p className="text-[8px] font-bold tracking-widest mt-0.5 uppercase opacity-70">
+                  Global Launch Price
+                </p>
+              </div>
+            </div>
+            <a 
+              href="https://mobylite.vercel.app " 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[9px] font-bold tracking-[0.3em] uppercase opacity-70 hover:underline mb-2"
+            >
+              mobylite.vercel.app
+            </a>
+          </div>
         </div>
 
-        <div className="flex items-center gap-6">
+        {/* Controls */}
+        <div className="mt-8 flex items-center justify-between px-2">
           <button 
             onClick={onClose}
-            className="px-6 py-3 text-xs font-bold tracking-widest text-white/60 hover:text-red-400 uppercase transition-colors"
+            className="text-[10px] font-bold tracking-[0.3em] text-black/40 hover:text-red-600 uppercase"
           >
             CLOSE
           </button>
@@ -523,9 +301,9 @@ const MobyMonCard: React.FC<MobyMonCardProps> = ({ phone, onClose }) => {
           <button
             onClick={downloadCard}
             disabled={isGenerating}
-            className="bg-white text-black px-8 py-4 text-xs font-bold tracking-widest hover:bg-gray-200 flex items-center gap-3 disabled:opacity-50 transition-colors"
+            className="bg-black text-white px-10 py-4 text-[10px] font-bold tracking-[0.3em] hover:bg-slate-800 flex items-center gap-4 disabled:opacity-50"
           >
-            {isGenerating ? 'EXPORTING...' : 'DOWNLOAD CARD'}
+            {isGenerating ? 'EXPORTING...' : 'DOWNLOAD FOR STORY'}
             <Download className="w-5 h-5" />
           </button>
         </div>
@@ -534,18 +312,23 @@ const MobyMonCard: React.FC<MobyMonCardProps> = ({ phone, onClose }) => {
   );
 };
 
+// Helper functions (identical to previous version)
 function extractDisplayType(displaytype) {
   if (!displaytype) return "OLED";
   
   const match = displaytype.match(/(LTPO\s+)?(AMOLED|OLED|LCD|IPS|Super Retina|Dynamic AMOLED)/i);
   const type = match ? match[0] : "OLED";
   
+  // Extract refresh rate - only valid display refresh rates
+  // Ignore PWM frequencies (typically 1000Hz+)
   const allHzMatches = displaytype.match(/(\d+)Hz/g);
   let refreshRate = "";
   
   if (allHzMatches) {
     for (const match of allHzMatches) {
       const value = parseInt(match);
+      // Standard display refresh rates are between 30-240Hz
+      // PWM frequencies are usually 1000Hz+
       if (value >= 30 && value <= 240) {
         refreshRate = ` (${value}Hz)`;
         break;
