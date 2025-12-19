@@ -6,7 +6,7 @@ import {
   Cpu, 
   Battery,
   Bolt,
-  Monitor,
+  Scaling,
   Sun,
   MemoryStick,
   Wifi,
@@ -51,7 +51,7 @@ const MobyMonCard = ({ phone, onClose }) => {
     const displayType = extractDisplayType(quick.displaytype);
     if (phone.screen_size || displayType) {
       result.push({ 
-        icon: Monitor, 
+        icon: Scaling, 
         label: 'DISPLAY', 
         value: phone.screen_size ? `${phone.screen_size}" ${displayType}` : displayType
       });
@@ -157,7 +157,6 @@ const MobyMonCard = ({ phone, onClose }) => {
       link.click();
     } catch (error) {
       console.error('Export failed:', error);
-      // alert replaced with a console log for Canvas environment compliance
     } finally {
       setIsGenerating(false);
     }
@@ -166,129 +165,133 @@ const MobyMonCard = ({ phone, onClose }) => {
   if (!phone) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="relative scale-50 md:scale-75 lg:scale-100 origin-center max-h-screen overflow-auto p-8">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm overflow-y-auto">
+      <div className="min-h-screen flex flex-col items-center justify-start py-4 px-4">
         
-        <div 
-          ref={cardRef}
-          className="relative bg-white border-[3px] border-black"
-          style={{ width: '708px', height: '1454px' }}
-        >
-          {/* Header - ~370px */}
-          <div className="relative border-b-[3px] border-black" style={{ height: '370px', padding: '50px 50px 40px 50px' }}>
-            <div className="flex justify-between items-start h-full">
-              <div className="flex-1 pr-6">
-                <span className="block text-[11px] font-bold tracking-[0.35em] text-black/25 uppercase mb-2">
-                  TECH PASSPORT
-                </span>
-                <h2 className="text-base font-normal text-[#9ca3af] uppercase tracking-wide mb-1">
-                  {phone.brand?.toUpperCase() || 'XIAOMI'}
-                </h2>
-                <h1 className="text-[56px] font-black text-black leading-[0.95] tracking-tight" style={{ fontFamily: 'Rockwell, serif' }}>
-                  {phone.model_name}
-                </h1>
-                {releaseDate && (
-                  <p className="text-[11px] font-semibold text-black/35 mt-3 uppercase tracking-[0.15em]">
-                    {releaseDate}
-                  </p>
-                )}
-              </div>
-              
-              <div style={{ width: '290px', height: '290px' }} className="flex-shrink-0 flex items-center justify-center bg-[#e5e7eb] border-4 border-[#d1d5db]">
-                {proxiedImageUrl && !imageError ? (
-                  <img 
-                    src={proxiedImageUrl} 
-                    alt={phone.model_name}
-                    crossOrigin="anonymous"
-                    onError={() => setImageError(true)}
-                    className="w-full h-full object-contain p-8"
-                  />
-                ) : (
-                  <Smartphone className="w-32 h-32 text-black/15" />
-                )}
+        <div className="w-full max-w-[708px] flex flex-col items-center gap-4">
+          
+          <div 
+            ref={cardRef}
+            className="relative bg-white border-[3px] border-black w-full"
+            style={{ aspectRatio: '708/1454' }}
+          >
+            {/* Header */}
+            <div className="relative border-b-[3px] border-black" style={{ height: '25.45%', padding: '7% 7% 5.5% 7%' }}>
+              <div className="flex justify-between items-start h-full">
+                <div className="flex-1 pr-4">
+                  <span className="block text-[1.55%] font-bold tracking-[0.35em] text-black/25 uppercase mb-[2%]">
+                    TECH PASSPORT
+                  </span>
+                  <h2 className="text-[2.26%] font-normal text-[#9ca3af] uppercase tracking-wide mb-[1%]">
+                    {phone.brand?.toUpperCase() || 'XIAOMI'}
+                  </h2>
+                  <h1 className="text-[7.9%] font-black text-black leading-[0.95] tracking-tight" style={{ fontFamily: 'Rockwell, serif' }}>
+                    {phone.model_name}
+                  </h1>
+                  {releaseDate && (
+                    <p className="text-[1.55%] font-semibold text-black/35 mt-[2%] uppercase tracking-[0.15em]">
+                      {releaseDate}
+                    </p>
+                  )}
+                </div>
+                
+                <div style={{ width: '40.96%', height: '100%' }} className="flex-shrink-0 flex items-center justify-center bg-[#e5e7eb] border-4 border-[#d1d5db]">
+                  {proxiedImageUrl && !imageError ? (
+                    <img 
+                      src={proxiedImageUrl} 
+                      alt={phone.model_name}
+                      crossOrigin="anonymous"
+                      onError={() => setImageError(true)}
+                      className="w-full h-full object-contain p-[10%]"
+                    />
+                  ) : (
+                    <Smartphone className="w-[45%] h-[45%] text-black/15" />
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Specs Grid - ~864px */}
-          <div style={{ height: '864px', padding: '50px 50px' }}>
-            <div className="grid grid-cols-2 gap-x-12 gap-y-8 h-full">
-              {keySpecs.map((spec, i) => (
-                <div key={i} className="flex flex-col justify-start">
-                  <div className="flex items-center gap-3 mb-2">
-                    <spec.icon className="w-6 h-6 text-black/50 flex-shrink-0" strokeWidth={1.5} />
-                    <p className="text-[10px] font-bold text-black/40 tracking-[0.2em] uppercase">
-                      {spec.label}
+            {/* Specs Grid */}
+            <div style={{ height: '59.42%', padding: '7% 7%' }}>
+              <div className="grid grid-cols-2 gap-x-[3.4%] gap-y-[2.3%] h-full">
+                {keySpecs.map((spec, i) => (
+                  <div key={i} className="flex flex-col justify-start">
+                    <div className="flex items-center gap-[2%] mb-[1.5%]">
+                      <spec.icon className="w-[3.67%] h-auto text-black/50 flex-shrink-0" strokeWidth={1.5} />
+                      <p className="text-[1.41%] font-bold text-black/40 tracking-[0.2em] uppercase">
+                        {spec.label}
+                      </p>
+                    </div>
+                    <p className="text-[3.1%] font-semibold text-black leading-tight">
+                      {spec.value}
                     </p>
                   </div>
-                  <p className="text-[22px] font-semibold text-black leading-tight">
-                    {spec.value}
-                  </p>
-                </div>
-              ))}
-              {Array(emptySlots).fill(0).map((_, i) => (
-                <div key={`empty-${i}`} className="flex flex-col justify-start opacity-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-6 h-6" />
-                    <p className="text-[10px]">EMPTY</p>
+                ))}
+                {Array(emptySlots).fill(0).map((_, i) => (
+                  <div key={`empty-${i}`} className="flex flex-col justify-start opacity-0">
+                    <div className="flex items-center gap-[2%] mb-[1.5%]">
+                      <div className="w-[3.67%] h-auto" />
+                      <p className="text-[1.41%]">EMPTY</p>
+                    </div>
+                    <p className="text-[3.1%]">-</p>
                   </div>
-                  <p className="text-[22px]">-</p>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-black text-white border-t-[3px] border-black" style={{ height: '15.13%', padding: '2.8% 7% 4.1% 7%' }}>
+              <div className="flex flex-col items-center h-full">
+                <div className="flex-shrink-0 mb-[3%]" style={{ width: '8.47%', aspectRatio: '1/1' }}>
+                  <svg viewBox="0 0 100 100" className="w-full h-full">
+                    <path d="M50 10 L90 50 L50 90 L10 50 Z M50 30 L70 50 L50 70 L30 50 Z" fill="white"/>
+                  </svg>
                 </div>
-              ))}
+                
+                <div className="flex justify-between items-end w-full mb-[4%]">
+                  <div>
+                    <p className="text-[1.41%] font-black tracking-[0.25em] uppercase opacity-80">
+                      MOBYMON ARCHIVE
+                    </p>
+                    <p className="text-[1.13%] font-light opacity-50 mt-[0.5%]">
+                      {phone.release_year || '2025'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[7.34%] font-extralight leading-none tracking-tighter">
+                      {formattedPrice}
+                    </p>
+                    <p className="text-[1.27%] font-bold tracking-[0.2em] mt-[0.5%] uppercase opacity-70">
+                      GLOBAL LAUNCH PRICE
+                    </p>
+                  </div>
+                </div>
+                
+                <p className="text-[1.41%] font-bold tracking-[0.25em] uppercase opacity-70">
+                  MOBYLITE.VERCEL.APP
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Footer - ~220px */}
-          <div className="bg-black text-white border-t-[3px] border-black" style={{ height: '220px', padding: '20px 50px 30px 50px' }}>
-            <div className="flex flex-col items-center h-full">
-              <div className="flex-shrink-0 mb-4" style={{ width: '60px', height: '60px' }}>
-                <svg viewBox="0 0 100 100" className="w-full h-full">
-                  <path d="M50 10 L90 50 L50 90 L10 50 Z M50 30 L70 50 L50 70 L30 50 Z" fill="white"/>
-                </svg>
-              </div>
-              
-              <div className="flex justify-between items-end w-full mb-6">
-                <div>
-                  <p className="text-[10px] font-black tracking-[0.25em] uppercase opacity-80">
-                    MOBYMON ARCHIVE
-                  </p>
-                  <p className="text-[8px] font-light opacity-50 mt-1">
-                    {phone.release_year || '2025'}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[52px] font-extralight leading-none tracking-tighter">
-                    {formattedPrice}
-                  </p>
-                  <p className="text-[9px] font-bold tracking-[0.2em] mt-1 uppercase opacity-70">
-                    GLOBAL LAUNCH PRICE
-                  </p>
-                </div>
-              </div>
-              
-              <p className="text-[10px] font-bold tracking-[0.25em] uppercase opacity-70">
-                MOBYLITE.VERCEL.APP
-              </p>
-            </div>
+          {/* Controls - Now always visible */}
+          <div className="w-full flex items-center justify-between gap-4">
+            <button 
+              onClick={onClose}
+              className="text-xs font-bold tracking-wider text-white/60 hover:text-red-400 uppercase transition-colors"
+            >
+              CLOSE
+            </button>
+            
+            <button
+              onClick={downloadCard}
+              disabled={isGenerating}
+              className="bg-white text-black px-6 py-3 text-xs font-bold tracking-wider hover:bg-gray-100 flex items-center gap-3 disabled:opacity-50 transition-colors"
+            >
+              {isGenerating ? 'GENERATING...' : 'DOWNLOAD'}
+              <Download className="w-4 h-4" />
+            </button>
           </div>
-        </div>
-
-        <div className="mt-6 flex items-center justify-between">
-          <button 
-            onClick={onClose}
-            className="text-xs font-bold tracking-wider text-white/60 hover:text-red-400 uppercase transition-colors"
-          >
-            ESC TO CLOSE
-          </button>
-          
-          <button
-            onClick={downloadCard}
-            disabled={isGenerating}
-            className="bg-white text-black px-8 py-3 text-xs font-bold tracking-wider hover:bg-gray-100 flex items-center gap-3 disabled:opacity-50 transition-colors"
-          >
-            {isGenerating ? 'GENERATING...' : 'DOWNLOAD CARD'}
-            <Download className="w-4 h-4" />
-          </button>
         </div>
       </div>
     </div>
@@ -358,6 +361,5 @@ function extractDimensions(dimensions) {
   const match = dimensions.match(/([\d.]+\s*x\s*[\d.]+\s*x\s*[\d.]+)\s*mm/i);
   return match ? `${match[1]} mm` : dimensions;
 }
-
 
 export default MobyMonCard;
