@@ -138,29 +138,79 @@ const MobyMonCard = ({ phone, onClose }) => {
       const html2canvas = (await import('html2canvas-pro')).default;
       
       const canvas = await html2canvas(cardRef.current, {
-        scale: 3,
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        logging: false,
-        imageTimeout: 15000,
+        logging: true,
+        imageTimeout: 0,
         width: 708,
         height: 1454,
       });
 
-      const dataURL = canvas.toDataURL('image/png', 1.0);
-      const link = document.createElement('a');
-      link.href = dataURL;
-      link.download = `mobyspec-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      setIsGenerating(false);
+      if (!canvas) {
+        throw new Error('Canvas generation failed');
+      }
+
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error('Blob creation failed'));
+              return;
+            }
+
+            try {
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              const filename = `mobyspec-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
+              
+              link.href = url;
+              link.download = filename;
+              link.style.display = 'none';
+              
+              document.body.appendChild(link);
+              link.click();
+              
+              setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                setIsGenerating(false);
+                resolve();
+              }, 100);
+            } catch (err) {
+              reject(err);
+            }
+          },
+          'image/png',
+          1.0
+        );
+      });
     } catch (error) {
-      console.error('Export failed:', error);
-      alert('Failed to download card. Please try again.');
+      console.error('Download error:', error);
       setIsGenerating(false);
+      
+      try {
+        const html2canvas = (await import('html2canvas-pro')).default;
+        const canvas = await html2canvas(cardRef.current, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          logging: true,
+        });
+        
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = `mobyspec-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setIsGenerating(false);
+      } catch (fallbackError) {
+        console.error('Fallback download failed:', fallbackError);
+        alert('Unable to download. Please try taking a screenshot instead.');
+        setIsGenerating(false);
+      }
     }
   };
 
@@ -241,9 +291,11 @@ const MobyMonCard = ({ phone, onClose }) => {
             <div className="flex flex-col h-full">
               <div className="flex-shrink-0 mb-3 flex justify-center" style={{ width: '100%' }}>
                 <div style={{ width: '73px', height: '73px' }}>
-                  <svg viewBox="0 0 100 100" className="w-full h-full">
-                    <path d="M50 10 L90 50 L50 90 L10 50 Z M50 30 L70 50 L50 70 L30 50 Z" fill="white"/>
-                  </svg>
+                  <img 
+                    src="/logowhite.svg" 
+                    alt="Logo" 
+                    className="w-full h-full object-contain"
+                  />
                 </div>
               </div>
               
@@ -266,7 +318,7 @@ const MobyMonCard = ({ phone, onClose }) => {
                 </div>
               </div>
               
-              <div className="flex justify-center">
+              <div className="flex justify-center mb-3">
                 <p className="text-[12px] font-bold tracking-[0.25em] uppercase opacity-70">
                   MOBYLITE.VERCEL.APP
                 </p>
