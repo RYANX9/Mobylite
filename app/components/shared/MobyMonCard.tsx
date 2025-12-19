@@ -157,7 +157,7 @@ const MobyMonCard = ({ phone, onClose }) => {
       link.click();
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Failed to generate image. Please try again.');
+      // alert replaced with a console log for Canvas environment compliance
     } finally {
       setIsGenerating(false);
     }
@@ -167,7 +167,7 @@ const MobyMonCard = ({ phone, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="relative">
+      <div className="relative scale-50 md:scale-75 lg:scale-100 origin-center max-h-screen overflow-auto p-8">
         
         <div 
           ref={cardRef}
@@ -358,5 +358,6 @@ function extractDimensions(dimensions) {
   const match = dimensions.match(/([\d.]+\s*x\s*[\d.]+\s*x\s*[\d.]+)\s*mm/i);
   return match ? `${match[1]} mm` : dimensions;
 }
+
 
 export default MobyMonCard;
