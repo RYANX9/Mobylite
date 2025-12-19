@@ -130,18 +130,18 @@ const MobyMonCard = ({ phone, onClose }) => {
   }, [phone]);
 
   const textSizeConfig = useMemo(() => {
-    if (keySpecs.length === 0) return { labelSize: 13, valueSize: 29, iconSize: 35, gapY: 8 };
+    if (keySpecs.length === 0) return { labelSize: 13, valueSize: 29, iconSize: 35, gapY: 32, gapX: 48, mb: 8 };
     
     const totalChars = keySpecs.reduce((sum, spec) => sum + spec.value.length, 0);
     const avgCharsPerSpec = totalChars / keySpecs.length;
     const maxValueLength = Math.max(...keySpecs.map(spec => spec.value.length));
     
     if (maxValueLength > 40 || avgCharsPerSpec > 25) {
-      return { labelSize: 11, valueSize: 20, iconSize: 28, gapY: 6 };
+      return { labelSize: 11, valueSize: 20, iconSize: 28, gapY: 20, gapX: 32, mb: 6 };
     } else if (maxValueLength > 30 || avgCharsPerSpec > 20) {
-      return { labelSize: 12, valueSize: 24, iconSize: 31, gapY: 7 };
+      return { labelSize: 12, valueSize: 24, iconSize: 31, gapY: 26, gapX: 40, mb: 7 };
     } else {
-      return { labelSize: 13, valueSize: 29, iconSize: 35, gapY: 8 };
+      return { labelSize: 13, valueSize: 29, iconSize: 35, gapY: 32, gapX: 48, mb: 8 };
     }
   }, [keySpecs]);
 
@@ -264,10 +264,16 @@ const MobyMonCard = ({ phone, onClose }) => {
           </div>
 
           <div style={{ height: '864px', padding: '50px 50px' }}>
-            <div className="grid grid-cols-2 gap-x-12 h-full" style={{ rowGap: `${textSizeConfig.gapY * 4}px` }}>
+            <div 
+              className="grid grid-cols-2 h-full" 
+              style={{ 
+                rowGap: `${textSizeConfig.gapY}px`,
+                columnGap: `${textSizeConfig.gapX}px`
+              }}
+            >
               {keySpecs.map((spec, i) => (
                 <div key={i} className="flex flex-col justify-start">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3" style={{ marginBottom: `${textSizeConfig.mb}px` }}>
                     <spec.icon 
                       className="text-black/50 flex-shrink-0" 
                       strokeWidth={1.5}
@@ -290,7 +296,7 @@ const MobyMonCard = ({ phone, onClose }) => {
               ))}
               {Array(emptySlots).fill(0).map((_, i) => (
                 <div key={`empty-${i}`} className="flex flex-col justify-start opacity-0">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3" style={{ marginBottom: `${textSizeConfig.mb}px` }}>
                     <div style={{ width: `${textSizeConfig.iconSize}px`, height: `${textSizeConfig.iconSize}px` }} />
                     <p style={{ fontSize: `${textSizeConfig.labelSize}px` }}>EMPTY</p>
                   </div>
@@ -428,4 +434,4 @@ function extractDimensions(dimensions) {
   return match ? `${match[1]} mm` : dimensions;
 }
 
-export default MobyMonCard;
+export default MobyMonCardl
