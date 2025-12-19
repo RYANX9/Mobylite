@@ -135,40 +135,31 @@ const MobyMonCard = ({ phone, onClose }) => {
     setIsGenerating(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       const html2canvas = (await import('html2canvas-pro')).default;
       
       const canvas = await html2canvas(cardRef.current, {
         scale: 3,
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
         imageTimeout: 15000,
-        removeContainer: true,
         width: 708,
         height: 1454,
       });
 
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          console.error('Failed to create blob');
-          setIsGenerating(false);
-          return;
-        }
-        
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.download = `mobyspec-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
-        link.href = url;
-        link.click();
-        
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-        setIsGenerating(false);
-      }, 'image/png', 1.0);
+      const dataURL = canvas.toDataURL('image/png', 1.0);
+      const link = document.createElement('a');
+      link.href = dataURL;
+      link.download = `mobyspec-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setIsGenerating(false);
     } catch (error) {
       console.error('Export failed:', error);
+      alert('Failed to download card. Please try again.');
       setIsGenerating(false);
     }
   };
@@ -246,15 +237,17 @@ const MobyMonCard = ({ phone, onClose }) => {
             </div>
           </div>
 
-          <div className="bg-black text-white border-t-[3px] border-black" style={{ height: '220px', padding: '20px 50px 30px 50px' }}>
-            <div className="flex flex-col items-center h-full">
-              <div className="flex-shrink-0 mb-4" style={{ width: '73px', height: '73px' }}>
-                <svg viewBox="0 0 100 100" className="w-full h-full">
-                  <path d="M50 10 L90 50 L50 90 L10 50 Z M50 30 L70 50 L50 70 L30 50 Z" fill="white"/>
-                </svg>
+          <div className="bg-black text-white border-t-[3px] border-black" style={{ height: '220px', padding: '20px 50px 20px 50px' }}>
+            <div className="flex flex-col h-full">
+              <div className="flex-shrink-0 mb-3 flex justify-center" style={{ width: '100%' }}>
+                <div style={{ width: '73px', height: '73px' }}>
+                  <svg viewBox="0 0 100 100" className="w-full h-full">
+                    <path d="M50 10 L90 50 L50 90 L10 50 Z M50 30 L70 50 L50 70 L30 50 Z" fill="white"/>
+                  </svg>
+                </div>
               </div>
               
-              <div className="flex justify-between items-end w-full mb-6">
+              <div className="flex justify-between items-end w-full mb-4">
                 <div>
                   <p className="text-[12px] font-black tracking-[0.25em] uppercase opacity-80">
                     MOBYMON ARCHIVE
@@ -273,9 +266,11 @@ const MobyMonCard = ({ phone, onClose }) => {
                 </div>
               </div>
               
-              <p className="text-[12px] font-bold tracking-[0.25em] uppercase opacity-70">
-                MOBYLITE.VERCEL.APP
-              </p>
+              <div className="flex justify-center">
+                <p className="text-[12px] font-bold tracking-[0.25em] uppercase opacity-70">
+                  MOBYLITE.VERCEL.APP
+                </p>
+              </div>
             </div>
           </div>
         </div>
