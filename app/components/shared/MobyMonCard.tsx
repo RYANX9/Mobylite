@@ -181,67 +181,55 @@ const MobyMonCard = ({ phone, onClose }) => {
   if (!phone) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50/90 backdrop-blur-md">
-      {/* Responsive Container */}
-      <div className="relative w-full h-full max-w-[500px] max-h-[95vh] flex flex-col items-center justify-center p-4 md:p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50/90 backdrop-blur-md overflow-auto">
+      {/* Wrapper - Scales card on small screens */}
+      <div className="relative flex flex-col items-center justify-center p-4 w-full">
         
-        {/* Card - Maintains 9:16 ratio */}
+        {/* FIXED SIZE CARD - Always 1080x1920px */}
         <div 
           ref={cardRef}
-          className="relative w-full bg-white shadow-2xl flex flex-col overflow-hidden"
+          className="relative bg-white shadow-2xl flex flex-col overflow-hidden"
           style={{ 
-            aspectRatio: '9/16',
-            border: '4px solid #000',
-            maxHeight: 'calc(95vh - 120px)' // Leave space for button
+            width: '1080px',
+            height: '1920px',
+            border: '12px solid #000',
+            transform: 'scale(1)',
+            transformOrigin: 'center',
           }}
         >
-          {/* Header - 25% height */}
+          {/* Header - 25% of 1920px = 480px */}
           <div 
             className="relative border-b-2 border-black flex-shrink-0"
-            style={{ height: '20%' }}
+            style={{ height: '480px' }}
           >
-            <div className="h-full flex justify-between items-start p-[4%] pb-[2%]">
-              {/* Left: Text Content */}
-              <div className="flex-1 flex flex-col justify-between h-full pr-[2%]">
+            <div className="h-full flex justify-between items-start p-16 pb-8">
+              {/* Left: Text Content - 60% width */}
+              <div className="flex-1 flex flex-col justify-between h-full pr-8" style={{ width: '60%' }}>
                 <div>
-                  <span 
-                    className="font-black tracking-[0.4em] text-black/30 uppercase block"
-                    style={{ fontSize: 'clamp(8px, 1.2vw, 10px)' }}
-                  >
+                  <span className="text-[28px] font-black tracking-[0.4em] text-black/30 uppercase block leading-tight">
                     TECH PASSPORT
                   </span>
-                  <h2 
-                    className="font-black leading-[0.9] tracking-tight mt-[2%]"
-                    style={{ fontSize: 'clamp(24px, 4.5vw, 40px)' }}
-                  >
+                  <h2 className="text-[120px] font-black leading-[0.85] tracking-tight mt-2">
                     {phone.brand?.toUpperCase()}
                   </h2>
-                  <h1 
-                    className="font-light text-black/70 leading-tight"
-                    style={{ 
-                      fontSize: 'clamp(14px, 2.2vw, 20px)',
-                      marginTop: '2%'
-                    }}
-                  >
+                  <h1 className="text-[56px] font-light text-black/70 mt-4 leading-tight">
                     {phone.model_name}
                   </h1>
                 </div>
                 {releaseDate && (
-                  <p 
-                    className="font-bold text-black/40 uppercase tracking-wider"
-                    style={{ fontSize: 'clamp(8px, 1.2vw, 10px)' }}
-                  >
+                  <p className="text-[26px] font-bold text-black/40 uppercase tracking-wider mt-4">
                     {releaseDate}
                   </p>
                 )}
               </div>
               
-              {/* Right: Phone Image */}
+              {/* Right: Phone Image - 40% width */}
               <div 
-                className="flex-shrink-0 flex items-center justify-center overflow-hidden border-4 border-black/10 bg-gray-50"
+                className="flex-shrink-0 flex items-center justify-center overflow-hidden bg-gray-50"
                 style={{ 
-                  width: '38%',
-                  height: '90%'
+                  width: '380px',
+                  height: '380px',
+                  border: '12px solid rgba(0,0,0,0.1)'
                 }}
               >
                 {proxiedImageUrl && !imageError ? (
@@ -250,52 +238,30 @@ const MobyMonCard = ({ phone, onClose }) => {
                     alt={phone.model_name}
                     crossOrigin="anonymous"
                     onError={() => setImageError(true)}
-                    className="w-full h-full object-contain"
-                    style={{ padding: '15%' }}
+                    className="w-full h-full object-contain p-16"
                   />
                 ) : (
-                  <Smartphone 
-                    className="text-black/20"
-                    style={{ width: '60%', height: '60%' }}
-                  />
+                  <Smartphone className="w-56 h-56 text-black/20" />
                 )}
               </div>
             </div>
           </div>
 
-          {/* Specs Grid - 55% height */}
+          {/* Specs Grid - 55% of 1920px = 1056px */}
           <div 
             className="flex-1 overflow-y-auto"
-            style={{ height: '60%' }}
+            style={{ height: '1056px' }}
           >
-            <div 
-              className="h-full grid grid-cols-2 gap-x-[5%] gap-y-[3%]"
-              style={{ 
-                padding: '4%',
-                alignContent: 'start'
-              }}
-            >
+            <div className="h-full grid grid-cols-2 gap-x-16 gap-y-12 p-16 content-start">
               {keySpecs.map((spec, i) => (
                 <div key={i} className="flex flex-col">
-                  <div className="flex items-center gap-[6%] mb-[6%]">
-                    <spec.icon 
-                      className="text-black/60 flex-shrink-0"
-                      style={{ width: '18%', height: 'auto' }}
-                    />
-                    <p 
-                      className="font-bold text-black/40 tracking-widest uppercase leading-tight"
-                      style={{ fontSize: 'clamp(7px, 1.1vw, 9px)' }}
-                    >
+                  <div className="flex items-center gap-4 mb-3">
+                    <spec.icon className="w-14 h-14 text-black/60 flex-shrink-0" />
+                    <p className="text-[22px] font-bold text-black/40 tracking-widest uppercase leading-tight">
                       {spec.label}
                     </p>
                   </div>
-                  <p 
-                    className="font-semibold text-black leading-tight"
-                    style={{ 
-                      fontSize: 'clamp(11px, 1.6vw, 14px)',
-                      paddingLeft: '24%'
-                    }}
-                  >
+                  <p className="text-[36px] font-semibold text-black leading-tight pl-[72px]">
                     {spec.value}
                   </p>
                 </div>
@@ -303,56 +269,31 @@ const MobyMonCard = ({ phone, onClose }) => {
             </div>
           </div>
 
-          {/* Footer - 20% height */}
+          {/* Footer - 20% of 1920px = 384px */}
           <div 
-            className="border-t-2 border-black bg-black text-white flex flex-col items-center flex-shrink-0"
-            style={{ 
-              height: '20%',
-              padding: '2% 4%'
-            }}
+            className="border-t-2 border-black bg-black text-white flex flex-col items-center justify-between flex-shrink-0 p-8"
+            style={{ height: '384px' }}
           >
             <img 
               src={logoUrl}
               alt="MobyLite Logo" 
               crossOrigin="anonymous"
-              className="mb-[2%]"
-              style={{ 
-                width: 'clamp(40px, 6vw, 56px)',
-                height: 'clamp(40px, 6vw, 56px)'
-              }}
+              className="w-36 h-36"
             />
-            <div className="flex justify-between items-end w-full mb-[3%]">
+            <div className="flex justify-between items-end w-full px-8">
               <div>
-                <p 
-                  className="font-black tracking-[0.3em] uppercase opacity-70"
-                  style={{ fontSize: 'clamp(7px, 1.1vw, 9px)' }}
-                >
+                <p className="text-[22px] font-black tracking-[0.3em] uppercase opacity-70">
                   MOBYMON ARCHIVE
                 </p>
-                <p 
-                  className="font-light opacity-50"
-                  style={{ 
-                    fontSize: 'clamp(6px, 0.9vw, 7px)',
-                    marginTop: '4%'
-                  }}
-                >
+                <p className="text-[18px] font-light opacity-50 mt-2">
                   {phone.release_year || new Date().getFullYear()}
                 </p>
               </div>
               <div className="text-right">
-                <p 
-                  className="font-extralight leading-none tracking-tighter"
-                  style={{ fontSize: 'clamp(28px, 5vw, 40px)' }}
-                >
+                <p className="text-[100px] font-extralight leading-none tracking-tighter">
                   {formattedPrice}
                 </p>
-                <p 
-                  className="font-bold tracking-widest uppercase opacity-70"
-                  style={{ 
-                    fontSize: 'clamp(6px, 1vw, 8px)',
-                    marginTop: '4%'
-                  }}
-                >
+                <p className="text-[20px] font-bold tracking-widest mt-2 uppercase opacity-70">
                   Global Launch Price
                 </p>
               </div>
@@ -361,20 +302,18 @@ const MobyMonCard = ({ phone, onClose }) => {
               href="https://mobylite.vercel.app" 
               target="_blank"
               rel="noopener noreferrer"
-              className="font-bold tracking-[0.3em] uppercase opacity-70 hover:underline"
-              style={{ fontSize: 'clamp(7px, 1.1vw, 9px)' }}
+              className="text-[22px] font-bold tracking-[0.3em] uppercase opacity-70 hover:underline"
             >
               mobylite.vercel.app
             </a>
           </div>
         </div>
 
-        {/* Controls - Outside card */}
-        <div className="mt-4 md:mt-6 w-full flex items-center justify-between">
+        {/* Controls - Outside card, scales with viewport */}
+        <div className="mt-8 w-full max-w-[1080px] flex items-center justify-between px-4">
           <button 
             onClick={onClose}
-            className="font-bold tracking-[0.3em] text-black/40 hover:text-red-600 uppercase transition-colors"
-            style={{ fontSize: 'clamp(8px, 1.2vw, 10px)' }}
+            className="text-[18px] font-bold tracking-[0.3em] text-black/40 hover:text-red-600 uppercase transition-colors"
           >
             CLOSE
           </button>
@@ -382,17 +321,32 @@ const MobyMonCard = ({ phone, onClose }) => {
           <button
             onClick={downloadCard}
             disabled={isGenerating}
-            className="bg-black text-white font-bold tracking-[0.3em] hover:bg-slate-800 flex items-center gap-3 disabled:opacity-50 transition-all"
-            style={{ 
-              fontSize: 'clamp(8px, 1.2vw, 10px)',
-              padding: 'clamp(12px, 2vw, 16px) clamp(24px, 4vw, 40px)'
-            }}
+            className="bg-black text-white px-12 py-5 text-[18px] font-bold tracking-[0.3em] hover:bg-slate-800 flex items-center gap-4 disabled:opacity-50 transition-all"
           >
             {isGenerating ? 'EXPORTING...' : 'DOWNLOAD FOR STORY'}
-            <Download style={{ width: 'clamp(16px, 2vw, 20px)', height: 'clamp(16px, 2vw, 20px)' }} />
+            <Download className="w-6 h-6" />
           </button>
         </div>
       </div>
+
+      {/* CSS to scale card on smaller screens */}
+      <style jsx>{`
+        @media (max-width: 1200px) {
+          div[ref] {
+            transform: scale(0.5);
+          }
+        }
+        @media (max-width: 768px) {
+          div[ref] {
+            transform: scale(0.35);
+          }
+        }
+        @media (max-width: 480px) {
+          div[ref] {
+            transform: scale(0.28);
+          }
+        }
+      `}</style>
     </div>
   );
 };
