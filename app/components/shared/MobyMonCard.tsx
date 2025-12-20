@@ -406,7 +406,8 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
                 borderTop: '3px solid #000000',
               }}
             >
-              <div className="flex items-center gap-3">
+              {/* Changed to flex-col and removed items-center to align left */}
+              <div className="flex flex-col gap-2">
                 <div style={{ width: '40px', height: '40px' }}>
                   <img
                     src="/logowhite.svg"
@@ -416,13 +417,13 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
                 </div>
                 <div>
                   <p
-                    className="text-[8px] font-black tracking-wider uppercase"
+                    className="text-[10px] font-black tracking-[0.2em] uppercase"
                     style={{ color: 'rgba(255,255,255,0.8)' }}
                   >
                     MOBYMON ARCHIVE
                   </p>
                   <p
-                    className="text-[7px] font-light mt-0.5"
+                    className="text-[8px] font-bold mt-0.5"
                     style={{ color: 'rgba(255,255,255,0.5)' }}
                   >
                     MOBYLITE.VERCEL.APP
