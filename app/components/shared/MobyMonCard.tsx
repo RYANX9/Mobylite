@@ -34,6 +34,40 @@ const ICON_COMPONENTS: Record<string, any> = {
   '🔬': Camera,
 };
 
+const getSpecIcon = (label: string) => {
+  const iconMap: Record<string, any> = {
+    'Display': Maximize2,
+    'Screen': Maximize2,
+    'Brightness': Sun,
+    'Chipset': Cpu,
+    'Processor': Cpu,
+    'CPU': Cpu,
+    'RAM': HardDrive,
+    'Storage': HardDrive,
+    'Memory': HardDrive,
+    'Camera': Camera,
+    'Main Camera': Camera,
+    'Front Camera': Camera,
+    'Ultrawide': Camera,
+    'Battery': Battery,
+    'Charging': Zap,
+    'Fast Charging': Zap,
+    'Wi-Fi': Wifi,
+    'WiFi': Wifi,
+    'WLAN': Wifi,
+    'Dimensions': Ruler,
+    'Size': Ruler,
+    'Weight': Weight,
+  };
+
+  for (const [key, icon] of Object.entries(iconMap)) {
+    if (label.toLowerCase().includes(key.toLowerCase())) {
+      return icon;
+    }
+  }
+  return Smartphone;
+};
+
 export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -78,8 +112,8 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="relative max-w-md w-full">
-        <div className="flex justify-end gap-3 mb-4">
+      <div className="relative w-full max-w-md h-full flex flex-col items-center justify-center">
+        <div className="flex justify-end gap-3 mb-4 w-full">
           <ButtonPressFeedback
             onClick={downloadCard}
             className="px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg"
@@ -97,14 +131,15 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
           </ButtonPressFeedback>
         </div>
 
-        <div
-          ref={cardRef}
-          className="w-full rounded-3xl overflow-hidden shadow-2xl"
-          style={{
-            backgroundColor: '#FFFFFF',
-            aspectRatio: '9/16',
-          }}
-        >
+        <div className="w-full h-full max-h-[calc(100vh-100px)] overflow-auto flex items-center justify-center">
+          <div
+            ref={cardRef}
+            className="w-full rounded-3xl overflow-hidden shadow-2xl"
+            style={{
+              backgroundColor: '#FFFFFF',
+              maxWidth: '450px',
+            }}
+          >
           <div
             className="p-6 pb-4"
             style={{
@@ -164,11 +199,11 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
           <div className="p-6 py-8">
             <div className="grid grid-cols-2 gap-4">
               {displaySpecs.map((spec, idx) => {
-                const IconComponent = ICON_COMPONENTS[spec.icon] || Smartphone;
+                const IconComponent = getSpecIcon(spec.label);
                 return (
                   <div key={idx} className="flex flex-col">
                     <div className="flex items-center gap-2 mb-1.5">
-                      <IconComponent size={18} style={{ color: '#666666' }} />
+                      <IconComponent size={18} style={{ color: '#666666' }} strokeWidth={1.5} />
                       <span
                         className="text-[11px] font-bold uppercase tracking-wide"
                         style={{ color: '#666666' }}
@@ -217,6 +252,7 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
                 </p>
               </div>
             )}
+          </div>
           </div>
         </div>
       </div>
