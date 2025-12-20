@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { 
   Download, 
@@ -14,6 +15,31 @@ import {
   Weight as WeightIcon,
   X
 } from 'lucide-react';
+
+const loadHtml2Canvas = async () => {
+  try {
+    const module = await import('html2canvas-pro');
+    return module.default;
+  } catch (err) {
+    try {
+      const module = await import('html2canvas');
+      return module.default;
+    } catch (err2) {
+      return new Promise((resolve, reject) => {
+        if (window.html2canvas) {
+          resolve(window.html2canvas);
+          return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        script.onload = () => resolve(window.html2canvas);
+        script.onerror = () => reject(new Error('Failed to load html2canvas from CDN'));
+        document.head.appendChild(script);
+      });
+    }
+  }
+};
 
 const MobyMonCard = ({ phone, onClose }) => {
   const cardRef = useRef(null);
@@ -143,14 +169,7 @@ const MobyMonCard = ({ phone, onClose }) => {
     try {
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      let html2canvas;
-      try {
-        const module = await import('html2canvas-pro');
-        html2canvas = module.default;
-      } catch (err) {
-        const module = await import('html2canvas');
-        html2canvas = module.default;
-      }
+      const html2canvas = await loadHtml2Canvas();
 
       if (!html2canvas) {
         throw new Error('Could not load html2canvas library');
@@ -195,7 +214,7 @@ const MobyMonCard = ({ phone, onClose }) => {
 
     } catch (error) {
       console.error('Download error:', error);
-      alert(`Download failed: ${error.message}\n\nTry: 1) Refresh page 2) Use Chrome/Firefox 3) Disable extensions`);
+      alert(`Download failed: ${error.message}\n\nPlease try:\n1. Use desktop browser\n2. Clear cache\n3. Try Chrome or Firefox`);
       setIsGenerating(false);
     }
   };
@@ -288,7 +307,16 @@ const MobyMonCard = ({ phone, onClose }) => {
             <div className="bg-black text-white border-t-[3px] border-black" style={{ height: '220px', padding: '20px 50px 30px 50px' }}>
               <div className="flex flex-col items-center h-full">
                 <div className="flex-shrink-0 mb-4" style={{ width: '60px', height: '60px' }}>
-                  <svg viewBox="0 0 100 100" className="w-full h-full">
+                  <img 
+                    src="/logowhite.svg" 
+                    alt="Mobymon Logo" 
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextElementSibling.style.display = 'block';
+                    }}
+                  />
+                  <svg viewBox="0 0 100 100" className="w-full h-full" style={{ display: 'none' }}>
                     <path d="M50 10 L90 50 L50 90 L10 50 Z M50 30 L70 50 L50 70 L30 50 Z" fill="white"/>
                   </svg>
                 </div>
