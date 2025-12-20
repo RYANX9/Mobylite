@@ -468,10 +468,9 @@ export default function DesktopDetail({ phone, initialReviews, initialStats }: D
                   </ButtonPressFeedback>
                 )}
                 
-                {/* ← ADD THIS MOBYMON BUTTON */}
                 <ButtonPressFeedback
                   onClick={() => setShowMobyMon(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg"
+                  className="w-full py-4 font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
                   style={{ 
                     background: '#0f0f0fff',
                     color: '#FFFFFF'
@@ -480,7 +479,7 @@ export default function DesktopDetail({ phone, initialReviews, initialStats }: D
                   <Sparkles size={18} />
                   <span>MobyMon Card</span>
                 </ButtonPressFeedback>
-                )}
+
                 <ButtonPressFeedback 
                   onClick={() => setShowPriceAlert(true)}
                   className="w-full py-4 font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
@@ -491,8 +490,6 @@ export default function DesktopDetail({ phone, initialReviews, initialStats }: D
                   Set Price Alert
                 </ButtonPressFeedback>
               </div>
-            </div>
-          </div>
 
           <div className="col-span-3">
             <div className="flex items-center justify-between mb-8">
