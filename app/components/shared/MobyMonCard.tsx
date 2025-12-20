@@ -1,26 +1,23 @@
 'use client';
 import React, { useRef, useMemo } from 'react';
 import { X, Download, Smartphone, Sun, Cpu, Camera, Battery, HardDrive, Wifi, Zap, Maximize2, Ruler, Weight } from 'lucide-react';
-import { Phone } from '@/lib/types';
-import { ButtonPressFeedback } from './ButtonPressFeedback';
-import { color, font } from '@/lib/tokens';
-import html2canvas from 'html2canvas';
 
-interface MobyMonCardProps {
-  phone: Phone;
-  onClose: () => void;
-}
+const ButtonPressFeedback = ({ onClick, className, style, children }) => (
+  <button onClick={onClick} className={className} style={style}>
+    {children}
+  </button>
+);
 
-interface Spec {
-  icon: any;
-  label: string;
-  value: string;
-}
+const color = {
+  success: '#10b981',
+  bg: '#f3f4f6',
+  text: '#111827'
+};
 
-export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
-  const cardRef = useRef<HTMLDivElement>(null);
+export default function MobyMonCard({ phone = samplePhone, onClose = () => {} }) {
+  const cardRef = useRef(null);
 
-  const getProxiedImageUrl = (url: string | null) => {
+  const getProxiedImageUrl = (url) => {
     if (!url) return null;
     return `/api/proxy-image?url=${encodeURIComponent(url)}`;
   };
@@ -28,9 +25,15 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
   const downloadCard = async () => {
     if (!cardRef.current) return;
 
+    const originalWidth = cardRef.current.style.width;
+    cardRef.current.style.width = '450px';
+
     try {
+      const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(cardRef.current, {
         scale: 2,
+        width: 450,
+        windowWidth: 450,
         backgroundColor: '#FFFFFF',
         logging: false,
         useCORS: true,
@@ -44,30 +47,28 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
     } catch (error) {
       console.error('Failed to download card:', error);
       alert('Failed to generate card. Please try again.');
+    } finally {
+      cardRef.current.style.width = originalWidth;
     }
   };
 
   const specs = useMemo(() => {
-    const result: Spec[] = [];
+    const result = [];
     const phoneSpecs = phone.full_specifications?.specifications || {};
     const quickSpecs = phone.full_specifications?.quick_specs || {};
 
-      const extractDisplayType = (displaytype) => {
+    const extractDisplayType = (displaytype) => {
       if (!displaytype) return "OLED";
       
       const match = displaytype.match(/(LTPO\s+)?(AMOLED|OLED|LCD|IPS|Super Retina|Dynamic AMOLED)/i);
       const type = match ? match[0] : "OLED";
       
-      // Extract refresh rate - only valid display refresh rates (60, 90, 120, 144, etc.)
-      // Ignore PWM frequencies which are typically 1000Hz+
       const allHzMatches = displaytype.match(/(\d+)Hz/g);
       let refreshRate = "";
       
       if (allHzMatches) {
         for (const hzMatch of allHzMatches) {
           const value = parseInt(hzMatch);
-          // Standard display refresh rates are typically between 30-240Hz
-          // PWM frequencies are usually 1000Hz+
           if (value >= 30 && value <= 240) {
             refreshRate = ` (${value}Hz)`;
             break;
@@ -78,8 +79,7 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
       return `${type}${refreshRate}`;
     };
 
-
-    const extractBrightness = (displaytype: string) => {
+    const extractBrightness = (displaytype) => {
       if (!displaytype) return null;
       const match = displaytype.match(/(\d+)\s*nits/i);
       return match ? match[0] : null;
@@ -103,17 +103,15 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
       result.push({ icon: Cpu, label: 'CHIPSET', value: phone.chipset });
     }
 
-    const parseMemoryOptions = (internalMemory: string) => {
+    const parseMemoryOptions = (internalMemory) => {
       if (!internalMemory) return { ram: "", storage: "" };
     
-      // Split by comma to get individual combos like "256GB 12GB RAM"
       const combos = internalMemory.split(',');
       
-      const ramSet = new Set<string>();
-      const storageSet = new Set<string>();
+      const ramSet = new Set();
+      const storageSet = new Set();
     
       combos.forEach(combo => {
-        // Find all numbers followed by GB or TB
         const matches = combo.match(/(\d+)(GB|TB)/gi);
         
         if (matches) {
@@ -121,7 +119,6 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
             const value = parseInt(match);
             const isTB = match.toLowerCase().includes('tb');
             
-            // Logic: RAM is currently < 32GB, Storage is >= 64GB or is in TB
             if (!isTB && value < 32) {
               ramSet.add(`${value}GB`);
             } else {
@@ -137,7 +134,6 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
       };
     };
     
-    
     const memoryData = parseMemoryOptions(quickSpecs.internalmemory);
     
     if (memoryData.ram || memoryData.storage) {
@@ -150,8 +146,7 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
       });
     }
 
-
-    const extractMainCamera = (cam1modules: string) => {
+    const extractMainCamera = (cam1modules) => {
       if (!cam1modules) return null;
       const regex = /(\d+)\s*MP,\s*f\/([0-9.]+)[^(]*\((wide|main)[^)]*\)/i;
       const match = regex.exec(cam1modules);
@@ -163,7 +158,7 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
       result.push({ icon: Camera, label: 'MAIN CAMERA', value: mainCam });
     }
 
-    const extractUltrawideCamera = (cam1modules: string) => {
+    const extractUltrawideCamera = (cam1modules) => {
       if (!cam1modules) return null;
       const regex = /(\d+)\s*MP,\s*f\/([0-9.]+)[^(]*\((ultrawide|ultra wide)[^)]*\)/i;
       const match = regex.exec(cam1modules);
@@ -175,7 +170,7 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
       result.push({ icon: Camera, label: 'ULTRAWIDE CAMERA', value: ultrawideCam });
     }
 
-    const extractFrontCamera = (cam2modules: string) => {
+    const extractFrontCamera = (cam2modules) => {
       if (!cam2modules) return null;
       const mpMatch = cam2modules.match(/(\d+)\s*MP/i);
       const apertureMatch = cam2modules.match(/f\/([0-9.]+)/i);
@@ -192,20 +187,16 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
       result.push({ icon: Battery, label: 'BATTERY', value: `${phone.battery_capacity} mAh` });
     }
 
-    const extractDetailedCharging = (chargingStr: string, wiredW: number | null) => {
+    const extractDetailedCharging = (chargingStr, wiredW) => {
       if (!chargingStr) return wiredW ? `${wiredW}W (Wired)` : "Fast Charging";
 
-      // 1. Identify the Wireless speed and type
-      // Looks for a number followed by W near wireless keywords
       const wirelessMatch = chargingStr.match(/(\d+)W\s*(?=wireless|Qi2|MagSafe|magnetic)/i);
       const wirelessW = wirelessMatch ? wirelessMatch[1] : null;
       
-      // 2. Identify wireless standard
       let wirelessType = "Wireless";
       if (/Qi2/i.test(chargingStr)) wirelessType = "Qi2";
       else if (/MagSafe/i.test(chargingStr)) wirelessType = "MagSafe";
 
-      // 3. Build the string
       const wiredPart = wiredW ? `${wiredW}W (Wired)` : "";
       const wirelessPart = wirelessW ? `${wirelessW}W (${wirelessType})` : "";
 
@@ -225,9 +216,8 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
         value: chargingDisplay
       });
     }
-    
 
-    const extractWiFi = (wlan: string) => {
+    const extractWiFi = (wlan) => {
       if (!wlan) return null;
       if (/7|be/i.test(wlan)) return 'Wi-Fi 7';
       if (/6e/i.test(wlan)) return 'Wi-Fi 6E';
@@ -240,7 +230,7 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
       result.push({ icon: Wifi, label: 'WI-FI', value: wifi });
     }
 
-    const extractDimensions = (dimensions: string) => {
+    const extractDimensions = (dimensions) => {
       if (!dimensions) return null;
       const match = dimensions.match(/([\d.]+\s*x\s*[\d.]+\s*x\s*[\d.]+)\s*mm/i);
       return match ? `${match[1]} mm` : null;
@@ -258,36 +248,33 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
     return result.slice(0, 12);
   }, [phone]);
 
-  const formatReleaseDate = (dateStr: string) => {
+  const formatReleaseDate = (dateStr) => {
     if (!dateStr) return '';
-  // Removes "Released" or "Announced" and keeps the specific date
-  // e.g., "Released 2025, August 20" -> "2025, August 20"
     return dateStr.replace(/(Released|Announced)\s+/i, '').trim();
   };
 
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-md h-full flex flex-col items-center justify-center">
-        <div className="flex justify-end gap-3 mb-4 w-full">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-2 sm:p-4">
+      <div className="relative w-full max-w-md h-full flex flex-col">
+        <div className="flex justify-end gap-2 sm:gap-3 mb-3 sm:mb-4 w-full px-2">
           <ButtonPressFeedback
             onClick={downloadCard}
-            className="px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg"
+            className="px-3 sm:px-4 py-2 rounded-lg font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg"
             style={{ backgroundColor: color.success, color: '#FFFFFF' }}
           >
-            <Download size={18} />
-            Download
+            <Download size={16} className="sm:w-[18px] sm:h-[18px]" />
+            <span className="hidden sm:inline">Download</span>
           </ButtonPressFeedback>
           <ButtonPressFeedback
             onClick={onClose}
-            className="px-4 py-2 rounded-lg font-bold text-sm shadow-lg"
+            className="px-3 sm:px-4 py-2 rounded-lg font-bold text-xs sm:text-sm shadow-lg"
             style={{ backgroundColor: color.bg, color: color.text }}
           >
-            <X size={18} />
+            <X size={16} className="sm:w-[18px] sm:h-[18px]" />
           </ButtonPressFeedback>
         </div>
 
-        <div className="w-full h-full max-h-[calc(100vh-100px)] overflow-auto flex items-center justify-center">
+        <div className="flex-1 overflow-auto flex items-start sm:items-center justify-center px-2">
           <div
             ref={cardRef}
             className="w-full overflow-hidden shadow-2xl"
@@ -297,37 +284,36 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
               border: '3px solid #000000',
             }}
           >
-            // Change the padding of the top section container to match image height + 10px
             <div
               className="relative"
               style={{
-                padding: '10px 40px', // Reduced vertical padding
+                padding: '10px 20px',
                 borderBottom: '3px solid #000000',
               }}
             >
-              <div className="flex justify-between items-center"> {/* Changed items-start to items-center */}
-                <div className="flex-1 pr-4">
+              <div className="flex justify-between items-center gap-3">
+                <div className="flex-1 min-w-0">
                   <span
-                    className="block text-[9px] font-bold tracking-[0.3em] uppercase mb-2"
+                    className="block text-[8px] sm:text-[9px] font-bold tracking-[0.3em] uppercase mb-1.5 sm:mb-2"
                     style={{ color: 'rgba(0,0,0,0.25)' }}
                   >
                     MOBYMON CARD
                   </span>
                   <h2
-                    className="text-xs font-medium uppercase tracking-wide mb-1"
+                    className="text-[10px] sm:text-xs font-medium uppercase tracking-wide mb-0.5 sm:mb-1"
                     style={{ color: '#9ca3af' }}
                   >
                     {phone.brand?.toUpperCase()}
                   </h2>
                   <h1
-                    className="text-3xl font-black leading-tight mb-2"
+                    className="text-2xl sm:text-3xl font-black leading-tight mb-1.5 sm:mb-2"
                     style={{ color: '#000000', fontFamily: 'Young Serif' }}
                   >
                     {phone.model_name.split(' ').slice(1).join(' ')}
                   </h1>
                   {phone.release_date_full && (
                     <p
-                      className="text-[9px] font-semibold uppercase tracking-wide"
+                      className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-wide"
                       style={{ color: 'rgba(0,0,0,0.35)' }}
                     >
                       {formatReleaseDate(phone.release_date_full)}
@@ -337,29 +323,30 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
             
                 <div
                   style={{
-                    width: '120px',
-                    height: '150px',
+                    width: '100px',
+                    height: '125px',
                     backgroundColor: '#f9f9f9',
                     border: '3px solid #222222',
                   }}
-                  className="flex-shrink-0 flex items-center justify-center"
+                  className="flex-shrink-0 flex items-center justify-center sm:w-[120px] sm:h-[150px]"
                 >
                   {phone.main_image_url ? (
                     <img
                       src={getProxiedImageUrl(phone.main_image_url)}
                       alt={phone.model_name}
-                      className="w-full h-full object-contain p-6"
+                      className="w-full h-full object-contain p-4 sm:p-6"
                       crossOrigin="anonymous"
                       onError={(e) => {
                         const target = e.currentTarget;
                         target.style.display = 'none';
-                        const fallback = target.nextElementSibling as HTMLElement;
+                        const fallback = target.nextElementSibling;
                         if (fallback) fallback.style.display = 'flex';
                       }}
                     />
                   ) : null}
                   <Smartphone
-                    size={60}
+                    size={50}
+                    className="sm:w-[60px] sm:h-[60px]"
                     style={{
                       color: 'rgba(0,0,0,0.15)',
                       display: phone.main_image_url ? 'none' : 'block',
@@ -369,26 +356,26 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
               </div>
             </div>
 
-            <div style={{ padding: '30px 30px' }}>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+            <div style={{ padding: '20px 20px' }} className="sm:p-[30px]">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:gap-x-6 sm:gap-y-5">
                 {specs.map((spec, i) => (
                   <div key={i} className="flex flex-col">
-                    <div className="flex items-center gap-2 mb-1.5">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5">
                       <spec.icon
                         className="flex-shrink-0"
-                        size={20}
+                        size={18}
                         style={{ color: 'rgba(0,0,0,0.5)' }}
                         strokeWidth={1.5}
                       />
                       <p
-                        className="text-[9px] font-bold tracking-wide uppercase mb-1.4"
+                        className="text-[8px] sm:text-[9px] font-bold tracking-wide uppercase"
                         style={{ color: 'rgba(0,0,0,0.4)' }}
                       >
                         {spec.label}
                       </p>
                     </div>
                     <p
-                      className="text-base font-semibold leading-tight"
+                      className="text-sm sm:text-base font-semibold leading-tight"
                       style={{ color: '#000000' }}
                     >
                       {spec.value}
@@ -402,13 +389,12 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
               className="flex items-center justify-between"
               style={{
                 backgroundColor: '#000000',
-                padding: '24px 40px',
+                padding: '20px 20px',
                 borderTop: '3px solid #000000',
               }}
             >
-              {/* Changed to flex-col and removed items-center to align left */}
-              <div className="flex flex-col gap-2">
-                <div style={{ width: '40px', height: '40px' }}>
+              <div className="flex flex-col gap-1.5 sm:gap-2">
+                <div style={{ width: '35px', height: '35px' }} className="sm:w-[40px] sm:h-[40px]">
                   <img
                     src="/logowhite.svg"
                     alt="Mobylite"
@@ -417,13 +403,13 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
                 </div>
                 <div>
                   <p
-                    className="text-[10px] font-black tracking-[0.2em] uppercase"
+                    className="text-[9px] sm:text-[10px] font-black tracking-[0.2em] uppercase"
                     style={{ color: 'rgba(255,255,255,0.8)' }}
                   >
                     MOBYMON ARCHIVE
                   </p>
                   <p
-                    className="text-[8px] font-bold mt-0.5"
+                    className="text-[7px] sm:text-[8px] font-bold mt-0.5"
                     style={{ color: 'rgba(255,255,255,0.5)' }}
                   >
                     MOBYLITE.VERCEL.APP
@@ -434,13 +420,13 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
               {phone.price_usd && (
                 <div className="text-right">
                   <p
-                    className="text-4xl font-extralight leading-none tracking-tight"
+                    className="text-3xl sm:text-4xl font-extralight leading-none tracking-tight"
                     style={{ color: '#FFFFFF' }}
                   >
                     ${phone.price_usd}
                   </p>
                   <p
-                    className="text-[7px] font-bold tracking-wide uppercase mt-3"
+                    className="text-[6px] sm:text-[7px] font-bold tracking-wide uppercase mt-2 sm:mt-3"
                     style={{ color: 'rgba(255,255,255,0.7)' }}
                   >
                     LAUNCH PRICE
