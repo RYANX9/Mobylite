@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { 
   Download, 
   Smartphone, 
@@ -141,9 +141,20 @@ const MobyMonCard = ({ phone, onClose }) => {
     setIsGenerating(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      const html2canvas = (await import('html2canvas-pro')).default;
+      let html2canvas;
+      try {
+        const module = await import('html2canvas-pro');
+        html2canvas = module.default;
+      } catch (err) {
+        const module = await import('html2canvas');
+        html2canvas = module.default;
+      }
+
+      if (!html2canvas) {
+        throw new Error('Could not load html2canvas library');
+      }
       
       const canvas = await html2canvas(cardRef.current, {
         scale: 2,
@@ -152,33 +163,39 @@ const MobyMonCard = ({ phone, onClose }) => {
         backgroundColor: '#ffffff',
         logging: false,
         imageTimeout: 0,
-        removeContainer: true,
         width: 708,
         height: 1454,
-        foreignObjectRendering: false,
-        onclone: (clonedDoc) => {
-          const images = clonedDoc.querySelectorAll('img');
-          images.forEach(img => {
-            img.style.opacity = '1';
-            img.crossOrigin = 'anonymous';
-          });
-        }
       });
 
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1.0));
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.download = `mobymon-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
-      link.href = url;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      if (!canvas) {
+        throw new Error('Canvas generation failed');
+      }
+
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          alert('Failed to create image. Please try again.');
+          setIsGenerating(false);
+          return;
+        }
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const fileName = `mobymon-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
+        link.download = fileName;
+        link.href = url;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          setIsGenerating(false);
+        }, 100);
+      }, 'image/png', 1.0);
 
     } catch (error) {
-      console.error('Export failed:', error);
-      alert(`Download failed: ${error.message}. Try disabling ad blockers or using a different browser.`);
-    } finally {
+      console.error('Download error:', error);
+      alert(`Download failed: ${error.message}\n\nTry: 1) Refresh page 2) Use Chrome/Firefox 3) Disable extensions`);
       setIsGenerating(false);
     }
   };
@@ -229,13 +246,10 @@ const MobyMonCard = ({ phone, onClose }) => {
                     <img 
                       src={imageUrl} 
                       alt={phone.model_name}
-                      crossOrigin="anonymous"
                       onLoad={() => setImageLoaded(true)}
-                      onError={(e) => {
-                        console.error('Image load error:', e);
-                        setImageError(true);
-                      }}
+                      onError={() => setImageError(true)}
                       className="w-full h-full object-contain p-8"
+                      style={{ maxWidth: '100%', maxHeight: '100%' }}
                     />
                   ) : (
                     <Smartphone className="w-32 h-32 text-black/15" />
@@ -249,12 +263,12 @@ const MobyMonCard = ({ phone, onClose }) => {
                 {keySpecs.map((spec, i) => (
                   <div key={i} className="flex flex-col justify-start">
                     <div className="flex items-center gap-3 mb-2">
-                      <spec.icon className="w-6 h-6 text-black/50 flex-shrink-0" strokeWidth={1.5} />
-                      <p className="text-[10px] font-bold text-black/40 tracking-[0.2em] uppercase">
+                      <spec.icon className="w-[26.4px] h-[26.4px] text-black/50 flex-shrink-0" strokeWidth={1.5} />
+                      <p className="text-[11px] font-bold text-black/40 tracking-[0.2em] uppercase">
                         {spec.label}
                       </p>
                     </div>
-                    <p className="text-[22px] font-semibold text-black leading-tight">
+                    <p className="text-[24.2px] font-semibold text-black leading-tight">
                       {spec.value}
                     </p>
                   </div>
@@ -262,10 +276,10 @@ const MobyMonCard = ({ phone, onClose }) => {
                 {Array(emptySlots).fill(0).map((_, i) => (
                   <div key={`empty-${i}`} className="flex flex-col justify-start opacity-0">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-6 h-6" />
-                      <p className="text-[10px]">EMPTY</p>
+                      <div className="w-[26.4px] h-[26.4px]" />
+                      <p className="text-[11px]">EMPTY</p>
                     </div>
-                    <p className="text-[22px]">-</p>
+                    <p className="text-[24.2px]">-</p>
                   </div>
                 ))}
               </div>
