@@ -192,23 +192,40 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
       result.push({ icon: Battery, label: 'BATTERY', value: `${phone.battery_capacity} mAh` });
     }
 
-    const extractChargingType = (charging: string) => {
-      if (!charging) return 'Fast Charging';
-      const types = ['MagSafe', 'SuperVOOC', 'HyperCharge', 'Qi2'];
-      for (const t of types) {
-        if (new RegExp(t, 'i').test(charging)) return t;
-      }
-      return 'Fast Charging';
+    const extractDetailedCharging = (chargingStr: string, wiredW: number | null) => {
+      if (!chargingStr) return wiredW ? `${wiredW}W (Wired)` : "Fast Charging";
+
+      // 1. Identify the Wireless speed and type
+      // Looks for a number followed by W near wireless keywords
+      const wirelessMatch = chargingStr.match(/(\d+)W\s*(?=wireless|Qi2|MagSafe|magnetic)/i);
+      const wirelessW = wirelessMatch ? wirelessMatch[1] : null;
+      
+      // 2. Identify wireless standard
+      let wirelessType = "Wireless";
+      if (/Qi2/i.test(chargingStr)) wirelessType = "Qi2";
+      else if (/MagSafe/i.test(chargingStr)) wirelessType = "MagSafe";
+
+      // 3. Build the string
+      const wiredPart = wiredW ? `${wiredW}W (Wired)` : "";
+      const wirelessPart = wirelessW ? `${wirelessW}W (${wirelessType})` : "";
+
+      if (wiredPart && wirelessPart) return `${wiredPart} / ${wirelessPart}`;
+      return wiredPart || wirelessPart || "Fast Charging";
     };
 
-    if (phone.fast_charging_w) {
-      const chargingType = extractChargingType(phoneSpecs.Battery?.Charging);
+    if (phone.fast_charging_w || phoneSpecs.Battery?.Charging) {
+      const chargingDisplay = extractDetailedCharging(
+        phoneSpecs.Battery?.Charging, 
+        phone.fast_charging_w
+      );
+      
       result.push({
         icon: Zap,
         label: 'CHARGING',
-        value: `${phone.fast_charging_w}W (${chargingType})`
+        value: chargingDisplay
       });
     }
+    
 
     const extractWiFi = (wlan: string) => {
       if (!wlan) return null;
