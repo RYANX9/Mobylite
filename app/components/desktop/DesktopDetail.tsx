@@ -385,18 +385,6 @@ export default function DesktopDetail({ phone, initialReviews, initialStats }: D
               />
             </div>
 
-            {/* ← ADD THIS MOBYMON BUTTON */}
-            <ButtonPressFeedback
-              onClick={() => setShowMobyMon(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg"
-              style={{ 
-                background: '#0f0f0fff',
-                color: '#FFFFFF'
-              }}
-            >
-              <Sparkles size={18} />
-              <span>MobyMon Card</span>
-            </ButtonPressFeedback>
 
             <ButtonPressFeedback
               className="p-2.5 rounded-full transition-all"
@@ -480,16 +468,18 @@ export default function DesktopDetail({ phone, initialReviews, initialStats }: D
                   </ButtonPressFeedback>
                 )}
                 {phone.brand_link && (
-                  <ButtonPressFeedback className="w-full" onClick={() => window.open(phone.brand_link, '_blank')}>
-                    <div 
-                      className="w-full py-4 text-center font-bold rounded-xl text-sm transition-all"
-                      style={{ backgroundColor: color.borderLight, color: color.text }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = color.border}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = color.borderLight}
-                    >
-                      Visit Brand Site
-                    </div>
-                  </ButtonPressFeedback>
+                {/* ← ADD THIS MOBYMON BUTTON */}
+                <ButtonPressFeedback
+                  onClick={() => setShowMobyMon(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg"
+                  style={{ 
+                    background: '#0f0f0fff',
+                    color: '#FFFFFF'
+                  }}
+                >
+                  <Sparkles size={18} />
+                  <span>MobyMon Card</span>
+                </ButtonPressFeedback>
                 )}
                 <ButtonPressFeedback 
                   onClick={() => setShowPriceAlert(true)}
@@ -668,6 +658,7 @@ export default function DesktopDetail({ phone, initialReviews, initialStats }: D
           <ReviewSection phoneId={phone.id} />
         </div>
       </div>
+    
       {/* ADD THIS AT THE VERY END, BEFORE CLOSING </div> */}
       {showMobyMon && (
         <MobyMonCard 
