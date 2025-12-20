@@ -103,22 +103,53 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
       result.push({ icon: Cpu, label: 'CHIPSET', value: phone.chipset });
     }
 
-    const extractStorage = (internalmemory: string) => {
-      if (!internalmemory) return null;
-      const matches = internalmemory.match(/(\d+(?:GB|TB))/g);
-      return matches ? [...new Set(matches)].join(' / ') : null;
+    const parseMemoryOptions = (internalMemory: string) => {
+      if (!internalMemory) return { ram: "", storage: "" };
+    
+      // Split by comma to get individual combos like "256GB 12GB RAM"
+      const combos = internalMemory.split(',');
+      
+      const ramSet = new Set<string>();
+      const storageSet = new Set<string>();
+    
+      combos.forEach(combo => {
+        // Find all numbers followed by GB or TB
+        const matches = combo.match(/(\d+)(GB|TB)/gi);
+        
+        if (matches) {
+          matches.forEach(match => {
+            const value = parseInt(match);
+            const isTB = match.toLowerCase().includes('tb');
+            
+            // Logic: RAM is currently < 32GB, Storage is >= 64GB or is in TB
+            if (!isTB && value < 32) {
+              ramSet.add(`${value}GB`);
+            } else {
+              storageSet.add(match.toUpperCase());
+            }
+          });
+        }
+      });
+    
+      return {
+        ram: Array.from(ramSet).join(' / '),
+        storage: Array.from(storageSet).join(' / ')
+      };
     };
-
-    const storage = extractStorage(quickSpecs.internalmemory);
-    if (phone.ram_options?.length && storage) {
+    
+    
+    const memoryData = parseMemoryOptions(quickSpecs.internalmemory);
+    
+    if (memoryData.ram || memoryData.storage) {
       result.push({
         icon: HardDrive,
         label: 'RAM + STORAGE',
-        value: `${phone.ram_options.join(' / ')} GB / ${storage}`
+        value: memoryData.ram && memoryData.storage 
+          ? `${memoryData.ram} / ${memoryData.storage}`
+          : (memoryData.ram || memoryData.storage)
       });
-    } else if (storage) {
-      result.push({ icon: HardDrive, label: 'STORAGE', value: storage });
     }
+
 
     const extractMainCamera = (cam1modules: string) => {
       if (!cam1modules) return null;
