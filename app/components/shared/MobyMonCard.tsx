@@ -269,8 +269,8 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
 
                 <div
                   style={{
-                    width: '1700px',
-                    height: '180px',
+                    width: '150px',
+                    height: '170px',
                     backgroundColor: '#e5e7eb',
                     border: '3px solid #cccccc',
                   }}
