@@ -341,10 +341,9 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
               <div className="flex items-center gap-3">
                 <div style={{ width: '40px', height: '40px' }}>
                   <img
-                    src="/logo.svg"
+                    src="/logowhite.svg"
                     alt="Mobylite"
                     className="w-full h-full object-contain"
-                    style={{ filter: 'invert(1) brightness(2)' }}
                   />
                 </div>
                 <div>
@@ -366,13 +365,13 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
               {phone.price_usd && (
                 <div className="text-right">
                   <p
-                    className="text-3xl font-extralight leading-none tracking-tight"
+                    className="text-4xl font-extralight leading-none tracking-tight"
                     style={{ color: '#FFFFFF' }}
                   >
                     ${phone.price_usd}
                   </p>
                   <p
-                    className="text-[7px] font-bold tracking-wide uppercase mt-1"
+                    className="text-[7px] font-bold tracking-wide uppercase mt-3"
                     style={{ color: 'rgba(255,255,255,0.7)' }}
                   >
                     LAUNCH PRICE
