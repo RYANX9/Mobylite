@@ -490,6 +490,8 @@ export default function DesktopDetail({ phone, initialReviews, initialStats }: D
                   Set Price Alert
                 </ButtonPressFeedback>
               </div>
+            </div>
+          </div>
 
           <div className="col-span-3">
             <div className="flex items-center justify-between mb-8">
@@ -552,7 +554,7 @@ export default function DesktopDetail({ phone, initialReviews, initialStats }: D
                     </p>
                   </div>
                 ))}
-              </div>               
+              </div>                
             ) : (
               <div className="space-y-5">
                 {(() => {
