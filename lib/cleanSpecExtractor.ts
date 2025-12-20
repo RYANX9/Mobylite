@@ -284,10 +284,26 @@ function extractSpecialFeatures(specs: any, quick: any): CleanSpec[] {
 
 function extractStorage(internalmemory?: string): string {
   if (!internalmemory) return "N/A";
-  const matches = internalmemory.match(/(\d+(?:GB|TB))/g);
-  if (!matches) return "N/A";
-  const unique = [...new Set(matches)];
-  return unique.join(" / ");
+
+  const combos = internalmemory.split(',');
+  const storageSet = new Set<string>();
+
+  combos.forEach(combo => {
+    const matches = combo.match(/(\d+)(GB|TB)/gi);
+
+    if (matches) {
+      matches.forEach(match => {
+        const value = parseInt(match);
+        const isTB = match.toLowerCase().includes('tb');
+
+        if (isTB || value >= 32) {
+          storageSet.add(match.toUpperCase());
+        }
+      });
+    }
+  });
+
+  return storageSet.size > 0 ? Array.from(storageSet).join(' / ') : "N/A";
 }
 
 export function getComparisonData(phone: any): Record<string, string> {
