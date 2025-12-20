@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { 
   Download, 
@@ -16,36 +15,10 @@ import {
   X
 } from 'lucide-react';
 
-const loadHtml2Canvas = async () => {
-  try {
-    const module = await import('html2canvas-pro');
-    return module.default;
-  } catch (err) {
-    try {
-      const module = await import('html2canvas');
-      return module.default;
-    } catch (err2) {
-      return new Promise((resolve, reject) => {
-        if (window.html2canvas) {
-          resolve(window.html2canvas);
-          return;
-        }
-        
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-        script.onload = () => resolve(window.html2canvas);
-        script.onerror = () => reject(new Error('Failed to load html2canvas from CDN'));
-        document.head.appendChild(script);
-      });
-    }
-  }
-};
-
 const MobyMonCard = ({ phone, onClose }) => {
   const cardRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
     const handleEscape = (e) => {
@@ -59,9 +32,9 @@ const MobyMonCard = ({ phone, onClose }) => {
     };
   }, [onClose]);
 
-  const imageUrl = useMemo(() => {
+  const proxiedImageUrl = useMemo(() => {
     if (!phone?.main_image_url) return null;
-    return phone.main_image_url;
+    return `/api/proxy-image?url=${encodeURIComponent(phone.main_image_url)}`;
   }, [phone?.main_image_url]);
 
   const releaseDate = useMemo(() => {
@@ -163,58 +136,34 @@ const MobyMonCard = ({ phone, onClose }) => {
   }, [phone?.price_usd]);
 
   const downloadCard = async () => {
-    if (!cardRef.current || isGenerating) return;
+    if (!cardRef.current) return;
     setIsGenerating(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      const html2canvas = await loadHtml2Canvas();
-
-      if (!html2canvas) {
-        throw new Error('Could not load html2canvas library');
-      }
+      await new Promise(resolve => setTimeout(resolve, 400));
+      
+      const html2canvas = (await import('html2canvas-pro')).default;
       
       const canvas = await html2canvas(cardRef.current, {
-        scale: 2,
+        scale: 3,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: '#ffffff',
         logging: false,
-        imageTimeout: 0,
+        imageTimeout: 15000,
+        removeContainer: true,
         width: 708,
         height: 1454,
       });
 
-      if (!canvas) {
-        throw new Error('Canvas generation failed');
-      }
-
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          alert('Failed to create image. Please try again.');
-          setIsGenerating(false);
-          return;
-        }
-
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        const fileName = `mobymon-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
-        link.download = fileName;
-        link.href = url;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-          setIsGenerating(false);
-        }, 100);
-      }, 'image/png', 1.0);
-
+      const link = document.createElement('a');
+      link.download = `mobymon-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.href = canvas.toDataURL('image/png', 1.0);
+      link.click();
     } catch (error) {
-      console.error('Download error:', error);
-      alert(`Download failed: ${error.message}\n\nPlease try:\n1. Use desktop browser\n2. Clear cache\n3. Try Chrome or Firefox`);
+      console.error('Export failed:', error);
+      alert('Failed to generate image. Please try again.');
+    } finally {
       setIsGenerating(false);
     }
   };
@@ -261,14 +210,13 @@ const MobyMonCard = ({ phone, onClose }) => {
                 </div>
                 
                 <div style={{ width: '290px', height: '290px' }} className="flex-shrink-0 flex items-center justify-center bg-[#e5e7eb] border-4 border-[#d1d5db]">
-                  {imageUrl && !imageError ? (
+                  {proxiedImageUrl && !imageError ? (
                     <img 
-                      src={imageUrl} 
+                      src={proxiedImageUrl} 
                       alt={phone.model_name}
-                      onLoad={() => setImageLoaded(true)}
+                      crossOrigin="anonymous"
                       onError={() => setImageError(true)}
                       className="w-full h-full object-contain p-8"
-                      style={{ maxWidth: '100%', maxHeight: '100%' }}
                     />
                   ) : (
                     <Smartphone className="w-32 h-32 text-black/15" />
@@ -310,6 +258,7 @@ const MobyMonCard = ({ phone, onClose }) => {
                   <img 
                     src="/logowhite.svg" 
                     alt="Mobymon Logo" 
+                    crossOrigin="anonymous"
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       e.target.style.display = 'none';
