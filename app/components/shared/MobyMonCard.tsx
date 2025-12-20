@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useRef, useMemo } from 'react';
 import { X, Download, Smartphone, Sun, Cpu, Camera, Battery, HardDrive, Wifi, Zap, Maximize2, Ruler, Weight } from 'lucide-react';
@@ -287,33 +288,33 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
             <div
               className="relative"
               style={{
-                padding: '10px 20px',
+                padding: '5px 20px',
                 borderBottom: '3px solid #000000',
               }}
             >
               <div className="flex justify-between items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <span
-                    className="block text-[8px] sm:text-[9px] font-bold tracking-[0.3em] uppercase mb-1.5 sm:mb-2"
+                    className="block text-[7px] sm:text-[8px] font-bold tracking-[0.3em] uppercase mb-0.5 sm:mb-1"
                     style={{ color: 'rgba(0,0,0,0.25)' }}
                   >
                     MOBYMON CARD
                   </span>
                   <h2
-                    className="text-[10px] sm:text-xs font-medium uppercase tracking-wide mb-0.5 sm:mb-1"
+                    className="text-[9px] sm:text-[10px] font-medium uppercase tracking-wide mb-0.5"
                     style={{ color: '#9ca3af' }}
                   >
                     {phone.brand?.toUpperCase()}
                   </h2>
                   <h1
-                    className="text-2xl sm:text-3xl font-black leading-tight mb-1.5 sm:mb-2"
+                    className="text-xl sm:text-2xl font-black leading-tight mb-0.5 sm:mb-1"
                     style={{ color: '#000000', fontFamily: 'Young Serif' }}
                   >
                     {phone.model_name.split(' ').slice(1).join(' ')}
                   </h1>
                   {phone.release_date_full && (
                     <p
-                      className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-wide"
+                      className="text-[7px] sm:text-[8px] font-semibold uppercase tracking-wide"
                       style={{ color: 'rgba(0,0,0,0.35)' }}
                     >
                       {formatReleaseDate(phone.release_date_full)}
