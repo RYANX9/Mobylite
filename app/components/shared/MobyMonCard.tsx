@@ -25,15 +25,25 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
   const downloadCard = async () => {
     if (!cardRef.current) return;
 
-    const originalWidth = cardRef.current.style.width;
+    const originalStyles = {
+      width: cardRef.current.style.width,
+      height: cardRef.current.style.height,
+      maxWidth: cardRef.current.style.maxWidth,
+      overflow: cardRef.current.style.overflow,
+      position: cardRef.current.style.position,
+    };
+
     cardRef.current.style.width = '450px';
+    cardRef.current.style.height = 'auto';
+    cardRef.current.style.maxWidth = '450px';
+    cardRef.current.style.overflow = 'visible';
+    cardRef.current.style.position = 'relative';
 
     try {
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(cardRef.current, {
         scale: 2,
         width: 450,
-        windowWidth: 450,
         backgroundColor: '#FFFFFF',
         logging: false,
         useCORS: true,
@@ -48,7 +58,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       console.error('Failed to download card:', error);
       alert('Failed to generate card. Please try again.');
     } finally {
-      cardRef.current.style.width = originalWidth;
+      Object.assign(cardRef.current.style, originalStyles);
     }
   };
 
@@ -254,37 +264,44 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-2 sm:p-4">
-      <div className="relative w-full max-w-md h-full flex flex-col">
-        <div className="flex justify-end gap-2 sm:gap-3 mb-3 sm:mb-4 w-full px-2">
-          <ButtonPressFeedback
-            onClick={downloadCard}
-            className="px-3 sm:px-4 py-2 rounded-lg font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg"
-            style={{ backgroundColor: color.success, color: '#FFFFFF' }}
-          >
-            <Download size={16} className="sm:w-[18px] sm:h-[18px]" />
-            <span className="hidden sm:inline">Download</span>
-          </ButtonPressFeedback>
-          <ButtonPressFeedback
-            onClick={onClose}
-            className="px-3 sm:px-4 py-2 rounded-lg font-bold text-xs sm:text-sm shadow-lg"
-            style={{ backgroundColor: color.bg, color: color.text }}
-          >
-            <X size={16} className="sm:w-[18px] sm:h-[18px]" />
-          </ButtonPressFeedback>
-        </div>
+    <>
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-2 sm:p-4">
+        <div className="relative w-full max-w-md h-full flex flex-col">
+          <div className="flex justify-end gap-2 sm:gap-3 mb-3 sm:mb-4 w-full">
+            <ButtonPressFeedback
+              onClick={downloadCard}
+              className="px-3 sm:px-4 py-2 rounded-lg font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg"
+              style={{ backgroundColor: color.success, color: '#FFFFFF' }}
+            >
+              <Download size={16} className="sm:w-[18px] sm:h-[18px]" />
+              <span className="hidden sm:inline">Download</span>
+            </ButtonPressFeedback>
+            <ButtonPressFeedback
+              onClick={onClose}
+              className="px-3 sm:px-4 py-2 rounded-lg font-bold text-xs sm:text-sm shadow-lg"
+              style={{ backgroundColor: color.bg, color: color.text }}
+            >
+              <X size={16} className="sm:w-[18px] sm:h-[18px]" />
+            </ButtonPressFeedback>
+          </div>
 
-        <div className="flex-1 overflow-auto flex items-start sm:items-center justify-center">
-          <div
-            ref={cardRef}
-            className="w-full overflow-hidden shadow-2xl mx-auto"
-            style={{
-              backgroundColor: '#FFFFFF',
-              maxWidth: '450px',
-              width: '100%',
-              border: '3px solid #000000',
-            }}
-          >
+          <div className="flex-1 flex items-start sm:items-center justify-center overflow-hidden">
+            <div
+              ref={cardRef}
+              className="w-full h-full overflow-y-auto overflow-x-hidden shadow-2xl hide-scrollbar"
+              style={{
+                backgroundColor: '#FFFFFF',
+                maxWidth: '450px',
+                border: '3px solid #000000',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+              }}
+            >
             <div
               className="relative"
               style={{
@@ -439,6 +456,6 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
         </div>
       </div>
     </div>
+    </>
   );
 }
-
