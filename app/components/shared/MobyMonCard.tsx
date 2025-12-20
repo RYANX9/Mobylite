@@ -62,7 +62,7 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
   const cleanSpecs = extractCleanSpecs(phone);
   const displaySpecs = cleanSpecs
     .filter(spec => !['Price'].includes(spec.label))
-    .slice(0, 8);
+    .slice(0, 12);
 
   const formatReleaseDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -143,6 +143,9 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
                     alt={phone.model_name}
                     className="w-full h-full object-contain p-3"
                     crossOrigin="anonymous"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
                   />
                 ) : (
                   <Smartphone size={40} style={{ color: '#CCCCCC' }} />
@@ -158,16 +161,16 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
                 return (
                   <div key={idx} className="flex flex-col">
                     <div className="flex items-center gap-2 mb-1.5">
-                      <IconComponent size={16} style={{ color: '#666666' }} />
+                      <IconComponent size={18} style={{ color: '#666666' }} />
                       <span
-                        className="text-[10px] font-bold uppercase tracking-wide"
+                        className="text-[11px] font-bold uppercase tracking-wide"
                         style={{ color: '#666666' }}
                       >
                         {spec.label}
                       </span>
                     </div>
                     <p
-                      className="text-xs font-bold leading-tight"
+                      className="text-sm font-bold leading-tight"
                       style={{ color: '#0f0f0f', fontFamily: font.primary }}
                     >
                       {spec.value}
