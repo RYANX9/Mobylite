@@ -369,8 +369,8 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
               </div>
             </div>
 
-            <div style={{ padding: '40px 40px' }}>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+            <div style={{ padding: '30px 30px' }}>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-5">
                 {specs.map((spec, i) => (
                   <div key={i} className="flex flex-col">
                     <div className="flex items-center gap-2 mb-1.5">
