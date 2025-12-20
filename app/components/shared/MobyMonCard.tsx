@@ -297,14 +297,15 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
               border: '3px solid #000000',
             }}
           >
+            // Change the padding of the top section container to match image height + 10px
             <div
               className="relative"
               style={{
-                padding: '40px 40px 32px 40px',
+                padding: '10px 40px', // Reduced vertical padding
                 borderBottom: '3px solid #000000',
               }}
             >
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-center"> {/* Changed items-start to items-center */}
                 <div className="flex-1 pr-4">
                   <span
                     className="block text-[9px] font-bold tracking-[0.3em] uppercase mb-2"
@@ -322,7 +323,6 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
                     className="text-3xl font-black leading-tight mb-2"
                     style={{ color: '#000000', fontFamily: 'Young Serif' }}
                   >
-                    {/* Splits the string and removes the first word */}
                     {phone.model_name.split(' ').slice(1).join(' ')}
                   </h1>
                   {phone.release_date_full && (
@@ -334,7 +334,7 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
                     </p>
                   )}
                 </div>
-
+            
                 <div
                   style={{
                     width: '120px',
