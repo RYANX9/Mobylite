@@ -37,6 +37,11 @@ const ICON_COMPONENTS: Record<string, any> = {
 export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
 
+  const getProxiedImageUrl = (url: string | null) => {
+    if (!url) return null;
+    return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+  };
+
   const downloadCard = async () => {
     if (!cardRef.current) return;
 
@@ -139,17 +144,19 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
               >
                 {phone.main_image_url ? (
                   <img
-                    src={phone.main_image_url}
+                    src={getProxiedImageUrl(phone.main_image_url)}
                     alt={phone.model_name}
                     className="w-full h-full object-contain p-3"
                     crossOrigin="anonymous"
                     onError={(e) => {
-                      e.currentTarget.style.display = 'none';
+                      const target = e.currentTarget;
+                      target.style.display = 'none';
+                      const fallback = target.nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
                     }}
                   />
-                ) : (
-                  <Smartphone size={40} style={{ color: '#CCCCCC' }} />
-                )}
+                ) : null}
+                <Smartphone size={40} style={{ color: '#CCCCCC', display: phone.main_image_url ? 'none' : 'block' }} />
               </div>
             </div>
           </div>
