@@ -140,68 +140,39 @@ const MobyMonCard = ({ phone, onClose }) => {
     setIsGenerating(true);
     
     try {
-      console.log('Starting download...');
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      let html2canvas;
-      try {
-        console.log('Trying to load html2canvas-pro...');
-        const module = await import('html2canvas-pro');
-        html2canvas = module.default;
-        console.log('html2canvas-pro loaded');
-      } catch (err) {
-        console.log('html2canvas-pro failed, trying html2canvas...', err);
-        try {
-          const module = await import('html2canvas');
-          html2canvas = module.default;
-          console.log('html2canvas loaded');
-        } catch (err2) {
-          console.log('html2canvas failed, trying CDN...', err2);
-          if (window.html2canvas) {
-            html2canvas = window.html2canvas;
-            console.log('Using window.html2canvas');
-          } else {
-            throw new Error('No html2canvas library available. Please install: npm install html2canvas');
-          }
-        }
+      const module = await import('html2canvas-pro');
+      const html2canvas = module.default || module;
+      
+      if (!html2canvas || typeof html2canvas !== 'function') {
+        throw new Error('html2canvas-pro did not export a function');
       }
-
-      if (!html2canvas) {
-        throw new Error('Failed to load html2canvas library');
-      }
-
-      console.log('Generating canvas...');
+      
       const canvas = await html2canvas(cardRef.current, {
         scale: 1,
         useCORS: true,
         allowTaint: false,
         backgroundColor: '#ffffff',
-        logging: true,
-        imageTimeout: 0,
+        logging: false,
+        imageTimeout: 15000,
         removeContainer: true,
       });
 
       if (!canvas) {
-        throw new Error('Canvas generation returned null');
+        throw new Error('Canvas generation failed');
       }
 
-      console.log('Canvas generated, creating download link...');
-      const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.download = `mobymon-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
-      link.href = dataUrl;
-      document.body.appendChild(link);
+      link.href = canvas.toDataURL('image/png', 1.0);
       link.click();
-      document.body.removeChild(link);
       
-      console.log('Download complete!');
       setIsGenerating(false);
     } catch (error) {
-      console.error('Full error details:', error);
+      console.error('Export failed:', error);
       setIsGenerating(false);
-      
-      const errorMsg = error.message || 'Unknown error';
-      alert(`Download failed!\n\nError: ${errorMsg}\n\nPlease:\n1. Install html2canvas: npm install html2canvas\n2. Refresh the page\n3. Try again\n\nCheck browser console (F12) for details.`);
+      alert('Failed to generate image. Please try again.');
     }
   };
 
