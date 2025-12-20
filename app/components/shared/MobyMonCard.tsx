@@ -243,10 +243,11 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
 
   const formatReleaseDate = (dateStr: string) => {
     if (!dateStr) return '';
-    const cleanDate = dateStr.replace(/<[^>]*>/g, '').trim();
-    const match = cleanDate.match(/(\w+ \d{4})/);
-    return match ? match[1] : cleanDate.slice(0, 20);
+  // Removes "Released" or "Announced" and keeps the specific date
+  // e.g., "Released 2025, August 20" -> "2025, August 20"
+    return dateStr.replace(/(Released|Announced)\s+/i, '').trim();
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
