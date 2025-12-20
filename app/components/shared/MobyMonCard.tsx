@@ -1,18 +1,18 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
-import html2canvas from 'html2canvas-pro';
+import html2canvas from 'html2canvas';
 import { 
   Download, 
   Smartphone, 
   Camera, 
   Cpu, 
   Battery,
-  Bolt,
-  Scaling,
+  Zap,
+  Maximize2,
   Sun,
-  MemoryStick,
+  HardDrive,
   Wifi,
-  Ruler as RulerIcon,
-  Weight as WeightIcon,
+  Ruler,
+  Weight,
   X
 } from 'lucide-react';
 
@@ -35,15 +35,8 @@ const MobyMonCard = ({ phone, onClose }) => {
 
   const proxiedImageUrl = useMemo(() => {
     if (!phone?.main_image_url) return null;
-    return `/api/proxy-image?url=${encodeURIComponent(phone.main_image_url)}`;
+    return phone.main_image_url;
   }, [phone?.main_image_url]);
-
-  // FIX: Proxy the logo as well to ensure CORS compliance for html2canvas
-  const proxiedLogoUrl = useMemo(() => {
-    if (typeof window === 'undefined') return '/logo.svg';
-    const absoluteLogoUrl = window.location.origin + '/logo.svg';
-    return `/api/proxy-image?url=${encodeURIComponent(absoluteLogoUrl)}`;
-  }, []);
 
   const releaseDate = useMemo(() => {
     const specs = phone?.full_specifications?.specifications || {};
@@ -56,6 +49,7 @@ const MobyMonCard = ({ phone, onClose }) => {
 
   const keySpecs = useMemo(() => {
     if (!phone) return [];
+
     const specs = phone.full_specifications?.specifications || {};
     const quick = phone.full_specifications?.quick_specs || {};
     const result = [];
@@ -63,51 +57,76 @@ const MobyMonCard = ({ phone, onClose }) => {
     const displayType = extractDisplayType(quick.displaytype);
     if (phone.screen_size || displayType) {
       result.push({ 
-        icon: Scaling, 
+        icon: Maximize2, 
         label: 'DISPLAY', 
         value: phone.screen_size ? `${phone.screen_size}" ${displayType}` : displayType
       });
     }
 
     const brightness = extractBrightness(quick.displaytype);
-    if (brightness !== "N/A") result.push({ icon: Sun, label: 'BRIGHTNESS', value: brightness });
-    if (phone.chipset) result.push({ icon: Cpu, label: 'CHIPSET', value: phone.chipset });
+    if (brightness !== "N/A") {
+      result.push({ icon: Sun, label: 'BRIGHTNESS', value: brightness });
+    }
+
+    if (phone.chipset) {
+      result.push({ icon: Cpu, label: 'CHIPSET', value: phone.chipset });
+    }
 
     const ram = phone.ram_options?.[0] ? `${phone.ram_options[0]} GB` : null;
     const storage = extractStorage(quick.internalmemory);
     if (ram || storage !== "N/A") {
       const value = ram && storage !== "N/A" ? `${ram} / ${storage}` : (ram || storage);
-      result.push({ icon: MemoryStick, label: 'RAM + STORAGE', value });
+      result.push({ icon: HardDrive, label: 'RAM + STORAGE', value });
     }
 
     const mainCam = extractMainCamera(quick.cam1modules);
-    if (mainCam) result.push({ icon: Camera, label: 'MAIN CAMERA', value: mainCam });
+    if (mainCam) {
+      result.push({ icon: Camera, label: 'MAIN CAMERA', value: mainCam });
+    }
 
     const ultrawideCam = extractUltrawideCamera(quick.cam1modules);
-    if (ultrawideCam) result.push({ icon: Camera, label: 'ULTRAWIDE CAMERA', value: ultrawideCam });
+    if (ultrawideCam) {
+      result.push({ icon: Camera, label: 'ULTRAWIDE CAMERA', value: ultrawideCam });
+    }
 
     const frontCam = extractFrontCamera(quick.cam2modules);
-    if (frontCam) result.push({ icon: Camera, label: 'FRONT CAMERA', value: frontCam });
+    if (frontCam) {
+      result.push({ icon: Camera, label: 'FRONT CAMERA', value: frontCam });
+    }
 
-    if (phone.battery_capacity) result.push({ icon: Battery, label: 'BATTERY', value: `${phone.battery_capacity} mAh` });
+    if (phone.battery_capacity) {
+      result.push({ icon: Battery, label: 'BATTERY', value: `${phone.battery_capacity} mAh` });
+    }
 
     if (phone.fast_charging_w) {
       const chargingType = extractChargingType(specs.Battery?.Charging);
-      result.push({ icon: Bolt, label: 'CHARGING', value: `${phone.fast_charging_w}W (${chargingType})` });
+      result.push({ 
+        icon: Zap, 
+        label: 'CHARGING', 
+        value: `${phone.fast_charging_w}W (${chargingType})`
+      });
     }
 
     const wifi = extractWiFi(quick.wlan);
-    if (wifi !== "N/A") result.push({ icon: Wifi, label: 'WI-FI', value: wifi });
+    if (wifi !== "N/A") {
+      result.push({ icon: Wifi, label: 'WI-FI', value: wifi });
+    }
 
     const dimensions = extractDimensions(specs.Body?.Dimensions);
-    if (dimensions !== "N/A") result.push({ icon: RulerIcon, label: 'DIMENSIONS', value: dimensions });
+    if (dimensions !== "N/A") {
+      result.push({ icon: Ruler, label: 'DIMENSIONS', value: dimensions });
+    }
 
-    if (phone.weight_g) result.push({ icon: WeightIcon, label: 'WEIGHT', value: `${phone.weight_g}g` });
+    if (phone.weight_g) {
+      result.push({ icon: Weight, label: 'WEIGHT', value: `${phone.weight_g}g` });
+    }
 
     return result.slice(0, 12);
   }, [phone]);
 
-  const emptySlots = useMemo(() => Math.max(0, 12 - keySpecs.length), [keySpecs.length]);
+  const emptySlots = useMemo(() => {
+    return Math.max(0, 12 - keySpecs.length);
+  }, [keySpecs.length]);
 
   const formattedPrice = useMemo(() => {
     return phone?.price_usd ? new Intl.NumberFormat('en-US', {
@@ -125,18 +144,16 @@ const MobyMonCard = ({ phone, onClose }) => {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       const canvas = await html2canvas(cardRef.current, {
-        scale: 2, // Increased scale for better quality
+        scale: 2,
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
-        imageTimeout: 15000,
-        removeContainer: true,
       });
 
       const link = document.createElement('a');
       link.download = `mobymon-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
-      link.href = canvas.toDataURL('image/png', 1.0);
+      link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (error) {
       console.error('Export failed:', error);
@@ -191,7 +208,7 @@ const MobyMonCard = ({ phone, onClose }) => {
                   {proxiedImageUrl && !imageError ? (
                     <img 
                       src={proxiedImageUrl} 
-                      alt=""
+                      alt={phone.model_name}
                       crossOrigin="anonymous"
                       onError={() => setImageError(true)}
                       className="w-full h-full object-contain p-8"
@@ -218,20 +235,24 @@ const MobyMonCard = ({ phone, onClose }) => {
                     </p>
                   </div>
                 ))}
+                {Array(emptySlots).fill(0).map((_, i) => (
+                  <div key={`empty-${i}`} className="flex flex-col justify-start opacity-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-[26.4px] h-[26.4px]" />
+                      <p className="text-[11px]">EMPTY</p>
+                    </div>
+                    <p className="text-[24.2px]">-</p>
+                  </div>
+                ))}
               </div>
             </div>
 
             <div className="bg-black text-white border-t-[3px] border-black" style={{ height: '220px', padding: '20px 50px 30px 50px' }}>
               <div className="flex flex-col items-center h-full">
                 <div className="flex-shrink-0 mb-4" style={{ width: '60px', height: '60px' }}>
-                  {/* FIX: Use proxiedLogoUrl and inline style filter */}
-                  <img 
-                    src={proxiedLogoUrl}
-                    alt="Logo" 
-                    crossOrigin="anonymous"
-                    className="w-full h-full object-contain"
-                    style={{ filter: 'invert(1) brightness(2)', display: 'block' }}
-                  />
+                  <svg viewBox="0 0 100 100" className="w-full h-full" style={{ filter: 'invert(1) brightness(2)' }}>
+                    <circle cx="50" cy="50" r="40" fill="white" />
+                  </svg>
                 </div>
                 
                 <div className="flex justify-between items-end w-full mb-6">
@@ -283,7 +304,6 @@ const MobyMonCard = ({ phone, onClose }) => {
   );
 };
 
-// Helper functions (Unchanged)
 function extractDisplayType(displaytype) {
   if (!displaytype) return "LTPO AMOLED";
   const match = displaytype.match(/(LTPO\s+)?(AMOLED|OLED|LCD|IPS|Super Retina|Dynamic AMOLED)/i);
@@ -348,4 +368,52 @@ function extractDimensions(dimensions) {
   return match ? `${match[1]} mm` : dimensions;
 }
 
-export default MobyMonCard;
+const mockPhone = {
+  brand: 'Xiaomi',
+  model_name: '14 Ultra',
+  main_image_url: 'https://fdn2.gsmarena.com/vv/bigpic/xiaomi-14-ultra.jpg',
+  release_year: '2024',
+  screen_size: '6.73',
+  chipset: 'Snapdragon 8 Gen 3',
+  ram_options: [16],
+  battery_capacity: 5000,
+  fast_charging_w: 90,
+  weight_g: 219,
+  price_usd: 1299,
+  full_specifications: {
+    quick_specs: {
+      displaytype: 'LTPO AMOLED, 120Hz, 3000 nits',
+      internalmemory: '512GB, 1TB',
+      cam1modules: '50MP, f/1.6 (wide), 50MP, f/1.8 (ultrawide)',
+      cam2modules: '32MP, f/2.0',
+      wlan: 'Wi-Fi 7'
+    },
+    specifications: {
+      Launch: { Released: 'March 2024' },
+      Body: { Dimensions: '161.4 x 75.3 x 9.2 mm' },
+      Battery: { Charging: '90W SuperVOOC' }
+    }
+  }
+};
+
+export default function App() {
+  const [showCard, setShowCard] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-8">
+      <button
+        onClick={() => setShowCard(true)}
+        className="px-8 py-4 bg-white text-black font-bold text-lg rounded hover:bg-gray-100 transition-colors"
+      >
+        SHOW MOBYMON CARD
+      </button>
+
+      {showCard && (
+        <MobyMonCard 
+          phone={mockPhone}
+          onClose={() => setShowCard(false)}
+        />
+      )}
+    </div>
+  );
+}
