@@ -269,10 +269,10 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
 
                 <div
                   style={{
-                    width: '220px',
-                    height: '220px',
+                    width: '1700px',
+                    height: '180px',
                     backgroundColor: '#e5e7eb',
-                    border: '3px solid #d1d5db',
+                    border: '3px solid #cccccc',
                   }}
                   className="flex-shrink-0 flex items-center justify-center"
                 >
