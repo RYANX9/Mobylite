@@ -467,7 +467,7 @@ export default function DesktopDetail({ phone, initialReviews, initialStats }: D
                     </div>
                   </ButtonPressFeedback>
                 )}
-                {phone.brand_link && (
+                
                 {/* ← ADD THIS MOBYMON BUTTON */}
                 <ButtonPressFeedback
                   onClick={() => setShowMobyMon(true)}
