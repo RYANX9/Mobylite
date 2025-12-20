@@ -1,8 +1,7 @@
 'use client';
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { X, Download, Smartphone, Sun, Cpu, Camera, Battery, HardDrive, Wifi, Zap, Maximize2, Ruler, Weight } from 'lucide-react';
 import { Phone } from '@/lib/types';
-import { extractCleanSpecs } from '@/lib/cleanSpecExtractor';
 import { ButtonPressFeedback } from './ButtonPressFeedback';
 import { color, font } from '@/lib/tokens';
 import html2canvas from 'html2canvas';
@@ -12,61 +11,11 @@ interface MobyMonCardProps {
   onClose: () => void;
 }
 
-const ICON_COMPONENTS: Record<string, any> = {
-  '📱': Smartphone,
-  '☀️': Sun,
-  '🔧': Cpu,
-  '📷': Camera,
-  '🔍': Maximize2,
-  '🤳': Camera,
-  '🔋': Battery,
-  '💾': HardDrive,
-  '📂': HardDrive,
-  '🏗️': Cpu,
-  '📡': Wifi,
-  '⚡': Zap,
-  '📏': Ruler,
-  '🔘': Smartphone,
-  '✏️': Smartphone,
-  '🛰️': Wifi,
-  '📸': Camera,
-  '🔭': Camera,
-  '🔬': Camera,
-};
-
-const getSpecIcon = (label: string) => {
-  const iconMap: Record<string, any> = {
-    'Display': Maximize2,
-    'Screen': Maximize2,
-    'Brightness': Sun,
-    'Chipset': Cpu,
-    'Processor': Cpu,
-    'CPU': Cpu,
-    'RAM': HardDrive,
-    'Storage': HardDrive,
-    'Memory': HardDrive,
-    'Camera': Camera,
-    'Main Camera': Camera,
-    'Front Camera': Camera,
-    'Ultrawide': Camera,
-    'Battery': Battery,
-    'Charging': Zap,
-    'Fast Charging': Zap,
-    'Wi-Fi': Wifi,
-    'WiFi': Wifi,
-    'WLAN': Wifi,
-    'Dimensions': Ruler,
-    'Size': Ruler,
-    'Weight': Weight,
-  };
-
-  for (const [key, icon] of Object.entries(iconMap)) {
-    if (label.toLowerCase().includes(key.toLowerCase())) {
-      return icon;
-    }
-  }
-  return Smartphone;
-};
+interface Spec {
+  icon: any;
+  label: string;
+  value: string;
+}
 
 export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -98,10 +47,150 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
     }
   };
 
-  const cleanSpecs = extractCleanSpecs(phone);
-  const displaySpecs = cleanSpecs
-    .filter(spec => !['Price'].includes(spec.label))
-    .slice(0, 12);
+  const specs = useMemo(() => {
+    const result: Spec[] = [];
+    const phoneSpecs = phone.full_specifications?.specifications || {};
+    const quickSpecs = phone.full_specifications?.quick_specs || {};
+
+    const extractDisplayType = (displaytype: string) => {
+      if (!displaytype) return null;
+      const match = displaytype.match(/(LTPO\s+)?(AMOLED|OLED|LCD|IPS|Super Retina|Dynamic AMOLED)/i);
+      const refreshMatch = displaytype.match(/(\d+)Hz/);
+      const type = match ? match[0] : null;
+      const refresh = refreshMatch ? ` (${refreshMatch[1]}Hz)` : '';
+      return type ? `${type}${refresh}` : null;
+    };
+
+    const extractBrightness = (displaytype: string) => {
+      if (!displaytype) return null;
+      const match = displaytype.match(/(\d+)\s*nits/i);
+      return match ? match[0] : null;
+    };
+
+    if (phone.screen_size) {
+      const displayType = extractDisplayType(quickSpecs.displaytype);
+      result.push({
+        icon: Maximize2,
+        label: 'DISPLAY',
+        value: displayType ? `${phone.screen_size}" ${displayType}` : `${phone.screen_size}"`
+      });
+    }
+
+    const brightness = extractBrightness(quickSpecs.displaytype);
+    if (brightness) {
+      result.push({ icon: Sun, label: 'BRIGHTNESS', value: brightness });
+    }
+
+    if (phone.chipset) {
+      result.push({ icon: Cpu, label: 'CHIPSET', value: phone.chipset });
+    }
+
+    const extractStorage = (internalmemory: string) => {
+      if (!internalmemory) return null;
+      const matches = internalmemory.match(/(\d+(?:GB|TB))/g);
+      return matches ? [...new Set(matches)].join(' / ') : null;
+    };
+
+    const storage = extractStorage(quickSpecs.internalmemory);
+    if (phone.ram_options?.length && storage) {
+      result.push({
+        icon: HardDrive,
+        label: 'RAM + STORAGE',
+        value: `${phone.ram_options.join(' / ')} GB / ${storage}`
+      });
+    } else if (storage) {
+      result.push({ icon: HardDrive, label: 'STORAGE', value: storage });
+    }
+
+    const extractMainCamera = (cam1modules: string) => {
+      if (!cam1modules) return null;
+      const regex = /(\d+)\s*MP,\s*f\/([0-9.]+)[^(]*\((wide|main)[^)]*\)/i;
+      const match = regex.exec(cam1modules);
+      return match ? `${match[1]}MP (f/${match[2]})` : null;
+    };
+
+    const mainCam = extractMainCamera(quickSpecs.cam1modules);
+    if (mainCam) {
+      result.push({ icon: Camera, label: 'MAIN CAMERA', value: mainCam });
+    }
+
+    const extractUltrawideCamera = (cam1modules: string) => {
+      if (!cam1modules) return null;
+      const regex = /(\d+)\s*MP,\s*f\/([0-9.]+)[^(]*\((ultrawide|ultra wide)[^)]*\)/i;
+      const match = regex.exec(cam1modules);
+      return match ? `${match[1]}MP (f/${match[2]})` : null;
+    };
+
+    const ultrawideCam = extractUltrawideCamera(quickSpecs.cam1modules);
+    if (ultrawideCam) {
+      result.push({ icon: Camera, label: 'ULTRAWIDE CAMERA', value: ultrawideCam });
+    }
+
+    const extractFrontCamera = (cam2modules: string) => {
+      if (!cam2modules) return null;
+      const mpMatch = cam2modules.match(/(\d+)\s*MP/i);
+      const apertureMatch = cam2modules.match(/f\/([0-9.]+)/i);
+      if (mpMatch && apertureMatch) return `${mpMatch[1]}MP (f/${apertureMatch[1]})`;
+      return mpMatch ? `${mpMatch[1]}MP` : null;
+    };
+
+    const frontCam = extractFrontCamera(quickSpecs.cam2modules);
+    if (frontCam) {
+      result.push({ icon: Camera, label: 'FRONT CAMERA', value: frontCam });
+    }
+
+    if (phone.battery_capacity) {
+      result.push({ icon: Battery, label: 'BATTERY', value: `${phone.battery_capacity} mAh` });
+    }
+
+    const extractChargingType = (charging: string) => {
+      if (!charging) return 'Fast Charging';
+      const types = ['MagSafe', 'SuperVOOC', 'HyperCharge', 'Qi2'];
+      for (const t of types) {
+        if (new RegExp(t, 'i').test(charging)) return t;
+      }
+      return 'Fast Charging';
+    };
+
+    if (phone.fast_charging_w) {
+      const chargingType = extractChargingType(phoneSpecs.Battery?.Charging);
+      result.push({
+        icon: Zap,
+        label: 'CHARGING',
+        value: `${phone.fast_charging_w}W (${chargingType})`
+      });
+    }
+
+    const extractWiFi = (wlan: string) => {
+      if (!wlan) return null;
+      if (/7|be/i.test(wlan)) return 'Wi-Fi 7';
+      if (/6e/i.test(wlan)) return 'Wi-Fi 6E';
+      if (/6|ax/i.test(wlan)) return 'Wi-Fi 6';
+      return 'Wi-Fi';
+    };
+
+    const wifi = extractWiFi(quickSpecs.wlan);
+    if (wifi) {
+      result.push({ icon: Wifi, label: 'WI-FI', value: wifi });
+    }
+
+    const extractDimensions = (dimensions: string) => {
+      if (!dimensions) return null;
+      const match = dimensions.match(/([\d.]+\s*x\s*[\d.]+\s*x\s*[\d.]+)\s*mm/i);
+      return match ? `${match[1]} mm` : null;
+    };
+
+    const dimensions = extractDimensions(phoneSpecs.Body?.Dimensions);
+    if (dimensions) {
+      result.push({ icon: Ruler, label: 'DIMENSIONS', value: dimensions });
+    }
+
+    if (phone.weight_g) {
+      result.push({ icon: Weight, label: 'WEIGHT', value: `${phone.weight_g}g` });
+    }
+
+    return result.slice(0, 12);
+  }, [phone]);
 
   const formatReleaseDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -134,125 +223,163 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
         <div className="w-full h-full max-h-[calc(100vh-100px)] overflow-auto flex items-center justify-center">
           <div
             ref={cardRef}
-            className="w-full rounded-3xl overflow-hidden shadow-2xl"
+            className="w-full overflow-hidden shadow-2xl"
             style={{
               backgroundColor: '#FFFFFF',
               maxWidth: '450px',
+              border: '3px solid #000000',
             }}
           >
-          <div
-            className="p-6 pb-4"
-            style={{
-              background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
-            }}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <h3
-                  className="text-xs font-bold uppercase tracking-widest mb-3"
-                  style={{ color: '#888888', letterSpacing: '0.15em' }}
-                >
-                  MobyMon Card
-                </h3>
-                <p
-                  className="text-xs font-bold uppercase tracking-wide mb-1"
-                  style={{ color: '#AAAAAA' }}
-                >
-                  {phone.brand}
-                </p>
-                <h1
-                  className="text-2xl font-bold leading-tight mb-2"
-                  style={{ color: '#FFFFFF', fontFamily: font.primary }}
-                >
-                  {phone.model_name}
-                </h1>
-                {phone.release_date_full && (
-                  <p className="text-xs font-medium" style={{ color: '#888888' }}>
-                    {formatReleaseDate(phone.release_date_full)}
-                  </p>
-                )}
-              </div>
+            <div
+              className="relative"
+              style={{
+                padding: '40px 40px 32px 40px',
+                borderBottom: '3px solid #000000',
+              }}
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex-1 pr-4">
+                  <span
+                    className="block text-[9px] font-bold tracking-[0.3em] uppercase mb-2"
+                    style={{ color: 'rgba(0,0,0,0.25)' }}
+                  >
+                    MOBYMON CARD
+                  </span>
+                  <h2
+                    className="text-xs font-medium uppercase tracking-wide mb-1"
+                    style={{ color: '#9ca3af' }}
+                  >
+                    {phone.brand?.toUpperCase()}
+                  </h2>
+                  <h1
+                    className="text-3xl font-black leading-tight mb-2"
+                    style={{ color: '#000000', fontFamily: 'Rockwell, serif' }}
+                  >
+                    {phone.model_name}
+                  </h1>
+                  {phone.release_date_full && (
+                    <p
+                      className="text-[9px] font-semibold uppercase tracking-wide"
+                      style={{ color: 'rgba(0,0,0,0.35)' }}
+                    >
+                      {formatReleaseDate(phone.release_date_full)}
+                    </p>
+                  )}
+                </div>
 
-              <div
-                className="w-32 h-32 rounded-2xl flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: '#FFFFFF' }}
-              >
-                {phone.main_image_url ? (
-                  <img
-                    src={getProxiedImageUrl(phone.main_image_url)}
-                    alt={phone.model_name}
-                    className="w-full h-full object-contain p-3"
-                    crossOrigin="anonymous"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      target.style.display = 'none';
-                      const fallback = target.nextElementSibling as HTMLElement;
-                      if (fallback) fallback.style.display = 'flex';
+                <div
+                  style={{
+                    width: '220px',
+                    height: '220px',
+                    backgroundColor: '#e5e7eb',
+                    border: '3px solid #d1d5db',
+                  }}
+                  className="flex-shrink-0 flex items-center justify-center"
+                >
+                  {phone.main_image_url ? (
+                    <img
+                      src={getProxiedImageUrl(phone.main_image_url)}
+                      alt={phone.model_name}
+                      className="w-full h-full object-contain p-6"
+                      crossOrigin="anonymous"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.style.display = 'none';
+                        const fallback = target.nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <Smartphone
+                    size={60}
+                    style={{
+                      color: 'rgba(0,0,0,0.15)',
+                      display: phone.main_image_url ? 'none' : 'block',
                     }}
                   />
-                ) : null}
-                <Smartphone size={40} style={{ color: '#CCCCCC', display: phone.main_image_url ? 'none' : 'block' }} />
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="p-6 py-8">
-            <div className="grid grid-cols-2 gap-4">
-              {displaySpecs.map((spec, idx) => {
-                const IconComponent = getSpecIcon(spec.label);
-                return (
-                  <div key={idx} className="flex flex-col">
+            <div style={{ padding: '40px 40px' }}>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                {specs.map((spec, i) => (
+                  <div key={i} className="flex flex-col">
                     <div className="flex items-center gap-2 mb-1.5">
-                      <IconComponent size={18} style={{ color: '#666666' }} strokeWidth={1.5} />
-                      <span
-                        className="text-[11px] font-bold uppercase tracking-wide"
-                        style={{ color: '#666666' }}
+                      <spec.icon
+                        className="flex-shrink-0"
+                        size={20}
+                        style={{ color: 'rgba(0,0,0,0.5)' }}
+                        strokeWidth={1.5}
+                      />
+                      <p
+                        className="text-[9px] font-bold tracking-wide uppercase"
+                        style={{ color: 'rgba(0,0,0,0.4)' }}
                       >
                         {spec.label}
-                      </span>
+                      </p>
                     </div>
                     <p
-                      className="text-sm font-bold leading-tight"
-                      style={{ color: '#0f0f0f', fontFamily: font.primary }}
+                      className="text-base font-semibold leading-tight"
+                      style={{ color: '#000000' }}
                     >
                       {spec.value}
                     </p>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div
-            className="px-6 py-4 flex items-center justify-between"
-            style={{ backgroundColor: '#0f0f0f' }}
-          >
-            <div className="flex items-center gap-3">
-              <img src="/logo.svg" alt="Mobylite" className="w-6 h-6 invert" />
-              <div>
-                <p className="text-[10px] font-bold" style={{ color: '#FFFFFF' }}>
-                  mobylite.com
-                </p>
-                <p className="text-[8px] font-medium" style={{ color: '#888888' }}>
-                  Compare phones. Make smart choices.
-                </p>
+                ))}
               </div>
             </div>
 
-            {phone.price_usd && (
-              <div className="text-right">
-                <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: '#888888' }}>
-                  Launch Price
-                </p>
-                <p
-                  className="text-xl font-bold"
-                  style={{ color: '#FFFFFF', fontFamily: font.numeric }}
-                >
-                  ${phone.price_usd}
-                </p>
+            <div
+              className="flex items-center justify-between"
+              style={{
+                backgroundColor: '#000000',
+                padding: '24px 40px',
+                borderTop: '3px solid #000000',
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div style={{ width: '40px', height: '40px' }}>
+                  <img
+                    src="/logo.svg"
+                    alt="Mobylite"
+                    className="w-full h-full object-contain"
+                    style={{ filter: 'invert(1) brightness(2)' }}
+                  />
+                </div>
+                <div>
+                  <p
+                    className="text-[8px] font-black tracking-wider uppercase"
+                    style={{ color: 'rgba(255,255,255,0.8)' }}
+                  >
+                    MOBYMON ARCHIVE
+                  </p>
+                  <p
+                    className="text-[7px] font-light mt-0.5"
+                    style={{ color: 'rgba(255,255,255,0.5)' }}
+                  >
+                    MOBYLITE.VERCEL.APP
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
+
+              {phone.price_usd && (
+                <div className="text-right">
+                  <p
+                    className="text-3xl font-extralight leading-none tracking-tight"
+                    style={{ color: '#FFFFFF' }}
+                  >
+                    ${phone.price_usd}
+                  </p>
+                  <p
+                    className="text-[7px] font-bold tracking-wide uppercase mt-1"
+                    style={{ color: 'rgba(255,255,255,0.7)' }}
+                  >
+                    LAUNCH PRICE
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
