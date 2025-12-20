@@ -142,7 +142,16 @@ const MobyMonCard = ({ phone, onClose }) => {
     try {
       await new Promise(resolve => setTimeout(resolve, 400));
       
-      const html2canvas = (await import('html2canvas-pro')).default;
+      const module = await import('html2canvas-pro');
+      const html2canvas = module.default || module;
+      
+      console.log('Module loaded:', module);
+      console.log('html2canvas:', html2canvas);
+      console.log('Type:', typeof html2canvas);
+      
+      if (typeof html2canvas !== 'function') {
+        throw new Error(`html2canvas is not a function. Type: ${typeof html2canvas}`);
+      }
       
       const canvas = await html2canvas(cardRef.current, {
         scale: 1,
@@ -158,11 +167,16 @@ const MobyMonCard = ({ phone, onClose }) => {
       link.download = `mobymon-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
       link.href = canvas.toDataURL('image/png', 1.0);
       link.click();
+      
+      setIsGenerating(false);
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Failed to generate image. Please try again.');
-    } finally {
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
       setIsGenerating(false);
+      alert(`Failed to generate image.\n\nError: ${error.message}\n\nPlease check console for details.`);
     }
   };
 
