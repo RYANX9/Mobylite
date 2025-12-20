@@ -32,5 +32,8 @@
     "eslint-config-next": "15.5.4",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "scripts": {
+    "postinstall": "npm list html2canvas || npm install html2canvas"
   }
 }
