@@ -381,7 +381,7 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
                         strokeWidth={1.5}
                       />
                       <p
-                        className="text-[9px] font-bold tracking-wide uppercase"
+                        className="text-[9px] font-bold tracking-wide uppercase mb-1.4"
                         style={{ color: 'rgba(0,0,0,0.4)' }}
                       >
                         {spec.label}
