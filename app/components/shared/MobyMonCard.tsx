@@ -184,7 +184,7 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
             style={{ backgroundColor: '#0f0f0f' }}
           >
             <div className="flex items-center gap-3">
-              <img src="/logo.svg" alt="Mobylite" className="w-6 h-6 invert" />
+              <img src="/logowhite.svg" alt="Mobylite" className="w-6 h-6 invert" />
               <div>
                 <p className="text-[10px] font-bold" style={{ color: '#FFFFFF' }}>
                   mobylite.com
