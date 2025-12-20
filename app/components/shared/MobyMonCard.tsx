@@ -270,8 +270,8 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
           display: none;
         }
       `}</style>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-2 sm:p-4">
-        <div className="relative w-full max-w-md h-full flex flex-col">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div className="relative w-full max-w-md h-full flex flex-col p-2 sm:p-4">
           <div className="flex justify-end gap-2 sm:gap-3 mb-3 sm:mb-4 w-full">
             <ButtonPressFeedback
               onClick={downloadCard}
@@ -290,7 +290,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
             </ButtonPressFeedback>
           </div>
 
-          <div className="flex-1 flex items-start sm:items-center justify-center overflow-hidden">
+          <div className="flex-1 flex items-start sm:items-center justify-center">
             <div
               ref={cardRef}
               className="w-full h-full overflow-y-auto overflow-x-hidden shadow-2xl hide-scrollbar"
