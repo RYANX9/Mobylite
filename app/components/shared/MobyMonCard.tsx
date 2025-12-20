@@ -1,4 +1,5 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
+import html2canvas from 'html2canvas-pro';
 import { 
   Download, 
   Smartphone, 
@@ -142,17 +143,6 @@ const MobyMonCard = ({ phone, onClose }) => {
     try {
       await new Promise(resolve => setTimeout(resolve, 400));
       
-      const module = await import('html2canvas-pro');
-      const html2canvas = module.default || module;
-      
-      console.log('Module loaded:', module);
-      console.log('html2canvas:', html2canvas);
-      console.log('Type:', typeof html2canvas);
-      
-      if (typeof html2canvas !== 'function') {
-        throw new Error(`html2canvas is not a function. Type: ${typeof html2canvas}`);
-      }
-      
       const canvas = await html2canvas(cardRef.current, {
         scale: 1,
         useCORS: true,
@@ -167,16 +157,11 @@ const MobyMonCard = ({ phone, onClose }) => {
       link.download = `mobymon-${phone.model_name.replace(/\s+/g, '-').toLowerCase()}.png`;
       link.href = canvas.toDataURL('image/png', 1.0);
       link.click();
-      
-      setIsGenerating(false);
     } catch (error) {
       console.error('Export failed:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack
-      });
+      alert('Failed to generate image. Please try again.');
+    } finally {
       setIsGenerating(false);
-      alert(`Failed to generate image.\n\nError: ${error.message}\n\nPlease check console for details.`);
     }
   };
 
@@ -268,18 +253,11 @@ const MobyMonCard = ({ phone, onClose }) => {
               <div className="flex flex-col items-center h-full">
                 <div className="flex-shrink-0 mb-4" style={{ width: '60px', height: '60px' }}>
                   <img 
-                    src="/logowhite.svg" 
+                    src="/logo.svg"
                     alt="Mobymon Logo" 
-                    crossOrigin="anonymous"
                     className="w-full h-full object-contain"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextElementSibling.style.display = 'block';
-                    }}
+                    style={{ filter: 'invert(1) brightness(2)' }}
                   />
-                  <svg viewBox="0 0 100 100" className="w-full h-full" style={{ display: 'none' }}>
-                    <path d="M50 10 L90 50 L50 90 L10 50 Z M50 30 L70 50 L50 70 L30 50 Z" fill="white"/>
-                  </svg>
                 </div>
                 
                 <div className="flex justify-between items-end w-full mb-6">
