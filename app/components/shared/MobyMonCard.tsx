@@ -271,9 +271,10 @@ export default function MobyMonCard({ phone, onClose }: MobyMonCardProps) {
                   </h2>
                   <h1
                     className="text-3xl font-black leading-tight mb-2"
-                    style={{ color: '#000000', fontFamily: 'Rockwell, serif' }}
+                    style={{ color: '#000000', fontFamily: 'young sirf' }}
                   >
-                    {phone.model_name}
+                    {/* Splits the string and removes the first word */}
+                    {phone.model_name.split(' ').slice(1).join(' ')}
                   </h1>
                   {phone.release_date_full && (
                     <p
