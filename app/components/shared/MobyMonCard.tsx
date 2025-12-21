@@ -23,6 +23,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       width: cardRef.current.style.width,
       height: cardRef.current.style.height,
       maxWidth: cardRef.current.style.maxWidth,
+      maxHeight: cardRef.current.style.maxHeight,
       overflow: cardRef.current.style.overflow,
       position: cardRef.current.style.position,
     };
@@ -30,18 +31,24 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
     cardRef.current.style.width = '450px';
     cardRef.current.style.height = 'auto';
     cardRef.current.style.maxWidth = '450px';
+    cardRef.current.style.maxHeight = 'none';
     cardRef.current.style.overflow = 'visible';
     cardRef.current.style.position = 'relative';
+
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(cardRef.current, {
         scale: 2.4,
         width: 450,
+        windowWidth: 450,
         backgroundColor: '#FFFFFF',
         logging: false,
         useCORS: true,
         allowTaint: true,
+        scrollX: 0,
+        scrollY: 0,
       });
 
       const link = document.createElement('a');
@@ -284,6 +291,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
               className="w-full overflow-y-auto hide-scrollbar"
               style={{
                 backgroundColor: '#FFFFFF',
+                width: '100%',
                 maxWidth: '450px',
                 maxHeight: '100%',
                 fontFamily: 'Inter, sans-serif',
@@ -359,19 +367,19 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                 </div>
 
                 <div 
-                  style={{ 
-                    height: '1px', 
-                    backgroundColor: '#f5f5f5',
-                    margin: '20px 0 24px 0',
-                  }} 
-                />
-
-                <div 
-                  className="text-[11px] font-medium tracking-wider uppercase mb-4"
+                  className="text-[11px] font-medium tracking-wider uppercase mb-2" // Reduced mb-4 to mb-2 for tighter spacing to the line
                   style={{ color: '#a3a3a3' }}
                 >
                   Specifications
                 </div>
+                
+                <div 
+                  style={{ 
+                    height: '1px', 
+                    backgroundColor: '#f5f5f5',
+                    margin: '0 0 24px 0', // Removed top margin (20px) since the label provides spacing now
+                  }} 
+                />
 
                 <div className="space-y-0">
                   {specs.map((spec, i) => (
