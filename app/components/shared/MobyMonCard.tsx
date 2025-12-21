@@ -426,10 +426,10 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                 <div className="flex items-center gap-4">
                   <div style={{ width: '36px', height: '36px' }}>
                     <img
-                      src="/logowhite.svg"
+                      src="/logo.svg"
                       alt="Mobylite"
                       className="w-full h-full object-contain"
-                      style={{ filter: 'invert(1)' }}
+                  
                     />
                   </div>
                   <div>
