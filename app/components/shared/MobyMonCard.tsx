@@ -17,53 +17,44 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
   };
 
   const downloadCard = async () => {
-      if (!cardRef.current) return;
-  
-      // Store original styles to revert later
-      const originalStyles = {
-        width: cardRef.current.style.width,
-        height: cardRef.current.style.height,
-        display: cardRef.current.style.display,
-        flexDirection: cardRef.current.style.flexDirection,
-        overflow: cardRef.current.style.overflow,
-        position: cardRef.current.style.position,
-      };
-  
-      // Force the container to be exactly 1080x1920 and fill the space
-      cardRef.current.style.width = '1080px';
-      cardRef.current.style.height = '1920px';
-      cardRef.current.style.display = 'flex';
-      cardRef.current.style.flexDirection = 'column';
-      cardRef.current.style.overflow = 'visible';
-      cardRef.current.style.position = 'relative';
-  
-      // Small delay to allow layout engine to update
-      await new Promise(resolve => setTimeout(resolve, 100));
-  
-      try {
-        const html2canvas = (await import('html2canvas')).default;
-        const canvas = await html2canvas(cardRef.current, {
-          scale: 1, // Keep scale at 1 since we already set width to 1080
-          width: 1080,
-          height: 1920,
-          backgroundColor: '#FFFFFF',
-          logging: false,
-          useCORS: true,
-          allowTaint: true,
-        });
-  
-        const link = document.createElement('a');
-        link.download = `mobymon-${phone.brand}-${phone.model_name}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      } catch (error) {
-        console.error('Failed to download card:', error);
-      } finally {
-        // Revert styles back to normal for the web view
-        Object.assign(cardRef.current.style, originalStyles);
-      }
-    };
+    if (!cardRef.current) return;
 
+    const originalTransform = cardRef.current.style.transform;
+    const originalWidth = cardRef.current.style.width;
+    const originalMaxWidth = cardRef.current.style.maxWidth;
+    
+    cardRef.current.style.transform = 'none';
+    cardRef.current.style.width = '1080px';
+    cardRef.current.style.maxWidth = '1080px';
+    
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 1,
+        width: 1080,
+        height: 1920,
+        backgroundColor: '#FFFFFF',
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        windowWidth: 1080,
+        windowHeight: 1920,
+      });
+
+      const link = document.createElement('a');
+      link.download = `mobymon-${phone.brand}-${phone.model_name}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (error) {
+      console.error('Failed to download card:', error);
+    } finally {
+      cardRef.current.style.transform = originalTransform;
+      cardRef.current.style.width = originalWidth;
+      cardRef.current.style.maxWidth = originalMaxWidth;
+    }
+  };
 
   const specs = useMemo(() => {
     const result = [];
@@ -390,7 +381,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                   style={{ 
                     height: '1px', 
                     backgroundColor: '#f5f5f5',
-                    margin: '0 0 24px 0',
+                    margin: '0 0 2px 0',
                   }} 
                 />
               </div>
@@ -488,5 +479,5 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       </div>
     </>
   );
-}
-
+    }
+                
