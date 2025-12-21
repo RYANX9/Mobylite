@@ -533,4 +533,6 @@ export const MobyMonCard: React.FC<MobyMonCardProps> = ({ phone, onClose }) => {
     </>
   );
 };
-          
+
+
+export default MobyMonCard;
