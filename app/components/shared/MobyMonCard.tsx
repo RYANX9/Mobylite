@@ -22,16 +22,12 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
     const originalStyles = {
       width: cardRef.current.style.width,
       height: cardRef.current.style.height,
-      maxWidth: cardRef.current.style.maxWidth,
-      maxHeight: cardRef.current.style.maxHeight,
       overflow: cardRef.current.style.overflow,
       position: cardRef.current.style.position,
     };
 
-    cardRef.current.style.width = '450px';
-    cardRef.current.style.height = 'auto';
-    cardRef.current.style.maxWidth = '450px';
-    cardRef.current.style.maxHeight = 'none';
+    cardRef.current.style.width = '1080px';
+    cardRef.current.style.height = '1920px';
     cardRef.current.style.overflow = 'visible';
     cardRef.current.style.position = 'relative';
 
@@ -40,9 +36,11 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
     try {
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(cardRef.current, {
-        scale: 2.4,
-        width: 450,
-        windowWidth: 450,
+        scale: 1,
+        width: 1080,
+        height: 1920,
+        windowWidth: 1080,
+        windowHeight: 1920,
         backgroundColor: '#FFFFFF',
         logging: false,
         useCORS: true,
@@ -106,16 +104,15 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
 
     if (phone.screen_size) {
       const displayType = extractDisplayType(quickSpecs.displaytype);
+      const brightness = extractBrightness(quickSpecs.displaytype);
+      const displayValue = brightness 
+        ? `${phone.screen_size}" ${displayType} • ${brightness}`
+        : `${phone.screen_size}" ${displayType}`;
       result.push({
         icon: Maximize2,
         label: 'Display',
-        value: displayType ? `${phone.screen_size}" ${displayType}` : `${phone.screen_size}"`
+        value: displayValue
       });
-    }
-
-    const brightness = extractBrightness(quickSpecs.displaytype);
-    if (brightness) {
-      result.push({ icon: Sun, label: 'Brightness', value: brightness });
     }
 
     if (phone.chipset) {
@@ -165,22 +162,12 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       return match ? `${match[1]}MP • f/${match[2]}` : null;
     };
 
-    const mainCam = extractMainCamera(quickSpecs.cam1modules);
-    if (mainCam) {
-      result.push({ icon: Camera, label: 'Main Camera', value: mainCam });
-    }
-
     const extractUltrawideCamera = (cam1modules) => {
       if (!cam1modules) return null;
       const regex = /(\d+)\s*MP,\s*f\/([0-9.]+)[^(]*\((ultrawide|ultra wide)[^)]*\)/i;
       const match = regex.exec(cam1modules);
       return match ? `${match[1]}MP • f/${match[2]}` : null;
     };
-
-    const ultrawideCam = extractUltrawideCamera(quickSpecs.cam1modules);
-    if (ultrawideCam) {
-      result.push({ icon: Camera, label: 'Ultrawide', value: ultrawideCam });
-    }
 
     const extractFrontCamera = (cam2modules) => {
       if (!cam2modules) return null;
@@ -190,13 +177,24 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       return mpMatch ? `${mpMatch[1]}MP` : null;
     };
 
+    const mainCam = extractMainCamera(quickSpecs.cam1modules);
+    const ultrawideCam = extractUltrawideCamera(quickSpecs.cam1modules);
     const frontCam = extractFrontCamera(quickSpecs.cam2modules);
-    if (frontCam) {
-      result.push({ icon: Camera, label: 'Front Camera', value: frontCam });
-    }
 
-    if (phone.battery_capacity) {
-      result.push({ icon: Battery, label: 'Battery', value: `${phone.battery_capacity} mAh` });
+    if (mainCam && ultrawideCam && frontCam) {
+      result.push({ 
+        icon: Camera, 
+        label: 'Cameras', 
+        value: `${mainCam} • ${ultrawideCam} • ${frontCam}` 
+      });
+    } else if (mainCam && ultrawideCam) {
+      result.push({ 
+        icon: Camera, 
+        label: 'Cameras', 
+        value: `${mainCam} • ${ultrawideCam}` 
+      });
+    } else if (mainCam) {
+      result.push({ icon: Camera, label: 'Camera', value: mainCam });
     }
 
     const extractDetailedCharging = (chargingStr, wiredW) => {
@@ -209,12 +207,16 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       return wiredPart || wirelessPart || "Fast";
     };
 
-    if (phone.fast_charging_w || phoneSpecs.Battery?.Charging) {
+    if (phone.battery_capacity) {
       const chargingDisplay = extractDetailedCharging(
         phoneSpecs.Battery?.Charging, 
         phone.fast_charging_w
       );
-      result.push({ icon: Zap, label: 'Charging', value: chargingDisplay });
+      result.push({ 
+        icon: Battery, 
+        label: 'Battery', 
+        value: `${phone.battery_capacity} mAh • ${chargingDisplay}` 
+      });
     }
 
     const extractWiFi = (wlan) => {
@@ -227,7 +229,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
 
     const wifi = extractWiFi(quickSpecs.wlan);
     if (wifi) {
-      result.push({ icon: Wifi, label: 'Wi-Fi', value: wifi });
+      result.push({ icon: Wifi, label: 'Connectivity', value: wifi });
     }
 
     const extractDimensions = (dimensions) => {
@@ -237,11 +239,15 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
     };
 
     const dimensions = extractDimensions(phoneSpecs.Body?.Dimensions);
-    if (dimensions) {
-      result.push({ icon: Ruler, label: 'Dimensions', value: `${dimensions} mm` });
-    }
-
-    if (phone.weight_g) {
+    if (phone.weight_g && dimensions) {
+      const frameMaterial = extractFrameMaterial(phoneSpecs.Body?.Build);
+      const buildInfo = frameMaterial ? ` • ${frameMaterial}` : "";
+      result.push({ 
+        icon: Weight, 
+        label: 'Dimensions', 
+        value: `${dimensions} mm • ${phone.weight_g}g${buildInfo}` 
+      });
+    } else if (phone.weight_g) {
       const frameMaterial = extractFrameMaterial(phoneSpecs.Body?.Build);
       const weightValue = frameMaterial 
         ? `${phone.weight_g}g • ${frameMaterial}`
@@ -249,7 +255,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       result.push({ icon: Weight, label: 'Weight & Build', value: weightValue });
     }
 
-    return result.slice(0, 12);
+    return result.slice(0, 8);
   }, [phone]);
 
   const formatReleaseDate = (dateStr) => {
@@ -266,7 +272,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       `}</style>
       
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
-        <div className="relative w-full max-w-md h-full flex flex-col p-2 sm:p-4">
+        <div className="relative w-full h-full flex flex-col p-2 sm:p-4" style={{ maxWidth: '562px' }}>
           <div className="flex justify-end gap-2 sm:gap-3 mb-3 sm:mb-4 w-full">
             <ButtonPressFeedback
               onClick={downloadCard}
@@ -285,29 +291,32 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
             </ButtonPressFeedback>
           </div>
 
-          <div className="flex-1 flex items-start sm:items-center justify-center">
+          <div className="flex-1 flex items-center justify-center overflow-hidden">
             <div
               ref={cardRef}
-              className="w-full overflow-y-auto hide-scrollbar"
+              className="w-full hide-scrollbar"
               style={{
                 backgroundColor: '#FFFFFF',
                 width: '100%',
-                maxWidth: '450px',
-                maxHeight: '100%',
+                maxWidth: '562px',
+                aspectRatio: '9/16',
                 fontFamily: 'Inter, sans-serif',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
-              <div style={{ padding: '32px 28px 24px 28px' }}>
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1 pr-4">
+              <div style={{ padding: '48px 42px 32px 42px', flex: '0 0 auto' }}>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1" style={{ paddingRight: '24px' }}>
                     <div 
-                      className="text-[10px] font-medium tracking-[0.15em] uppercase mb-2"
+                      className="text-sm font-medium tracking-[0.15em] uppercase mb-3"
                       style={{ color: '#a3a3a3', letterSpacing: '0.15em' }}
                     >
                       {phone.brand}
                     </div>
                     <h1
-                      className="text-3xl font-bold leading-[1.15] mb-2"
+                      className="text-5xl font-bold leading-[1.1] mb-3"
                       style={{ 
                         color: '#171717',
                         fontFamily: 'Playfair Display, serif',
@@ -318,7 +327,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                     </h1>
                     {phone.release_date_full && (
                       <div 
-                        className="text-[9px] font-medium"
+                        className="text-xs font-medium"
                         style={{ color: '#d4d4d4' }}
                       >
                         {formatReleaseDate(phone.release_date_full)}
@@ -328,10 +337,10 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
 
                   <div
                     style={{
-                      width: '110px',
-                      height: '130px',
+                      width: '140px',
+                      height: '160px',
                       backgroundColor: '#fafafa',
-                      borderRadius: '8px',
+                      borderRadius: '12px',
                       flexShrink: 0,
                     }}
                     className="flex items-center justify-center"
@@ -341,7 +350,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                         src={getProxiedImageUrl(phone.main_image_url)}
                         alt={phone.model_name}
                         className="w-full h-full object-contain"
-                        style={{ padding: '18px' }}
+                        style={{ padding: '24px' }}
                         crossOrigin="anonymous"
                         onError={(e) => {
                           const target = e.currentTarget;
@@ -358,7 +367,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                       }}
                     >
                       <Smartphone
-                        size={45}
+                        size={60}
                         style={{ color: '#e5e5e5' }}
                         strokeWidth={1}
                       />
@@ -367,45 +376,47 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                 </div>
 
                 <div 
-                  className="text-[11px] font-medium tracking-wider uppercase mb-2" // Reduced mb-4 to mb-2 for tighter spacing to the line
+                  className="text-sm font-medium tracking-wider uppercase mb-4"
                   style={{ color: '#a3a3a3' }}
                 >
                   Specifications
                 </div>
-                
+
                 <div 
                   style={{ 
                     height: '1px', 
                     backgroundColor: '#f5f5f5',
-                    margin: '0 0 24px 0', // Removed top margin (20px) since the label provides spacing now
+                    margin: '0 0 24px 0',
                   }} 
                 />
+              </div>
 
+              <div style={{ padding: '0 42px', flex: '1 1 auto', overflow: 'auto' }} className="hide-scrollbar">
                 <div className="space-y-0">
                   {specs.map((spec, i) => (
                     <div 
                       key={i}
-                      className="flex items-center justify-between py-3"
+                      className="flex items-center justify-between py-4"
                       style={{
                         borderBottom: i < specs.length - 1 ? '1px solid #f5f5f5' : 'none',
                       }}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-4">
                         <spec.icon
-                          size={16}
+                          size={20}
                           style={{ color: '#a3a3a3' }}
                           strokeWidth={1.5}
                         />
                         <span
-                          className="text-sm font-medium"
+                          className="text-base font-medium"
                           style={{ color: '#737373' }}
                         >
                           {spec.label}
                         </span>
                       </div>
                       <span
-                        className="text-sm font-medium text-right"
-                        style={{ color: '#171717' }}
+                        className="text-base font-medium text-right"
+                        style={{ color: '#171717', maxWidth: '60%' }}
                       >
                         {spec.value}
                       </span>
@@ -415,14 +426,15 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
               </div>
 
               <div 
-                className="flex items-center justify-between px-7 py-6"
+                className="flex items-center justify-between px-10 py-7"
                 style={{
                   backgroundColor: '#fafafa',
                   borderTop: '1px solid #f5f5f5',
+                  flex: '0 0 auto',
                 }}
               >
-                <div className="flex items-center gap-3">
-                  <div style={{ width: '28px', height: '28px' }}>
+                <div className="flex items-center gap-4">
+                  <div style={{ width: '36px', height: '36px' }}>
                     <img
                       src="/logowhite.svg"
                       alt="Mobylite"
@@ -432,13 +444,13 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                   </div>
                   <div>
                     <p
-                      className="text-xs font-semibold"
+                      className="text-sm font-semibold"
                       style={{ color: '#171717' }}
                     >
                       Mobylite
                     </p>
                     <p
-                      className="text-[9px] font-medium"
+                      className="text-xs font-medium"
                       style={{ color: '#a3a3a3' }}
                     >
                       MobyMon Archive
@@ -449,13 +461,13 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                 {phone.price_usd && (
                   <div className="text-right">
                     <div 
-                      className="text-[9px] font-medium tracking-wider uppercase mb-0.5"
+                      className="text-xs font-medium tracking-wider uppercase mb-1"
                       style={{ color: '#a3a3a3' }}
                     >
                       From
                     </div>
                     <div 
-                      className="text-3xl font-light tracking-tight"
+                      className="text-4xl font-light tracking-tight"
                       style={{ 
                         color: '#171717',
                         fontFamily: 'Playfair Display, serif',
