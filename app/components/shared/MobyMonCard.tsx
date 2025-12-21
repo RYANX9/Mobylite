@@ -1,6 +1,6 @@
 'use client';
 import React, { useRef, useMemo } from 'react';
-import { X, Download, Smartphone, Maximize2, Cpu, HardDrive, Camera, Battery, Wifi, Weight, Zap } from 'lucide-react';
+import { X, Download, Smartphone, Maximize2, Cpu, Camera, Battery, HardDrive, Wifi, Weight } from 'lucide-react';
 
 const ButtonPressFeedback = ({ onClick, className, style, children }) => (
   <button onClick={onClick} className={className} style={style}>
@@ -19,41 +19,25 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
   const downloadCard = async () => {
     if (!cardRef.current) return;
 
-    const clone = cardRef.current.cloneNode(true);
-    const scale = 1080 / 562;
-    
-    const wrapper = document.createElement('div');
-    wrapper.style.position = 'absolute';
-    wrapper.style.left = '-99999px';
-    wrapper.style.top = '0';
-    wrapper.style.width = '1080px';
-    wrapper.style.height = '1920px';
-    wrapper.style.overflow = 'hidden';
-    
-    clone.style.width = '562px';
-    clone.style.maxWidth = '562px';
-    clone.style.height = '1000px';
-    clone.style.transformOrigin = 'top left';
-    clone.style.transform = `scale(${scale})`;
-    clone.style.overflow = 'hidden';
-    clone.style.display = 'flex';
-    clone.style.flexDirection = 'column';
-    
-    wrapper.appendChild(clone);
-    document.body.appendChild(wrapper);
-    
-    await new Promise(resolve => setTimeout(resolve, 500));
-
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(wrapper, {
-        scale: 1,
-        width: 1080,
-        height: 1920,
-        backgroundColor: '#0a0a0a',
+      
+      const originalElement = cardRef.current;
+      const cardWidth = 1080;
+      const cardHeight = 1920;
+      const currentWidth = originalElement.offsetWidth;
+      const scale = cardWidth / currentWidth;
+
+      const canvas = await html2canvas(originalElement, {
+        scale: scale,
+        width: currentWidth,
+        height: currentWidth * (16/9),
+        backgroundColor: '#FFFFFF',
         logging: false,
         useCORS: true,
         allowTaint: true,
+        windowWidth: currentWidth,
+        windowHeight: currentWidth * (16/9),
       });
 
       const link = document.createElement('a');
@@ -62,8 +46,6 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       link.click();
     } catch (error) {
       console.error('Failed to download card:', error);
-    } finally {
-      document.body.removeChild(wrapper);
     }
   };
 
@@ -74,7 +56,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
 
     const extractDisplayType = (displaytype) => {
       if (!displaytype) return "OLED";
-      const match = displaytype.match(/(Foldable\s+)?(LTPO\s+)?(AMOLED|OLED|LCD|IPS|Super Retina|Dynamic AMOLED)/i);
+      const match = displaytype.match(/(LTPO\s+)?(AMOLED|OLED|LCD|IPS|Super Retina|Dynamic AMOLED)/i);
       const type = match ? match[0] : "OLED";
       const allHzMatches = displaytype.match(/(\d+)Hz/g);
       let refreshRate = "";
@@ -92,32 +74,37 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
 
     const extractBrightness = (displaytype) => {
       if (!displaytype) return null;
-      const peakMatch = displaytype.match(/(\d+)\s*nits\s*\(peak\)/i);
-      if (peakMatch) return `${peakMatch[1]} nits`;
-      const hbmMatch = displaytype.match(/(\d+)\s*nits\s*\(HBM\)/i);
-      if (hbmMatch) return `${hbmMatch[1]} nits`;
       const match = displaytype.match(/(\d+)\s*nits/i);
-      return match ? `${match[1]} nits` : null;
+      return match ? match[0] : null;
+    };
+
+    const extractFrameMaterial = (build) => {
+      if (!build) return null;
+      if (/titanium/i.test(build)) {
+        const gradeMatch = build.match(/Grade\s+(\d+)/i);
+        return gradeMatch ? `Titanium (Grade ${gradeMatch[1]})` : "Titanium";
+      }
+      if (/aluminum|aluminium/i.test(build)) return "Aluminum";
+      if (/steel/i.test(build)) return "Steel";
+      if (/plastic/i.test(build)) return "Plastic";
+      return null;
     };
 
     if (phone.screen_size) {
       const displayType = extractDisplayType(quickSpecs.displaytype);
       const brightness = extractBrightness(quickSpecs.displaytype);
-      const parts = [displayType];
-      if (brightness) parts.push(brightness);
+      const displayValue = brightness 
+        ? `${phone.screen_size}" ${displayType} • ${brightness}`
+        : `${phone.screen_size}" ${displayType}`;
       result.push({
         icon: Maximize2,
         label: 'Display',
-        value: `${phone.screen_size}" ${parts.join(' • ')}`
+        value: displayValue
       });
     }
 
     if (phone.chipset) {
-      result.push({ 
-        icon: Cpu, 
-        label: 'Chipset', 
-        value: phone.chipset
-      });
+      result.push({ icon: Cpu, label: 'Chipset', value: phone.chipset });
     }
 
     const parseMemoryOptions = (internalMemory) => {
@@ -158,7 +145,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
 
     const extractMainCamera = (cam1modules) => {
       if (!cam1modules) return null;
-      const regex = /(\d+)\s*MP,\s*f\/([0-9.]+)/i;
+      const regex = /(\d+)\s*MP,\s*f\/([0-9.]+)[^(]*\((wide|main)[^)]*\)/i;
       const match = regex.exec(cam1modules);
       return match ? `${match[1]}MP • f/${match[2]}` : null;
     };
@@ -167,29 +154,35 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       if (!cam1modules) return null;
       const regex = /(\d+)\s*MP,\s*f\/([0-9.]+)[^(]*\((ultrawide|ultra wide)[^)]*\)/i;
       const match = regex.exec(cam1modules);
-      return match ? `${match[1]}MP UW` : null;
+      return match ? `${match[1]}MP • f/${match[2]}` : null;
     };
 
-    const extractTelephotoCamera = (cam1modules) => {
-      if (!cam1modules) return null;
-      const regex = /(\d+)\s*MP,\s*f\/([0-9.]+)[^(]*\(.*?(telephoto|periscope)[^)]*\)[^,]*?(\d+)x/i;
-      const match = regex.exec(cam1modules);
-      return match ? `${match[1]}MP ${match[4]}x` : null;
+    const extractFrontCamera = (cam2modules) => {
+      if (!cam2modules) return null;
+      const mpMatch = cam2modules.match(/(\d+)\s*MP/i);
+      const apertureMatch = cam2modules.match(/f\/([0-9.]+)/i);
+      if (mpMatch && apertureMatch) return `${mpMatch[1]}MP • f/${apertureMatch[1]}`;
+      return mpMatch ? `${mpMatch[1]}MP` : null;
     };
 
     const mainCam = extractMainCamera(quickSpecs.cam1modules);
     const ultrawideCam = extractUltrawideCamera(quickSpecs.cam1modules);
-    const telephoto = extractTelephotoCamera(quickSpecs.cam1modules);
+    const frontCam = extractFrontCamera(quickSpecs.cam2modules);
 
-    if (mainCam) {
-      const parts = [mainCam];
-      if (ultrawideCam) parts.push(ultrawideCam);
-      if (telephoto) parts.push(telephoto);
+    if (mainCam && ultrawideCam && frontCam) {
       result.push({ 
         icon: Camera, 
         label: 'Cameras', 
-        value: parts.join(' • ')
+        value: `${mainCam} • ${ultrawideCam} • ${frontCam}` 
       });
+    } else if (mainCam && ultrawideCam) {
+      result.push({ 
+        icon: Camera, 
+        label: 'Cameras', 
+        value: `${mainCam} • ${ultrawideCam}` 
+      });
+    } else if (mainCam) {
+      result.push({ icon: Camera, label: 'Camera', value: mainCam });
     }
 
     const extractDetailedCharging = (chargingStr, wiredW) => {
@@ -210,7 +203,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       result.push({ 
         icon: Battery, 
         label: 'Battery', 
-        value: `${phone.battery_capacity}mAh • ${chargingDisplay}` 
+        value: `${phone.battery_capacity} mAh • ${chargingDisplay}` 
       });
     }
 
@@ -227,28 +220,27 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       result.push({ icon: Wifi, label: 'Connectivity', value: wifi });
     }
 
-    const extractFrameMaterial = (build) => {
-      if (!build) return null;
-      if (/titanium/i.test(build)) {
-        const gradeMatch = build.match(/Grade\s+(\d+)/i);
-        return gradeMatch ? `Titanium (Grade ${gradeMatch[1]})` : "Titanium";
-      }
-      if (/aluminum|aluminium/i.test(build)) return "Aluminum";
-      if (/steel/i.test(build)) return "Steel";
-      if (/plastic/i.test(build)) return "Plastic";
-      return null;
+    const extractDimensions = (dimensions) => {
+      if (!dimensions) return null;
+      const match = dimensions.match(/([\d.]+\s*x\s*[\d.]+\s*x\s*[\d.]+)\s*mm/i);
+      return match ? match[1] : null;
     };
 
-    if (phone.weight_g) {
+    const dimensions = extractDimensions(phoneSpecs.Body?.Dimensions);
+    if (phone.weight_g && dimensions) {
       const frameMaterial = extractFrameMaterial(phoneSpecs.Body?.Build);
-      const parts = [`${phone.weight_g}g`];
-      if (phone.thickness_mm) parts.push(`${phone.thickness_mm}mm`);
-      if (frameMaterial) parts.push(frameMaterial);
+      const buildInfo = frameMaterial ? ` • ${frameMaterial}` : "";
       result.push({ 
         icon: Weight, 
-        label: 'Build', 
-        value: parts.join(' • ')
+        label: 'Dimensions', 
+        value: `${dimensions} mm • ${phone.weight_g}g${buildInfo}` 
       });
+    } else if (phone.weight_g) {
+      const frameMaterial = extractFrameMaterial(phoneSpecs.Body?.Build);
+      const weightValue = frameMaterial 
+        ? `${phone.weight_g}g • ${frameMaterial}`
+        : `${phone.weight_g}g`;
+      result.push({ icon: Weight, label: 'Weight & Build', value: weightValue });
     }
 
     return result.slice(0, 8);
@@ -256,8 +248,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
 
   const formatReleaseDate = (dateStr) => {
     if (!dateStr) return '';
-    const match = dateStr.match(/(\d{4}),?\s+(\w+)/);
-    return match ? `${match[2]} ${match[1]}` : dateStr.replace(/(Released|Announced)\s+/i, '').trim();
+    return dateStr.replace(/(Released|Announced)\s+/i, '').trim();
   };
 
   return (
@@ -265,48 +256,24 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       <style>{`
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
-        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap');
-        
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .spec-item {
-          animation: fadeInUp 0.4s ease-out backwards;
-        }
-        
-        .spec-item:nth-child(1) { animation-delay: 0.05s; }
-        .spec-item:nth-child(2) { animation-delay: 0.1s; }
-        .spec-item:nth-child(3) { animation-delay: 0.15s; }
-        .spec-item:nth-child(4) { animation-delay: 0.2s; }
-        .spec-item:nth-child(5) { animation-delay: 0.25s; }
-        .spec-item:nth-child(6) { animation-delay: 0.3s; }
-        .spec-item:nth-child(7) { animation-delay: 0.35s; }
-        .spec-item:nth-child(8) { animation-delay: 0.4s; }
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap');
       `}</style>
       
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
         <div className="relative w-full h-full flex flex-col p-2 sm:p-4" style={{ maxWidth: '562px' }}>
           <div className="flex justify-end gap-2 sm:gap-3 mb-3 sm:mb-4 w-full">
             <ButtonPressFeedback
               onClick={downloadCard}
-              className="px-3 sm:px-4 py-2 rounded-xl font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-2xl backdrop-blur-md transition-all hover:scale-105"
-              style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+              className="px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-lg"
+              style={{ backgroundColor: '#1a1a1a', color: '#FFFFFF' }}
             >
               <Download size={16} className="sm:w-[18px] sm:h-[18px]" />
               <span className="hidden sm:inline">Save</span>
             </ButtonPressFeedback>
             <ButtonPressFeedback
               onClick={onClose}
-              className="px-3 sm:px-4 py-2 rounded-xl font-semibold text-xs sm:text-sm shadow-2xl backdrop-blur-md transition-all hover:scale-105"
-              style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+              className="px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm shadow-lg"
+              style={{ backgroundColor: '#525252', color: '#FFFFFF' }}
             >
               <X size={16} className="sm:w-[18px] sm:h-[18px]" />
             </ButtonPressFeedback>
@@ -317,54 +284,39 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
               ref={cardRef}
               className="w-full hide-scrollbar"
               style={{
-                background: 'linear-gradient(165deg, #0a0a0a 0%, #1a1a1a 100%)',
+                backgroundColor: '#FFFFFF',
                 width: '100%',
                 maxWidth: '562px',
                 aspectRatio: '9/16',
-                fontFamily: 'DM Sans, sans-serif',
+                fontFamily: 'Inter, sans-serif',
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
-                position: 'relative',
               }}
             >
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '300px',
-                background: 'radial-gradient(circle at 30% 20%, rgba(99, 102, 241, 0.15), transparent 50%)',
-                pointerEvents: 'none',
-                zIndex: 0
-              }} />
-
-              <div style={{ padding: '36px 32px 24px 32px', flex: '0 0 auto', position: 'relative', zIndex: 1 }}>
-                <div className="flex items-start justify-between gap-5">
-                  <div className="flex-1" style={{ minWidth: 0 }}>
+              <div style={{ padding: '48px 42px 32px 42px', flex: '0 0 auto' }}>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1" style={{ paddingRight: '24px' }}>
                     <div 
-                      className="text-[10px] font-semibold tracking-[0.2em] uppercase mb-2"
-                      style={{ color: '#6366f1', letterSpacing: '0.2em' }}
+                      className="text-sm font-medium tracking-[0.15em] uppercase mb-3"
+                      style={{ color: '#a3a3a3', letterSpacing: '0.15em' }}
                     >
                       {phone.brand}
                     </div>
                     <h1
-                      className="text-[38px] font-normal leading-[0.95] mb-2"
+                      className="text-5xl font-bold leading-[1.1] mb-3"
                       style={{ 
-                        color: '#ffffff',
-                        fontFamily: 'DM Serif Display, serif',
-                        fontWeight: 400,
-                        letterSpacing: '-0.02em',
-                        wordBreak: 'break-word',
-                        overflowWrap: 'break-word'
+                        color: '#171717',
+                        fontFamily: 'Playfair Display, serif',
+                        fontWeight: 700,
                       }}
                     >
                       {phone.model_name.split(' ').slice(1).join(' ')}
                     </h1>
                     {phone.release_date_full && (
                       <div 
-                        className="text-[11px] font-medium tracking-wide"
-                        style={{ color: '#525252', letterSpacing: '0.05em' }}
+                        className="text-xs font-medium"
+                        style={{ color: '#d4d4d4' }}
                       >
                         {formatReleaseDate(phone.release_date_full)}
                       </div>
@@ -373,13 +325,11 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
 
                   <div
                     style={{
-                      width: '100px',
-                      height: '120px',
-                      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%)',
-                      borderRadius: '16px',
+                      width: '140px',
+                      height: '160px',
+                      backgroundColor: '#fafafa',
+                      borderRadius: '12px',
                       flexShrink: 0,
-                      border: '1px solid rgba(99, 102, 241, 0.2)',
-                      backdropFilter: 'blur(10px)',
                     }}
                     className="flex items-center justify-center"
                   >
@@ -388,7 +338,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                         src={getProxiedImageUrl(phone.main_image_url)}
                         alt={phone.model_name}
                         className="w-full h-full object-contain"
-                        style={{ padding: '18px' }}
+                        style={{ padding: '24px' }}
                         crossOrigin="anonymous"
                         onError={(e) => {
                           const target = e.currentTarget;
@@ -405,117 +355,116 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                       }}
                     >
                       <Smartphone
-                        size={44}
-                        style={{ color: 'rgba(99, 102, 241, 0.3)' }}
-                        strokeWidth={1.5}
+                        size={60}
+                        style={{ color: '#e5e5e5' }}
+                        strokeWidth={1}
                       />
                     </div>
                   </div>
                 </div>
+
+                <div 
+                  className="text-sm font-medium tracking-wider uppercase mb-4"
+                  style={{ color: '#a3a3a3' }}
+                >
+                  Specifications
+                </div>
+
+                <div 
+                  style={{ 
+                    height: '1px', 
+                    backgroundColor: '#f5f5f5',
+                    margin: '0 0 2px 0',
+                  }} 
+                />
               </div>
 
-              <div style={{ padding: '0 32px 20px 32px', flex: '1 1 auto', overflow: 'auto', position: 'relative', zIndex: 1 }} className="hide-scrollbar">
+              <div style={{ padding: '0 42px', flex: '1 1 auto', overflow: 'auto' }} className="hide-scrollbar">
                 <div className="space-y-0">
                   {specs.map((spec, i) => (
                     <div 
                       key={i}
-                      className="spec-item"
+                      className="flex items-center justify-between py-4"
                       style={{
-                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        borderRadius: '12px',
-                        padding: '16px',
-                        marginBottom: '12px',
-                        backdropFilter: 'blur(10px)',
+                        borderBottom: i < specs.length - 1 ? '1px solid #f5f5f5' : 'none',
                       }}
                     >
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-4">
                         <spec.icon
-                          size={15}
-                          style={{ color: '#6366f1' }}
-                          strokeWidth={2}
+                          size={20}
+                          style={{ color: '#a3a3a3' }}
+                          strokeWidth={1.5}
                         />
                         <span
-                          className="text-[9px] font-semibold uppercase tracking-wider"
-                          style={{ color: '#737373', letterSpacing: '0.1em' }}
+                          className="text-base font-medium"
+                          style={{ color: '#737373' }}
                         >
                           {spec.label}
                         </span>
                       </div>
-                      <div
-                        className="text-[15px] font-medium leading-tight"
-                        style={{ 
-                          color: '#ffffff', 
-                          letterSpacing: '-0.01em',
-                          wordBreak: 'break-word',
-                          overflowWrap: 'break-word'
-                        }}
+                      <span
+                        className="text-base font-medium text-right"
+                        style={{ color: '#171717', maxWidth: '60%' }}
                       >
                         {spec.value}
-                      </div>
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
 
               <div 
+                className="flex items-center justify-between px-10 py-7"
                 style={{
-                  background: 'linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent)',
-                  borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-                  padding: '20px 32px',
+                  backgroundColor: '#fafafa',
+                  borderTop: '1px solid #f5f5f5',
                   flex: '0 0 auto',
-                  position: 'relative',
-                  zIndex: 1,
-                  backdropFilter: 'blur(20px)',
                 }}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div style={{ width: '26px', height: '26px' }}>
-                      <img
-                        src="/logowhite.svg"
-                        alt="Mobylite"
-                        className="w-full h-full object-contain"
-                        style={{ filter: 'brightness(0) invert(1)' }}
-                      />
+                <div className="flex items-center gap-4">
+                  <div style={{ width: '36px', height: '36px' }}>
+                    <img
+                      src="/logowhite.svg"
+                      alt="Mobylite"
+                      className="w-full h-full object-contain"
+                      style={{ filter: 'invert(1)' }}
+                    />
+                  </div>
+                  <div>
+                    <p
+                      className="text-sm font-semibold"
+                      style={{ color: '#171717' }}
+                    >
+                      Mobylite
+                    </p>
+                    <p
+                      className="text-xs font-medium"
+                      style={{ color: '#a3a3a3' }}
+                    >
+                      MobyMon Archive
+                    </p>
+                  </div>
+                </div>
+
+                {phone.price_usd && (
+                  <div className="text-right">
+                    <div 
+                      className="text-xs font-medium tracking-wider uppercase mb-1"
+                      style={{ color: '#a3a3a3' }}
+                    >
+                      From
                     </div>
-                    <div>
-                      <p
-                        className="text-[11px] font-semibold tracking-wide"
-                        style={{ color: '#ffffff', letterSpacing: '0.05em' }}
-                      >
-                        MOBYLITE
-                      </p>
-                      <p
-                        className="text-[9px] font-medium"
-                        style={{ color: '#525252' }}
-                      >
-                        Archive
-                      </p>
+                    <div 
+                      className="text-4xl font-light tracking-tight"
+                      style={{ 
+                        color: '#171717',
+                        fontFamily: 'Playfair Display, serif',
+                      }}
+                    >
+                      ${phone.price_usd}
                     </div>
                   </div>
-
-                  {phone.price_usd && (
-                    <div className="text-right">
-                      <div 
-                        className="text-[9px] font-semibold tracking-wider uppercase mb-1"
-                        style={{ color: '#737373', letterSpacing: '0.1em' }}
-                      >
-                        From
-                      </div>
-                      <div 
-                        className="text-[30px] font-normal tracking-tight"
-                        style={{ 
-                          color: '#ffffff',
-                          fontFamily: 'DM Serif Display, serif',
-                          letterSpacing: '-0.02em'
-                        }}
-                      >
-                        ${phone.price_usd}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -523,6 +472,5 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       </div>
     </>
   );
-                     
-}
+        }
                       
