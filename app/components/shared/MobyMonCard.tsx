@@ -23,31 +23,33 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       const html2canvas = (await import('html2canvas')).default;
       
       const originalElement = cardRef.current;
-      const cardWidth = 1080;
-      const cardHeight = 1920;
+      // Define our target width for the high-res export
+      const targetWidth = 1080;
       const currentWidth = originalElement.offsetWidth;
-      const scale = cardWidth / currentWidth;
+      // Calculate exact scale to reach 1080px
+      const scale = targetWidth / currentWidth;
 
       const canvas = await html2canvas(originalElement, {
         scale: scale,
-        width: currentWidth,
-        height: currentWidth * (16/9),
-        backgroundColor: '#FFFFFF',
-        logging: false,
         useCORS: true,
         allowTaint: true,
-        windowWidth: currentWidth,
-        windowHeight: currentWidth * (16/9),
+        backgroundColor: '#FFFFFF',
+        logging: false,
+        // Remove manual width/height/windowWidth/windowHeight to 
+        // prevent rounding mismatches that cause white borders
       });
 
       const link = document.createElement('a');
       link.download = `mobymon-${phone.brand}-${phone.model_name}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.href = canvas.toDataURL('image/png', 1.0);
       link.click();
     } catch (error) {
       console.error('Failed to download card:', error);
     }
   };
+  
+  
+  
 
   const specs = useMemo(() => {
     const result = [];
