@@ -19,19 +19,23 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
   const downloadCard = async () => {
     if (!cardRef.current) return;
 
-    const originalTransform = cardRef.current.style.transform;
-    const originalWidth = cardRef.current.style.width;
-    const originalMaxWidth = cardRef.current.style.maxWidth;
+    const clone = cardRef.current.cloneNode(true);
+    clone.style.position = 'absolute';
+    clone.style.left = '-9999px';
+    clone.style.top = '0';
+    clone.style.width = '1080px';
+    clone.style.maxWidth = '1080px';
+    clone.style.height = '1920px';
+    clone.style.transform = 'none';
+    clone.style.overflow = 'visible';
     
-    cardRef.current.style.transform = 'none';
-    cardRef.current.style.width = '1080px';
-    cardRef.current.style.maxWidth = '1080px';
+    document.body.appendChild(clone);
     
     await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(cardRef.current, {
+      const canvas = await html2canvas(clone, {
         scale: 1,
         width: 1080,
         height: 1920,
@@ -39,8 +43,6 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
         logging: false,
         useCORS: true,
         allowTaint: true,
-        windowWidth: 1080,
-        windowHeight: 1920,
       });
 
       const link = document.createElement('a');
@@ -50,9 +52,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
     } catch (error) {
       console.error('Failed to download card:', error);
     } finally {
-      cardRef.current.style.transform = originalTransform;
-      cardRef.current.style.width = originalWidth;
-      cardRef.current.style.maxWidth = originalMaxWidth;
+      document.body.removeChild(clone);
     }
   };
 
@@ -479,5 +479,5 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       </div>
     </>
   );
-    }
-                
+              }
+                                   
