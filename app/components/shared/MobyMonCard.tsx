@@ -376,7 +376,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
     
                 <div 
                     className="text-sm font-medium tracking-wider uppercase mb-4"
-                    style={{ color: '#a3a3a3' }}
+                    style={{ color: '#a3a3a3' margin: '0 0 3px 0'}}
                   >
                   Specifications
              </div>
