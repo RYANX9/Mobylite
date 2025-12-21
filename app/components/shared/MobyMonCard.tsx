@@ -1,6 +1,6 @@
 'use client';
 import React, { useRef, useMemo } from 'react';
-import { X, Download, Smartphone, Maximize2, Cpu, HardDrive, Camera, Battery, Wifi, Weight } from 'lucide-react';
+import { X, Download, Smartphone, Maximize2, Cpu, HardDrive, Camera, Battery, Wifi, Weight, Zap } from 'lucide-react';
 
 const ButtonPressFeedback = ({ onClick, className, style, children }) => (
   <button onClick={onClick} className={className} style={style}>
@@ -82,18 +82,20 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
         for (const hzMatch of allHzMatches) {
           const value = parseInt(hzMatch);
           if (value >= 30 && value <= 240) {
-            refreshRate = `${value}Hz`;
+            refreshRate = ` ${value}Hz`;
             break;
           }
         }
       }
-      return refreshRate ? `${type} · ${refreshRate}` : type;
+      return `${type}${refreshRate}`;
     };
 
     const extractBrightness = (displaytype) => {
       if (!displaytype) return null;
       const peakMatch = displaytype.match(/(\d+)\s*nits\s*\(peak\)/i);
       if (peakMatch) return `${peakMatch[1]} nits`;
+      const hbmMatch = displaytype.match(/(\d+)\s*nits\s*\(HBM\)/i);
+      if (hbmMatch) return `${hbmMatch[1]} nits`;
       const match = displaytype.match(/(\d+)\s*nits/i);
       return match ? `${match[1]} nits` : null;
     };
@@ -101,12 +103,12 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
     if (phone.screen_size) {
       const displayType = extractDisplayType(quickSpecs.displaytype);
       const brightness = extractBrightness(quickSpecs.displaytype);
+      const parts = [displayType];
+      if (brightness) parts.push(brightness);
       result.push({
         icon: Maximize2,
         label: 'Display',
-        main: `${phone.screen_size}"`,
-        sub: displayType,
-        extra: brightness
+        value: `${phone.screen_size}" ${parts.join(' • ')}`
       });
     }
 
@@ -114,8 +116,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       result.push({ 
         icon: Cpu, 
         label: 'Chipset', 
-        main: phone.chipset.split(' ').slice(0, 2).join(' '),
-        sub: phone.chipset.split(' ').slice(2).join(' ')
+        value: phone.chipset
       });
     }
 
@@ -149,44 +150,67 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       result.push({
         icon: HardDrive,
         label: 'Memory',
-        main: memoryData.ram || '',
-        sub: memoryData.storage || ''
+        value: memoryData.ram && memoryData.storage 
+          ? `${memoryData.ram} • ${memoryData.storage}`
+          : (memoryData.ram || memoryData.storage)
       });
     }
 
     const extractMainCamera = (cam1modules) => {
       if (!cam1modules) return null;
-      const regex = /(\d+)\s*MP/i;
+      const regex = /(\d+)\s*MP,\s*f\/([0-9.]+)/i;
       const match = regex.exec(cam1modules);
-      return match ? `${match[1]}MP` : null;
+      return match ? `${match[1]}MP • f/${match[2]}` : null;
     };
 
-    const extractCameraCount = (cam1modules) => {
+    const extractUltrawideCamera = (cam1modules) => {
       if (!cam1modules) return null;
-      const cameras = cam1modules.split(/\d+\s*MP/).length - 1;
-      return cameras > 1 ? `${cameras} Cameras` : null;
+      const regex = /(\d+)\s*MP,\s*f\/([0-9.]+)[^(]*\((ultrawide|ultra wide)[^)]*\)/i;
+      const match = regex.exec(cam1modules);
+      return match ? `${match[1]}MP UW` : null;
+    };
+
+    const extractTelephotoCamera = (cam1modules) => {
+      if (!cam1modules) return null;
+      const regex = /(\d+)\s*MP,\s*f\/([0-9.]+)[^(]*\(.*?(telephoto|periscope)[^)]*\)[^,]*?(\d+)x/i;
+      const match = regex.exec(cam1modules);
+      return match ? `${match[1]}MP ${match[4]}x` : null;
     };
 
     const mainCam = extractMainCamera(quickSpecs.cam1modules);
-    const camCount = extractCameraCount(quickSpecs.cam1modules);
+    const ultrawideCam = extractUltrawideCamera(quickSpecs.cam1modules);
+    const telephoto = extractTelephotoCamera(quickSpecs.cam1modules);
 
     if (mainCam) {
+      const parts = [mainCam];
+      if (ultrawideCam) parts.push(ultrawideCam);
+      if (telephoto) parts.push(telephoto);
       result.push({ 
         icon: Camera, 
-        label: 'Camera', 
-        main: mainCam,
-        sub: camCount
+        label: 'Cameras', 
+        value: parts.join(' • ')
       });
     }
 
+    const extractDetailedCharging = (chargingStr, wiredW) => {
+      if (!chargingStr) return wiredW ? `${wiredW}W` : "Fast";
+      const wirelessMatch = chargingStr.match(/(\d+)W\s*(?=wireless|Qi2|MagSafe|magnetic)/i);
+      const wirelessW = wirelessMatch ? wirelessMatch[1] : null;
+      const wiredPart = wiredW ? `${wiredW}W` : "";
+      const wirelessPart = wirelessW ? `${wirelessW}W Wireless` : "";
+      if (wiredPart && wirelessPart) return `${wiredPart} • ${wirelessPart}`;
+      return wiredPart || wirelessPart || "Fast";
+    };
+
     if (phone.battery_capacity) {
-      const wireless = phoneSpecs.Battery?.Charging?.includes('wireless') ? 'Wireless' : null;
+      const chargingDisplay = extractDetailedCharging(
+        phoneSpecs.Battery?.Charging, 
+        phone.fast_charging_w
+      );
       result.push({ 
         icon: Battery, 
         label: 'Battery', 
-        main: `${phone.battery_capacity}mAh`,
-        sub: phone.fast_charging_w ? `${phone.fast_charging_w}W` : 'Fast',
-        extra: wireless
+        value: `${phone.battery_capacity}mAh • ${chargingDisplay}` 
       });
     }
 
@@ -200,19 +224,34 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
 
     const wifi = extractWiFi(quickSpecs.wlan);
     if (wifi) {
-      result.push({ icon: Wifi, label: 'Connectivity', main: wifi });
+      result.push({ icon: Wifi, label: 'Connectivity', value: wifi });
     }
 
+    const extractFrameMaterial = (build) => {
+      if (!build) return null;
+      if (/titanium/i.test(build)) {
+        const gradeMatch = build.match(/Grade\s+(\d+)/i);
+        return gradeMatch ? `Titanium (Grade ${gradeMatch[1]})` : "Titanium";
+      }
+      if (/aluminum|aluminium/i.test(build)) return "Aluminum";
+      if (/steel/i.test(build)) return "Steel";
+      if (/plastic/i.test(build)) return "Plastic";
+      return null;
+    };
+
     if (phone.weight_g) {
+      const frameMaterial = extractFrameMaterial(phoneSpecs.Body?.Build);
+      const parts = [`${phone.weight_g}g`];
+      if (phone.thickness_mm) parts.push(`${phone.thickness_mm}mm`);
+      if (frameMaterial) parts.push(frameMaterial);
       result.push({ 
         icon: Weight, 
-        label: 'Weight', 
-        main: `${phone.weight_g}g`,
-        sub: phone.thickness_mm ? `${phone.thickness_mm}mm` : null
+        label: 'Build', 
+        value: parts.join(' • ')
       });
     }
 
-    return result.slice(0, 6);
+    return result.slice(0, 8);
   }, [phone]);
 
   const formatReleaseDate = (dateStr) => {
@@ -243,12 +282,14 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
           animation: fadeInUp 0.4s ease-out backwards;
         }
         
-        .spec-item:nth-child(1) { animation-delay: 0.1s; }
-        .spec-item:nth-child(2) { animation-delay: 0.15s; }
-        .spec-item:nth-child(3) { animation-delay: 0.2s; }
-        .spec-item:nth-child(4) { animation-delay: 0.25s; }
-        .spec-item:nth-child(5) { animation-delay: 0.3s; }
-        .spec-item:nth-child(6) { animation-delay: 0.35s; }
+        .spec-item:nth-child(1) { animation-delay: 0.05s; }
+        .spec-item:nth-child(2) { animation-delay: 0.1s; }
+        .spec-item:nth-child(3) { animation-delay: 0.15s; }
+        .spec-item:nth-child(4) { animation-delay: 0.2s; }
+        .spec-item:nth-child(5) { animation-delay: 0.25s; }
+        .spec-item:nth-child(6) { animation-delay: 0.3s; }
+        .spec-item:nth-child(7) { animation-delay: 0.35s; }
+        .spec-item:nth-child(8) { animation-delay: 0.4s; }
       `}</style>
       
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl">
@@ -294,12 +335,13 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                 right: 0,
                 height: '300px',
                 background: 'radial-gradient(circle at 30% 20%, rgba(99, 102, 241, 0.15), transparent 50%)',
-                pointerEvents: 'none'
+                pointerEvents: 'none',
+                zIndex: 0
               }} />
 
-              <div style={{ padding: '40px 36px 28px 36px', flex: '0 0 auto', position: 'relative', zIndex: 1 }}>
-                <div className="flex items-start justify-between gap-6">
-                  <div className="flex-1">
+              <div style={{ padding: '36px 32px 24px 32px', flex: '0 0 auto', position: 'relative', zIndex: 1 }}>
+                <div className="flex items-start justify-between gap-5">
+                  <div className="flex-1" style={{ minWidth: 0 }}>
                     <div 
                       className="text-[10px] font-semibold tracking-[0.2em] uppercase mb-2"
                       style={{ color: '#6366f1', letterSpacing: '0.2em' }}
@@ -307,12 +349,14 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                       {phone.brand}
                     </div>
                     <h1
-                      className="text-[42px] font-normal leading-[0.95] mb-2"
+                      className="text-[38px] font-normal leading-[0.95] mb-2"
                       style={{ 
                         color: '#ffffff',
                         fontFamily: 'DM Serif Display, serif',
                         fontWeight: 400,
-                        letterSpacing: '-0.02em'
+                        letterSpacing: '-0.02em',
+                        wordBreak: 'break-word',
+                        overflowWrap: 'break-word'
                       }}
                     >
                       {phone.model_name.split(' ').slice(1).join(' ')}
@@ -329,8 +373,8 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
 
                   <div
                     style={{
-                      width: '110px',
-                      height: '130px',
+                      width: '100px',
+                      height: '120px',
                       background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%)',
                       borderRadius: '16px',
                       flexShrink: 0,
@@ -344,7 +388,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                         src={getProxiedImageUrl(phone.main_image_url)}
                         alt={phone.model_name}
                         className="w-full h-full object-contain"
-                        style={{ padding: '20px' }}
+                        style={{ padding: '18px' }}
                         crossOrigin="anonymous"
                         onError={(e) => {
                           const target = e.currentTarget;
@@ -361,7 +405,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                       }}
                     >
                       <Smartphone
-                        size={48}
+                        size={44}
                         style={{ color: 'rgba(99, 102, 241, 0.3)' }}
                         strokeWidth={1.5}
                       />
@@ -370,8 +414,8 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                 </div>
               </div>
 
-              <div style={{ padding: '0 36px', flex: '1 1 auto', overflow: 'auto', position: 'relative', zIndex: 1 }} className="hide-scrollbar">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', paddingBottom: '20px' }}>
+              <div style={{ padding: '0 32px 20px 32px', flex: '1 1 auto', overflow: 'auto', position: 'relative', zIndex: 1 }} className="hide-scrollbar">
+                <div className="space-y-0">
                   {specs.map((spec, i) => (
                     <div 
                       key={i}
@@ -379,14 +423,15 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                       style={{
                         background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
                         border: '1px solid rgba(255, 255, 255, 0.08)',
-                        borderRadius: '14px',
-                        padding: '18px 16px',
+                        borderRadius: '12px',
+                        padding: '16px',
+                        marginBottom: '12px',
                         backdropFilter: 'blur(10px)',
                       }}
                     >
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center gap-2 mb-2">
                         <spec.icon
-                          size={16}
+                          size={15}
                           style={{ color: '#6366f1' }}
                           strokeWidth={2}
                         />
@@ -398,31 +443,16 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                         </span>
                       </div>
                       <div
-                        className="text-[22px] font-semibold leading-tight mb-1"
-                        style={{ color: '#ffffff', letterSpacing: '-0.01em' }}
+                        className="text-[15px] font-medium leading-tight"
+                        style={{ 
+                          color: '#ffffff', 
+                          letterSpacing: '-0.01em',
+                          wordBreak: 'break-word',
+                          overflowWrap: 'break-word'
+                        }}
                       >
-                        {spec.main}
+                        {spec.value}
                       </div>
-                      {spec.sub && (
-                        <div
-                          className="text-[11px] font-medium"
-                          style={{ color: '#a3a3a3' }}
-                        >
-                          {spec.sub}
-                        </div>
-                      )}
-                      {spec.extra && (
-                        <div
-                          className="text-[9px] font-medium mt-1 px-2 py-1 inline-block rounded-full"
-                          style={{ 
-                            color: '#6366f1', 
-                            background: 'rgba(99, 102, 241, 0.1)',
-                            border: '1px solid rgba(99, 102, 241, 0.2)'
-                          }}
-                        >
-                          {spec.extra}
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -430,9 +460,9 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
 
               <div 
                 style={{
-                  background: 'linear-gradient(to top, rgba(0, 0, 0, 0.4), transparent)',
+                  background: 'linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent)',
                   borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-                  padding: '24px 36px',
+                  padding: '20px 32px',
                   flex: '0 0 auto',
                   position: 'relative',
                   zIndex: 1,
@@ -441,7 +471,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div style={{ width: '28px', height: '28px' }}>
+                    <div style={{ width: '26px', height: '26px' }}>
                       <img
                         src="/logowhite.svg"
                         alt="Mobylite"
@@ -474,7 +504,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                         From
                       </div>
                       <div 
-                        className="text-[32px] font-normal tracking-tight"
+                        className="text-[30px] font-normal tracking-tight"
                         style={{ 
                           color: '#ffffff',
                           fontFamily: 'DM Serif Display, serif',
@@ -493,5 +523,6 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       </div>
     </>
   );
-      }
-      
+                     
+}
+                      
