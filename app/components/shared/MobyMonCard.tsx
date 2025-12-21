@@ -369,14 +369,14 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                   style={{ 
                     height: '1px', 
                     backgroundColor: '#f5f5f5',
-                    margin: '0 0 2px 0',
+                    margin: '20px 0 24px 0',
                   }} 
                 />
                 </div>
     
                 <div 
                     className="text-sm font-medium tracking-wider uppercase mb-4"
-                    style={{ color: '#a3a3a3' margin: '0 0 3px 0'}}
+                    style={{ color: '#a3a3a3' }}
                   >
                   Specifications
              </div>
@@ -450,12 +450,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
 
                 {phone.price_usd && (
                   <div className="text-right">
-                    <div 
-                      className="text-xs font-medium tracking-wider uppercase mb-1"
-                      style={{ color: '#a3a3a3' }}
-                    >
-                      From
-                    </div>
+                    
                     <div 
                       className="text-4xl font-light tracking-tight"
                       style={{ 
@@ -464,6 +459,12 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                       }}
                     >
                       ${phone.price_usd}
+                    </div>
+                    <div 
+                      className="text-xs font-medium tracking-wider uppercase mb-1"
+                      style={{ color: '#a3a3a3' }}
+                    >
+                      Lunch price
                     </div>
                   </div>
                 )}
