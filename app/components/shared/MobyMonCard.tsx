@@ -20,22 +20,33 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
     if (!cardRef.current) return;
 
     const clone = cardRef.current.cloneNode(true);
-    clone.style.position = 'absolute';
-    clone.style.left = '-9999px';
-    clone.style.top = '0';
-    clone.style.width = '1080px';
-    clone.style.maxWidth = '1080px';
-    clone.style.height = '1920px';
-    clone.style.transform = 'none';
-    clone.style.overflow = 'visible';
+    const scale = 1080 / 562;
     
-    document.body.appendChild(clone);
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'absolute';
+    wrapper.style.left = '-99999px';
+    wrapper.style.top = '0';
+    wrapper.style.width = '1080px';
+    wrapper.style.height = '1920px';
+    wrapper.style.overflow = 'hidden';
     
-    await new Promise(resolve => setTimeout(resolve, 300));
+    clone.style.width = '562px';
+    clone.style.maxWidth = '562px';
+    clone.style.height = '1000px';
+    clone.style.transformOrigin = 'top left';
+    clone.style.transform = `scale(${scale})`;
+    clone.style.overflow = 'hidden';
+    clone.style.display = 'flex';
+    clone.style.flexDirection = 'column';
+    
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(clone, {
+      const canvas = await html2canvas(wrapper, {
         scale: 1,
         width: 1080,
         height: 1920,
@@ -52,7 +63,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
     } catch (error) {
       console.error('Failed to download card:', error);
     } finally {
-      document.body.removeChild(clone);
+      document.body.removeChild(wrapper);
     }
   };
 
@@ -479,5 +490,6 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       </div>
     </>
   );
-              }
-                                   
+  
+}
+            
