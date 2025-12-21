@@ -363,23 +363,9 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                       />
                     </div>
                   </div>
-                </div>
-                {/* Current Position of Label */}
-                <div 
-                  style={{ 
-                    height: '1px', 
-                    backgroundColor: '#f5f5f5',
-                    margin: '20px 0 24px 0',
-                  }} 
-                />
-                
-                <div 
-                  className="text-[11px] font-medium tracking-wider uppercase mb-4"
-                  style={{ color: '#a3a3a3' }}
-                >
-                  Specifications
-                </div>
-
+                <div style={{ height: '1px', backgroundColor: '#f5f5f5', margin: '20px 0 24px 0' }} />
+                <div className="text-[11px] font-medium tracking-wider uppercase mb-4" style={{ color: '#a3a3a3' }}>Specifications</div>
+              </div>
               <div style={{ padding: '0 42px', flex: '1 1 auto', overflow: 'auto' }} className="hide-scrollbar">
                 <div className="space-y-0">
                   {specs.map((spec, i) => (
