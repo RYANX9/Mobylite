@@ -85,6 +85,18 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       return match ? match[0] : null;
     };
 
+    const extractFrameMaterial = (build) => {
+      if (!build) return null;
+      if (/titanium/i.test(build)) {
+        const gradeMatch = build.match(/Grade\s+(\d+)/i);
+        return gradeMatch ? `Titanium (Grade ${gradeMatch[1]})` : "Titanium";
+      }
+      if (/aluminum|aluminium/i.test(build)) return "Aluminum";
+      if (/steel/i.test(build)) return "Steel";
+      if (/plastic/i.test(build)) return "Plastic";
+      return null;
+    };
+
     if (phone.screen_size) {
       const displayType = extractDisplayType(quickSpecs.displaytype);
       result.push({
@@ -223,7 +235,11 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
     }
 
     if (phone.weight_g) {
-      result.push({ icon: Weight, label: 'Weight', value: `${phone.weight_g}g` });
+      const frameMaterial = extractFrameMaterial(phoneSpecs.Body?.Build);
+      const weightValue = frameMaterial 
+        ? `${phone.weight_g}g • ${frameMaterial}`
+        : `${phone.weight_g}g`;
+      result.push({ icon: Weight, label: 'Weight & Build', value: weightValue });
     }
 
     return result.slice(0, 12);
@@ -265,10 +281,11 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
           <div className="flex-1 flex items-start sm:items-center justify-center">
             <div
               ref={cardRef}
-              className="w-full h-full overflow-y-auto hide-scrollbar"
+              className="w-full overflow-y-auto hide-scrollbar"
               style={{
                 backgroundColor: '#FFFFFF',
                 maxWidth: '450px',
+                maxHeight: '100%',
                 fontFamily: 'Inter, sans-serif',
               }}
             >
@@ -448,3 +465,4 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
     </>
   );
 }
+
