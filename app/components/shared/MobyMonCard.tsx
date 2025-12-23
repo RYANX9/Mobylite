@@ -266,10 +266,16 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap');
+        
+        @media (max-width: 640px) {
+          .mobymon-card {
+            transform: scale(calc((100vw - 32px) / 640));
+          }
+        }
       `}</style>
       
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-        <div className="relative w-full h-full max-w-[640px] flex flex-col">
+        <div className="relative w-full h-full flex flex-col" style={{ maxWidth: '640px' }}>
           <div className="flex justify-end gap-2 sm:gap-3 mb-3 sm:mb-4">
             <ButtonPressFeedback
               onClick={downloadCard}
@@ -291,13 +297,15 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
           <div className="flex-1 overflow-auto hide-scrollbar flex items-center justify-center">
             <div
               ref={cardRef}
-              className="w-full bg-white"
+              className="bg-white mobymon-card"
               style={{
-                maxWidth: '640px',
-                aspectRatio: '10/16',
+                width: '640px',
+                aspectRatio: '14/16',
                 fontFamily: 'Inter, sans-serif',
                 display: 'flex',
                 flexDirection: 'column',
+                flexShrink: 0,
+                transformOrigin: 'center center',
               }}
             >
               <div style={{ padding: '48px 42px 32px 42px', flex: '0 0 auto' }}>
