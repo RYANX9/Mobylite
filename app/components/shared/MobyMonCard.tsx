@@ -269,7 +269,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       `}</style>
       
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-        <div className="relative w-full h-full max-w-[562px] flex flex-col">
+        <div className="relative w-full h-full max-w-[640px] flex flex-col">
           <div className="flex justify-end gap-2 sm:gap-3 mb-3 sm:mb-4">
             <ButtonPressFeedback
               onClick={downloadCard}
@@ -293,8 +293,8 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
               ref={cardRef}
               className="w-full bg-white"
               style={{
-                maxWidth: '562px',
-                aspectRatio: '9/16',
+                maxWidth: '640px',
+                aspectRatio: '10/16',
                 fontFamily: 'Inter, sans-serif',
                 display: 'flex',
                 flexDirection: 'column',
@@ -321,7 +321,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                     </h1>
                     {phone.release_date_full && (
                       <div 
-                        className="text-xs font-medium"
+                        className="text-xs font-medium mt-2"
                         style={{ color: '#d4d4d4' }}
                       >
                         {formatReleaseDate(phone.release_date_full)}
@@ -458,7 +458,7 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                       ${phone.price_usd}
                     </div>
                     <div 
-                      className="text-xs font-medium tracking-wider uppercase mb-1"
+                      className="text-xs font-medium tracking-wider uppercase mt-2"
                       style={{ color: '#a3a3a3' }}
                     >
                       Lunch price
