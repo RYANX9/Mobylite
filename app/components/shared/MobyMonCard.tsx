@@ -23,10 +23,17 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       const html2canvas = (await import('html2canvas')).default;
       
       const originalElement = cardRef.current;
-      // Define our target width for the high-res export
+      const scrollContainer = originalElement.querySelector('.specs-scroll-container');
+      const originalOverflow = scrollContainer ? scrollContainer.style.overflow : null;
+      const originalHeight = scrollContainer ? scrollContainer.style.height : null;
+      
+      if (scrollContainer) {
+        scrollContainer.style.overflow = 'visible';
+        scrollContainer.style.height = 'auto';
+      }
+
       const targetWidth = 1080;
       const currentWidth = originalElement.offsetWidth;
-      // Calculate exact scale to reach 1080px
       const scale = targetWidth / currentWidth;
 
       const canvas = await html2canvas(originalElement, {
@@ -35,9 +42,12 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
         allowTaint: true,
         backgroundColor: '#FFFFFF',
         logging: false,
-        // Remove manual width/height/windowWidth/windowHeight to 
-        // prevent rounding mismatches that cause white borders
       });
+
+      if (scrollContainer) {
+        scrollContainer.style.overflow = originalOverflow;
+        scrollContainer.style.height = originalHeight;
+      }
 
       const link = document.createElement('a');
       link.download = `mobymon-${phone.brand}-${phone.model_name}.png`;
@@ -47,9 +57,6 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
       console.error('Failed to download card:', error);
     }
   };
-  
-  
-  
 
   const specs = useMemo(() => {
     const result = [];
@@ -261,9 +268,9 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap');
       `}</style>
       
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
-        <div className="relative w-full h-full flex flex-col p-2 sm:p-4" style={{ maxWidth: '562px' }}>
-          <div className="flex justify-end gap-2 sm:gap-3 mb-3 sm:mb-4 w-full">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+        <div className="relative w-full h-full max-w-[562px] flex flex-col">
+          <div className="flex justify-end gap-2 sm:gap-3 mb-3 sm:mb-4">
             <ButtonPressFeedback
               onClick={downloadCard}
               className="px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-lg"
@@ -281,17 +288,14 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
             </ButtonPressFeedback>
           </div>
 
-          <div className="flex-1 flex items-center justify-center overflow-hidden">
+          <div className="flex-1 overflow-auto hide-scrollbar flex items-center justify-center">
             <div
               ref={cardRef}
-              className="w-full hide-scrollbar"
+              className="w-full bg-white"
               style={{
-                backgroundColor: '#FFFFFF',
-                width: '100%',
                 maxWidth: '562px',
                 aspectRatio: '9/16',
                 fontFamily: 'Inter, sans-serif',
-                overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
               }}
@@ -368,7 +372,15 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
                 <div className="text-[11px] font-medium tracking-wider uppercase mb-4" style={{ color: '#a3a3a3' }}>Specifications</div>
               </div>
 
-              <div style={{ padding: '0 42px', flex: '1 1 auto', overflow: 'auto' }} className="hide-scrollbar">
+              <div 
+                className="specs-scroll-container hide-scrollbar" 
+                style={{ 
+                  padding: '0 42px', 
+                  flex: '1 1 auto', 
+                  overflow: 'auto',
+                  minHeight: 0
+                }}
+              >
                 <div className="space-y-0">
                   {specs.map((spec, i) => (
                     <div 
@@ -461,4 +473,3 @@ export default function MobyMonCard({ phone = samplePhone, onClose = () => {} })
     </>
   );  
 }
-                      
