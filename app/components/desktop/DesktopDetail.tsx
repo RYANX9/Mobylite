@@ -3,15 +3,15 @@ import React, { useState, useEffect } from 'react'
 import {
   Camera, Battery, Bolt, Smartphone, ArrowLeft, Heart, Maximize2,
   Cpu, MemoryStick, HardDrive, Search, Monitor, Zap,
-  Video, Wifi, Weight, Ruler, Calendar, Award, Signal, Volume2,
-  Info, Package, Bell, Sparkles,
+  Video, Wifi, Weight, Ruler, Calendar, Award, Signal, Volume2, Info, Package, Bell, Sparkles,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Phone, Favorite } from '@/lib/types'
-import { API_BASE_URL, APP_ROUTES, createPhoneSlug } from '@/lib/config'
+import { API_BASE_URL, APP_ROUTES } from '@/lib/config'
 import { api } from '@/lib/api'
 import { cleanHTMLText } from '@/lib/utils'
 import { isAuthenticated, getAuthToken } from '@/lib/auth'
+import { navigateToLogin, navigateToPhone, navigateToCompare } from '@/lib/navigation'
 import { extractCleanSpecs } from '@/lib/cleanSpecExtractor'
 import { ButtonPressFeedback } from '@/app/components/shared/ButtonPressFeedback'
 import { Tooltip } from '@/app/components/shared/Tooltip'
@@ -21,13 +21,8 @@ import { UserMenu } from '@/app/components/shared/UserMenu'
 import { PriceAlertModal } from '@/app/components/shared/PriceAlertModal'
 import { ReviewSection } from '@/app/components/shared/ReviewSection'
 import MobyMonCard from '@/app/components/shared/MobyMonCard'
-import { PhoneDetailSkeleton } from '@/app/components/shared/Skeleton'
-import { useCompare } from '@/lib/compare-context'
 import { color, font } from '@/lib/tokens'
-
-interface DesktopDetailProps {
-  phone: Phone
-}
+import { createPhoneSlug } from '@/lib/config'
 
 const ICON_MAP: Record<string, any> = {
   '📱': Maximize2, '☀️': Zap, '🔧': Cpu, '📷': Camera, '🔍': Search,
@@ -41,24 +36,33 @@ const SPEC_TOOLTIPS: Record<string, { layman: string; nerd: string }> = {
   'Chipset': { layman: 'Brain of the phone', nerd: 'System on Chip processor' },
   'RAM': { layman: 'Memory for running apps', nerd: 'LPDDR5/5X RAM capacity' },
   'Storage': { layman: 'Space for files', nerd: 'UFS 3.1/4.0 storage' },
-  'Camera': { layman: 'Photo quality', nerd: 'Main sensor resolution' },
   'Battery': { layman: 'Battery life', nerd: 'Battery capacity' },
   'Charging': { layman: 'Charging speed', nerd: 'Max charging power' },
-  'Weight': { layman: 'Device weight', nerd: 'Total weight in grams' },
-  'AnTuTu': { layman: 'Performance score', nerd: 'AnTuTu benchmark' },
 }
 
-export default function DesktopDetail({ phone }: DesktopDetailProps) {
-  const router = useRouter()
-  const compare = useCompare()
+// Minimum comparison count before showing "Also Compared With"
+const ALSO_COMPARED_THRESHOLD = 5
 
-  const [isExpertMode, setIsExpertMode] = useState(false)
+interface DesktopDetailProps {
+  phone: Phone
+  initialReviews?: any[]
+  initialStats?: any
+  // Legacy SPA props — accepted but ignored, navigation is internal
+  setView?: (view: string) => void
+  setComparePhones?: (phones: Phone[]) => void
+  setSelectedPhone?: (phone: Phone) => void
+}
+
+export default function DesktopDetail({ phone, initialStats }: DesktopDetailProps) {
+  const router = useRouter()
+  const [isOverviewMode, setIsOverviewMode] = useState(true)
   const [similarPhones, setSimilarPhones] = useState<Phone[]>([])
   const [alsoComparedWith, setAlsoComparedWith] = useState<Phone[]>([])
   const [comparisonCounts, setComparisonCounts] = useState<Record<number, number>>({})
   const [isFavorite, setIsFavorite] = useState(false)
+  const [favoriteLoading, setFavoriteLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [phoneStats, setPhoneStats] = useState<any>(null)
+  const [phoneStats, setPhoneStats] = useState<any>(initialStats || null)
   const [showPriceAlert, setShowPriceAlert] = useState(false)
   const [showMobyMon, setShowMobyMon] = useState(false)
 
@@ -74,13 +78,9 @@ export default function DesktopDetail({ phone }: DesktopDetailProps) {
   }, [phone.id])
 
   useEffect(() => {
-    setSimilarPhones([])
-    setAlsoComparedWith([])
-    setPhoneStats(null)
-
     fetchSimilarPhones()
     fetchAlsoComparedWith()
-    fetchPhoneStats()
+    if (!initialStats) fetchPhoneStats()
 
     if (isAuthenticated()) {
       fetch(`${API_BASE_URL}/history/views`, {
@@ -91,24 +91,27 @@ export default function DesktopDetail({ phone }: DesktopDetailProps) {
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [phone.id])
+  }, [phone])
 
   const fetchPhoneStats = async () => {
     try {
       const data = await api.phones.getStats(phone.id)
       if (data.success) setPhoneStats(data.stats)
-    } catch {
-      setPhoneStats({ average_rating: 0, total_reviews: 0, total_favorites: 0 })
-    }
+    } catch {}
   }
 
   const fetchAlsoComparedWith = async () => {
     try {
-      const result = await fetch(`${API_BASE_URL}/phones/${phone.id}/also-compared`)
-      const data = await result.json()
+      const res = await fetch(`${API_BASE_URL}/phones/${phone.id}/also-compared`)
+      const data = await res.json()
       if (data.success && data.phones.length > 0) {
-        setAlsoComparedWith(data.phones)
-        setComparisonCounts(data.comparisonCounts || {})
+        // Only show if at least one phone has enough comparisons
+        const counts: Record<number, number> = data.comparisonCounts || {}
+        const qualified = data.phones.filter((p: Phone) => (counts[p.id] || 0) >= ALSO_COMPARED_THRESHOLD)
+        if (qualified.length > 0) {
+          setAlsoComparedWith(qualified)
+          setComparisonCounts(counts)
+        }
       }
     } catch {}
   }
@@ -120,23 +123,18 @@ export default function DesktopDetail({ phone }: DesktopDetailProps) {
         params.min_price = Math.floor(phone.price_usd * 0.7)
         params.max_price = Math.ceil(phone.price_usd * 1.3)
       }
-      if (phone.ram_options?.length) {
-        params.min_ram = Math.max(Math.max(...phone.ram_options) - 2, 4)
-      }
-      if (phone.storage_options?.length) {
-        params.min_storage = Math.max(Math.max(...phone.storage_options) / 2, 64)
-      }
+      if (phone.ram_options?.length) params.min_ram = Math.max(Math.max(...phone.ram_options) - 2, 4)
+      if (phone.storage_options?.length) params.min_storage = Math.max(Math.max(...phone.storage_options) / 2, 64)
       if (phone.release_year) params.min_year = phone.release_year - 1
 
       const data = await api.phones.search(params)
+
       const scored = (data.results || [])
         .filter((p: Phone) => p.id !== phone.id)
         .map((p: Phone) => {
           let score = 0
           if (p.brand === phone.brand) score += 40
-          if (phone.price_usd && p.price_usd) {
-            score += Math.max(0, 25 - (Math.abs(phone.price_usd - p.price_usd) / phone.price_usd) * 25)
-          }
+          if (phone.price_usd && p.price_usd) score += Math.max(0, 25 - (Math.abs(phone.price_usd - p.price_usd) / phone.price_usd) * 25)
           if (phone.ram_options?.length && p.ram_options?.length) {
             const diff = Math.abs(Math.max(...phone.ram_options) - Math.max(...p.ram_options))
             score += diff === 0 ? 15 : diff <= 2 ? 10 : diff <= 4 ? 5 : 0
@@ -150,11 +148,23 @@ export default function DesktopDetail({ phone }: DesktopDetailProps) {
         })
         .sort((a: any, b: any) => b.similarityScore - a.similarityScore)
         .slice(0, 12)
+
       setSimilarPhones(scored)
     } catch {}
   }
 
-  const handleCompareWithPhone = async (comparePhone: Phone) => {
+  const handleStartCompare = () => {
+    if (isAuthenticated()) {
+      fetch(`${API_BASE_URL}/comparisons`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAuthToken()}` },
+        body: JSON.stringify({ phoneIds: [phone.id] }),
+      }).catch(() => {})
+    }
+    router.push(APP_ROUTES.compare([createPhoneSlug(phone)]))
+  }
+
+  const handleCompareWithPhone = (comparePhone: Phone) => {
     if (isAuthenticated()) {
       fetch(`${API_BASE_URL}/comparisons`, {
         method: 'POST',
@@ -162,70 +172,77 @@ export default function DesktopDetail({ phone }: DesktopDetailProps) {
         body: JSON.stringify({ phoneIds: [phone.id, comparePhone.id] }),
       }).catch(() => {})
     }
-    const slugs = [phone, comparePhone].map(p => createPhoneSlug(p))
-    router.push(APP_ROUTES.compare(slugs))
+    router.push(APP_ROUTES.compare([phone, comparePhone].map(createPhoneSlug)))
   }
 
-  const handlePhoneClick = (clickedPhone: Phone) => {
-    const brandSlug = clickedPhone.brand.toLowerCase().replace(/\s+/g, '-')
-    router.push(APP_ROUTES.phoneDetail(brandSlug, createPhoneSlug(clickedPhone)))
-  }
+  const handlePhoneClick = (p: Phone) => navigateToPhone(router, p)
 
   const toggleFavorite = async () => {
     if (!isAuthenticated()) {
-      sessionStorage.setItem('returnUrl', window.location.pathname + window.location.search)
-      if (confirm('Please login to add favorites. Go to login?')) router.push(APP_ROUTES.login)
+      navigateToLogin(router)
       return
     }
+    if (favoriteLoading) return
+
+    const previous = isFavorite
+    setIsFavorite(!previous)
+    setFavoriteLoading(true)
+
     try {
-      if (isFavorite) await api.favorites.remove(phone.id)
-      else await api.favorites.add(phone.id)
-      setIsFavorite(!isFavorite)
-    } catch {}
+      if (previous) {
+        await api.favorites.remove(phone.id)
+      } else {
+        await api.favorites.add(phone.id)
+      }
+    } catch {
+      setIsFavorite(previous) // silent rollback
+    } finally {
+      setFavoriteLoading(false)
+    }
   }
 
   const cleanSpecs = extractCleanSpecs(phone)
-  const simpleSpecs = cleanSpecs
-    .filter(spec => spec.label !== 'Price')
-    .map(spec => {
-      let label = spec.label
-      if (spec.label.includes('Wide') && !spec.label.includes('Ultrawide')) label = 'Main Camera'
-      else if (spec.label.includes('Ultrawide')) label = 'Ultrawide Camera'
-      else if (spec.label.includes('Telephoto') || spec.label.includes('Periscope')) label = 'Telephoto Camera'
-      const IconComponent = ICON_MAP[spec.icon] || Info
-      return { icon: IconComponent, label, value: spec.value, tooltip: SPEC_TOOLTIPS[label] || SPEC_TOOLTIPS[spec.label] }
+  const overviewSpecs = cleanSpecs
+    .filter((s) => s.label !== 'Price')
+    .map((s) => {
+      let label = s.label
+      if (s.label.includes('Wide') && !s.label.includes('Ultrawide')) label = 'Main Camera'
+      else if (s.label.includes('Ultrawide')) label = 'Ultrawide Camera'
+      else if (s.label.includes('Telephoto') || s.label.includes('Periscope')) label = 'Telephoto Camera'
+      return { icon: ICON_MAP[s.icon] || Info, label, value: s.value, tooltip: SPEC_TOOLTIPS[label] || SPEC_TOOLTIPS[s.label] }
     })
 
-  const getIconForCategory = (category: string) => {
-    const icons: Record<string, any> = {
-      'Launch': Calendar, 'Body': Package, 'Display': Monitor, 'Platform': Cpu,
-      'Memory': MemoryStick, 'Main Camera': Camera, 'Selfie camera': Camera,
-      'Selfie Camera': Camera, 'Sound': Volume2, 'Comms': Wifi, 'Features': Zap,
-      'Battery': Battery, 'Misc': Info, 'Network': Signal, 'Our Tests': Award,
+  const getIconForCategory = (cat: string) => {
+    const map: Record<string, any> = {
+      Launch: Calendar, Body: Package, Display: Monitor, Platform: Cpu,
+      Memory: MemoryStick, 'Main Camera': Camera, 'Selfie camera': Camera,
+      'Selfie Camera': Camera, Sound: Volume2, Comms: Wifi, Features: Zap,
+      Battery, Misc: Info, Network: Signal, 'Our Tests': Award,
     }
-    return icons[category] || Info
+    return map[cat] || Info
   }
 
   const formatSpecValue = (value: any): string => {
-    if (value == null || value === '') return 'N/A'
-    if (Array.isArray(value)) return value.map(v => cleanHTMLText(v)).join(', ')
-    if (typeof value === 'object' && value.price_usd) return `$${value.price_usd}`
+    if (value === null || value === undefined || value === '') return 'N/A'
+    if (Array.isArray(value)) return value.map((v) => cleanHTMLText(v)).join(', ')
     if (typeof value === 'object') return cleanHTMLText(JSON.stringify(value))
     return cleanHTMLText(value)
   }
 
   const fullSpecs = phone.full_specifications?.specifications || {}
-  const categoryOrder = [
-    'Launch', 'Body', 'Display', 'Platform', 'Memory', 'Main Camera',
-    'Selfie camera', 'Battery', 'Comms', 'Sound', 'Features', 'Network', 'Misc', 'Our Tests',
-  ]
+  const categoryOrder = ['Launch', 'Body', 'Display', 'Platform', 'Memory', 'Main Camera', 'Selfie camera', 'Battery', 'Comms', 'Sound', 'Features', 'Network', 'Misc', 'Our Tests']
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: color.bg }}>
+      {/* Navbar */}
       <div className="sticky top-0 z-30 border-b" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
         <div className="max-w-7xl mx-auto px-8 py-4">
           <div className="flex items-center gap-6">
-            <ButtonPressFeedback onClick={() => router.push(APP_ROUTES.home)} className="flex items-center gap-3 hover:opacity-70 transition-opacity">
+            {/* Back goes to previous page, not hardcoded home */}
+            <ButtonPressFeedback
+              onClick={() => router.back()}
+              className="flex items-center gap-3 hover:opacity-70 transition-opacity"
+            >
               <ArrowLeft size={20} style={{ color: color.text }} />
               <img src="/logo.svg" alt="Mobylite" className="w-8 h-8" />
               <h2 className="text-xl font-bold" style={{ color: color.text }}>Mobylite</h2>
@@ -267,6 +284,7 @@ export default function DesktopDetail({ phone }: DesktopDetailProps) {
 
       <div className="max-w-7xl mx-auto px-8 py-12">
         <div className="grid grid-cols-5 gap-8 mb-12">
+          {/* Left column */}
           <div className="col-span-2">
             <div className="sticky top-24">
               <div className="flex gap-6 mb-6">
@@ -280,8 +298,11 @@ export default function DesktopDetail({ phone }: DesktopDetailProps) {
                     <Smartphone size={80} style={{ color: color.textLight }} />
                   )}
                 </div>
+
                 <div className="flex-1 flex flex-col justify-center">
-                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: color.textMuted }}>{phone.brand}</p>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: color.textMuted }}>
+                    {phone.brand}
+                  </p>
                   <h1 className="text-3xl font-bold leading-tight mb-2" style={{ fontFamily: font.primary, color: color.text }}>
                     {phone.model_name}
                   </h1>
@@ -294,71 +315,91 @@ export default function DesktopDetail({ phone }: DesktopDetailProps) {
                 </div>
               </div>
 
+              {/* Price */}
               {phone.price_usd && (
                 <div className="rounded-2xl p-6 mb-4" style={{ backgroundColor: color.text, color: color.bg }}>
                   <p className="text-sm font-bold mb-1 opacity-70">PRICE</p>
-                  <p className="text-4xl font-bold">${phone.price_usd}</p>
+                  <p className="text-4xl font-bold" style={{ fontFamily: font.numeric }}>${phone.price_usd}</p>
                   {phone.price_original && phone.currency && (
                     <p className="text-sm opacity-70 mt-1">{phone.price_original} {phone.currency}</p>
                   )}
                 </div>
               )}
 
-              <div className="space-y-3">
-                {phone.amazon_link && (
-                  <ButtonPressFeedback className="w-full" onClick={() => window.open(phone.amazon_link!, '_blank')}>
-                    <div className="w-full py-4 text-center font-bold rounded-xl text-sm" style={{ backgroundColor: color.primary, color: color.primaryText }}>
-                      Buy on Amazon
-                    </div>
-                  </ButtonPressFeedback>
-                )}
+              {/* Primary CTA */}
+              {phone.amazon_link && (
+                <ButtonPressFeedback className="w-full mb-3" onClick={() => window.open(phone.amazon_link!, '_blank')}>
+                  <div
+                    className="w-full py-4 text-center font-bold rounded-xl text-sm"
+                    style={{ backgroundColor: color.primary, color: color.primaryText }}
+                  >
+                    Buy on Amazon
+                  </div>
+                </ButtonPressFeedback>
+              )}
 
+              {/* Secondary CTAs */}
+              <div className="space-y-2">
                 <ButtonPressFeedback
-                  onClick={() => setShowMobyMon(true)}
-                  className="w-full py-4 font-bold rounded-xl text-sm flex items-center justify-center gap-2"
-                  style={{ background: '#0f0f0f', color: '#FFFFFF' }}
+                  onClick={handleStartCompare}
+                  className="w-full py-3 font-bold rounded-xl text-sm flex items-center justify-center gap-2"
+                  style={{ backgroundColor: color.borderLight, color: color.text }}
+                  hoverStyle={{ backgroundColor: color.border }}
                 >
-                  <Sparkles size={18} />
-                  MobyMon Card
+                  Compare this phone
                 </ButtonPressFeedback>
 
                 <ButtonPressFeedback
                   onClick={() => setShowPriceAlert(true)}
-                  className="w-full py-4 font-bold rounded-xl text-sm flex items-center justify-center gap-2"
+                  className="w-full py-3 font-bold rounded-xl text-sm flex items-center justify-center gap-2"
                   style={{ backgroundColor: color.borderLight, color: color.text }}
                   hoverStyle={{ backgroundColor: color.border }}
                 >
-                  <Bell size={18} />
+                  <Bell size={16} />
                   Set Price Alert
                 </ButtonPressFeedback>
+              </div>
+
+              {/* MobyMon as footnote — not primary action */}
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setShowMobyMon(true)}
+                  className="text-xs font-medium underline underline-offset-2 transition-opacity hover:opacity-60"
+                  style={{ color: color.textMuted }}
+                >
+                  View MobyMon Card
+                </button>
               </div>
             </div>
           </div>
 
+          {/* Right column */}
           <div className="col-span-3">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-3xl font-bold" style={{ fontFamily: font.primary, color: color.text }}>Specifications</h2>
+              <h2 className="text-3xl font-bold" style={{ fontFamily: font.primary, color: color.text }}>
+                Specifications
+              </h2>
               <div className="inline-flex p-1 rounded-xl" style={{ backgroundColor: color.borderLight }}>
                 <button
-                  onClick={() => setIsExpertMode(false)}
-                  className="px-6 py-2.5 text-xs font-bold transition-all rounded-lg"
-                  style={!isExpertMode ? { backgroundColor: color.bg, color: color.text } : { color: color.textMuted }}
+                  onClick={() => setIsOverviewMode(true)}
+                  className={`px-6 py-2.5 text-xs font-bold transition-all rounded-lg ${isOverviewMode ? 'shadow-sm' : ''}`}
+                  style={isOverviewMode ? { backgroundColor: color.bg, color: color.text } : { color: color.textMuted }}
                 >
-                  SIMPLE
+                  OVERVIEW
                 </button>
                 <button
-                  onClick={() => setIsExpertMode(true)}
-                  className="px-6 py-2.5 text-xs font-bold transition-all rounded-lg"
-                  style={isExpertMode ? { backgroundColor: color.bg, color: color.text } : { color: color.textMuted }}
+                  onClick={() => setIsOverviewMode(false)}
+                  className={`px-6 py-2.5 text-xs font-bold transition-all rounded-lg ${!isOverviewMode ? 'shadow-sm' : ''}`}
+                  style={!isOverviewMode ? { backgroundColor: color.bg, color: color.text } : { color: color.textMuted }}
                 >
-                  EXPERT
+                  FULL SPECS
                 </button>
               </div>
             </div>
 
-            {!isExpertMode ? (
+            {isOverviewMode ? (
               <div className="grid grid-cols-2 gap-4">
-                {simpleSpecs.map((spec, idx) => (
+                {overviewSpecs.map((spec, idx) => (
                   <div
                     key={idx}
                     className="rounded-xl p-5 transition-all"
@@ -374,7 +415,9 @@ export default function DesktopDetail({ phone }: DesktopDetailProps) {
                         <span className="text-xs font-bold uppercase tracking-wide" style={{ color: color.textMuted }}>
                           {spec.label}
                         </span>
-                        {spec.tooltip && <Tooltip term={spec.label} layman={spec.tooltip.layman} nerd={spec.tooltip.nerd} />}
+                        {spec.tooltip && (
+                          <Tooltip term={spec.label} layman={spec.tooltip.layman} nerd={spec.tooltip.nerd} />
+                        )}
                       </div>
                     </div>
                     <p className="text-base font-bold leading-snug" style={{ color: color.text }}>{spec.value}</p>
@@ -385,20 +428,19 @@ export default function DesktopDetail({ phone }: DesktopDetailProps) {
               <div className="space-y-5">
                 {Object.entries(fullSpecs)
                   .sort(([a], [b]) => {
-                    const ia = categoryOrder.indexOf(a)
-                    const ib = categoryOrder.indexOf(b)
+                    const ia = categoryOrder.indexOf(a), ib = categoryOrder.indexOf(b)
                     if (ia === -1 && ib === -1) return 0
                     if (ia === -1) return 1
                     if (ib === -1) return -1
                     return ia - ib
                   })
                   .map(([category, specs]) => {
-                    const CategoryIcon = getIconForCategory(category)
+                    const Icon = getIconForCategory(category)
                     return (
-                      <div key={category} className="rounded-xl overflow-hidden border" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
+                      <div key={category} className="rounded-xl overflow-hidden border" style={{ backgroundColor: color.bg, border: `1px solid ${color.borderLight}` }}>
                         <div className="border-b px-5 py-3 flex items-center gap-3" style={{ backgroundColor: color.borderLight, borderColor: color.borderLight }}>
                           <div className="w-7 h-7 rounded-lg flex items-center justify-center border" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
-                            <CategoryIcon size={14} style={{ color: color.text }} />
+                            <Icon size={14} style={{ color: color.text }} />
                           </div>
                           <h3 className="text-sm font-bold" style={{ color: color.text }}>{category}</h3>
                         </div>
@@ -432,7 +474,6 @@ export default function DesktopDetail({ phone }: DesktopDetailProps) {
         {alsoComparedWith.length > 0 && (
           <HorizontalPhoneScroll
             title="Also Compared With"
-            subtitle={`${comparisonCounts[alsoComparedWith[0]?.id]?.toLocaleString() || 0}+ users compared these phones`}
             phones={alsoComparedWith}
             onPhoneClick={handlePhoneClick}
             onCompareClick={handleCompareWithPhone}
@@ -442,7 +483,8 @@ export default function DesktopDetail({ phone }: DesktopDetailProps) {
           />
         )}
 
-        <div className="mt-16">
+        {/* Reviews — with scroll anchor */}
+        <div id="reviews" className="mt-16 scroll-mt-24">
           <h3 className="text-2xl font-bold mb-8" style={{ color: color.text }}>Reviews & Ratings</h3>
           <ReviewSection phoneId={phone.id} />
         </div>
