@@ -1,6 +1,8 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
+import { CompareProvider } from "@/lib/compare-context";
 import { Young_Serif, Space_Grotesk } from "next/font/google";
 
 const youngSerif = Young_Serif({
@@ -39,7 +41,11 @@ export default function RootLayout({
         <meta name="theme-color" content="#000000" />
       </head>
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <CompareProvider>
+            {children}
+          </CompareProvider>
+        </AuthProvider>
       </body>
     </html>
   );
