@@ -1,7 +1,6 @@
 export const color = {
   bg: 'var(--color-bg)',
   bgInverse: 'var(--color-bg-inverse)',
-  bg2: 'var(--color-bg-2)',
   text: 'var(--color-text)',
   textMuted: 'var(--color-text-muted)',
   textLight: 'var(--color-text-light)',
