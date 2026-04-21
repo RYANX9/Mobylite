@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, X, Search, GitCompare, Share2, Check, RefreshCw, Smartphone } from 'lucide-react'
+import { ArrowLeft, Plus, X, Search, GitCompare, Share2, Check, RefreshCw, Smartphone, Trophy } from 'lucide-react'
 import { Phone } from '@/lib/types'
 import { CleanSpec, extractCleanSpecs } from '@/lib/cleanSpecExtractor'
 import { API_BASE_URL, APP_ROUTES } from '@/lib/config'
@@ -17,7 +17,6 @@ import { createPhoneSlug } from '@/lib/config'
 interface DesktopCompareProps {
   phones: Phone[]
   onPhonesChange: (phones: Phone[]) => void
-  // Legacy SPA props — kept so app/page.tsx doesn't need changes, just ignored
   setComparePhones?: (phones: Phone[]) => void
   setView?: (view: string) => void
   setSelectedPhone?: (phone: Phone) => void
@@ -31,7 +30,6 @@ interface Row {
   parse: (value: string) => number | string | null
 }
 
-// Fixed: precise regex patterns — old string includes() matched unintended chips
 const FLAGSHIP_CHIP_PATTERNS = [
   /snapdragon 8 gen \d/i,
   /snapdragon 8s gen \d/i,
@@ -43,8 +41,7 @@ const FLAGSHIP_CHIP_PATTERNS = [
   /tensor g[3-9]/i,
 ]
 
-const isFlagshipChip = (chipset: string): boolean =>
-  FLAGSHIP_CHIP_PATTERNS.some((p) => p.test(chipset))
+const isFlagshipChip = (chipset: string) => FLAGSHIP_CHIP_PATTERNS.some((p) => p.test(chipset))
 
 export default function DesktopCompare({ phones, onPhonesChange }: DesktopCompareProps) {
   const router = useRouter()
@@ -52,236 +49,67 @@ export default function DesktopCompare({ phones, onPhonesChange }: DesktopCompar
   const [searchQuery, setSearchQuery] = useState('')
   const [linkCopied, setLinkCopied] = useState(false)
 
-  const findSpec = (specs: CleanSpec[], icon: string, matcher?: (spec: CleanSpec) => boolean): string => {
+  const findSpec = (specs: CleanSpec[], icon: string, matcher?: (s: CleanSpec) => boolean): string => {
     const spec = specs.find((s) => s.icon === icon && (matcher ? matcher(s) : true))
     return spec ? spec.value : '—'
   }
 
   const ALL_ROWS: Row[] = [
-    {
-      label: 'Price',
-      type: 'low_wins',
-      tooltip: { layman: 'Total cost to buy the phone', nerd: 'MSRP at launch in USD' },
-      fmt: (specs) => findSpec(specs, '💰'),
-      parse: (v) => (v === '—' ? null : Number(v.match(/(\d+)/)?.[1]) ?? null),
-    },
-    {
-      label: 'Chipset',
-      type: 'flagship',
-      tooltip: { layman: 'Brain of the phone', nerd: 'System on Chip processor' },
-      fmt: (specs) => findSpec(specs, '🔧'),
-      parse: (v) => (v === '—' ? null : v),
-    },
-    {
-      label: 'Display',
-      type: 'none',
-      tooltip: { layman: 'Screen type and refresh rate', nerd: 'Display technology and specs' },
-      fmt: (specs) => findSpec(specs, '📱'),
-      parse: () => null,
-    },
-    {
-      label: 'Screen Size',
-      type: 'high_wins',
-      tooltip: { layman: 'Display diagonal size', nerd: 'Screen diagonal in inches' },
-      fmt: (specs) => {
-        const v = findSpec(specs, '📱')
-        const match = v.match(/([\d.]+)"/)
-        return match ? `${match[1]}"` : '—'
-      },
-      parse: (v) => (v === '—' ? null : parseFloat(v.replace('"', ''))),
-    },
-    {
-      label: 'Refresh Rate',
-      type: 'high_wins',
-      tooltip: { layman: 'How smooth the screen feels', nerd: 'Display refresh rate in Hz' },
-      fmt: (specs) => {
-        const v = findSpec(specs, '📱')
-        const match = v.match(/(\d+)Hz/)
-        return match ? `${match[1]} Hz` : '—'
-      },
-      parse: (v) => (v === '—' ? null : Number(v.replace(' Hz', ''))),
-    },
-    {
-      label: 'Brightness',
-      type: 'high_wins',
-      tooltip: { layman: 'How bright the screen gets', nerd: 'Maximum brightness in nits' },
-      fmt: (specs) => findSpec(specs, '☀️'),
-      parse: (v) => (v === '—' ? null : Number(v.match(/(\d+)/)?.[1]) ?? null),
-    },
-    {
-      label: 'Main Camera',
-      type: 'high_wins',
-      tooltip: { layman: 'Photo quality', nerd: 'Main sensor resolution' },
-      fmt: (specs) => findSpec(specs, '📷', (s) => s.label.includes('Wide')),
-      parse: (v) => (v === '—' ? null : Number(v.match(/(\d+)MP/)?.[1]) ?? null),
-    },
-    {
-      label: 'Ultrawide',
-      type: 'high_wins',
-      tooltip: { layman: 'Wide-angle lens', nerd: 'Ultrawide sensor resolution' },
-      fmt: (specs) => findSpec(specs, '📸', (s) => s.label.includes('Ultrawide')),
-      parse: (v) => (v === '—' ? null : Number(v.match(/(\d+)MP/)?.[1]) ?? null),
-    },
-    {
-      label: 'Telephoto',
-      type: 'high_wins',
-      tooltip: { layman: 'Zoom lens', nerd: 'Telephoto sensor resolution' },
-      fmt: (specs) =>
-        findSpec(specs, '🔭', (s) => s.label.includes('Telephoto') || s.label.includes('Periscope')),
-      parse: (v) => (v === '—' ? null : Number(v.match(/(\d+)MP/)?.[1]) ?? null),
-    },
-    {
-      label: 'Optical Zoom',
-      type: 'high_wins',
-      tooltip: { layman: 'How much zoom', nerd: 'Optical zoom factor' },
-      fmt: (specs) => findSpec(specs, '🔍'),
-      parse: (v) => (v === '—' ? null : Number(v.match(/(\d+)x/)?.[1]) ?? null),
-    },
-    {
-      label: 'Front Camera',
-      type: 'high_wins',
-      tooltip: { layman: 'Selfie camera', nerd: 'Front sensor resolution' },
-      fmt: (specs) => findSpec(specs, '🤳'),
-      parse: (v) => (v === '—' ? null : Number(v.match(/(\d+)MP/)?.[1]) ?? null),
-    },
-    {
-      label: 'Battery',
-      type: 'high_wins',
-      tooltip: { layman: 'Battery life', nerd: 'Battery capacity in mAh' },
-      fmt: (specs) => findSpec(specs, '🔋'),
-      parse: (v) => (v === '—' ? null : Number(v.match(/(\d+)/)?.[1]) ?? null),
-    },
-    {
-      label: 'Fast Charging',
-      type: 'high_wins',
-      tooltip: { layman: 'Charging speed', nerd: 'Max charging power in watts' },
-      fmt: (specs) => findSpec(specs, '⚡'),
-      parse: (v) => (v === '—' ? null : Number(v.match(/(\d+)W/)?.[1]) ?? null),
-    },
-    {
-      label: 'RAM',
-      type: 'high_wins',
-      tooltip: { layman: 'Memory for apps', nerd: 'Maximum RAM capacity' },
-      fmt: (specs) => findSpec(specs, '💾'),
-      parse: (v) => (v === '—' ? null : Number(v.match(/(\d+)GB/)?.[1]) ?? null),
-    },
-    {
-      label: 'Storage',
-      type: 'high_wins',
-      tooltip: { layman: 'Space for files', nerd: 'Maximum storage capacity' },
-      fmt: (specs) => findSpec(specs, '📂'),
-      parse: (v) => (v === '—' ? null : Math.max(...(v.match(/\d+/g) || []).map(Number))),
-    },
-    {
-      label: 'Frame',
-      type: 'high_wins',
-      tooltip: { layman: 'Frame material', nerd: 'Frame build material' },
-      fmt: (specs) => findSpec(specs, '🏗️'),
-      parse: (v) => {
-        if (v === '—') return null
-        if (v.includes('Titanium')) return 4
-        if (v.includes('Aluminum')) return 3
-        if (v.includes('Steel')) return 2
-        if (v.includes('Plastic')) return 1
-        return 0
-      },
-    },
-    {
-      label: 'Wi-Fi',
-      type: 'high_wins',
-      tooltip: { layman: 'Wi-Fi version', nerd: 'Wi-Fi protocol support' },
-      fmt: (specs) => findSpec(specs, '📡'),
-      parse: (v) => {
-        const map: Record<string, number> = {
-          'Wi-Fi 7': 7,
-          'Wi-Fi 6E': 6.5,
-          'Wi-Fi 6': 6,
-          'Wi-Fi 5': 5,
-          'Wi-Fi': 4,
-        }
-        return map[v] || 0
-      },
-    },
-    {
-      label: 'Weight',
-      type: 'low_wins',
-      tooltip: { layman: 'How heavy', nerd: 'Device weight in grams' },
-      fmt: (specs, phone) => {
-        const v = findSpec(specs, '📏')
-        if (v.includes('g')) return v
-        return phone.weight_g ? `${phone.weight_g}g` : '—'
-      },
-      parse: (v) => (v === '—' ? null : Number(v.match(/(\d+)/)?.[1]) ?? null),
-    },
-    {
-      label: 'Thickness',
-      type: 'low_wins',
-      tooltip: { layman: 'How thin', nerd: 'Device thickness in mm' },
-      fmt: (specs, phone) => {
-        const v = findSpec(specs, '📏')
-        if (v.includes('mm')) {
-          const match = v.match(/([\d.]+)\s*mm/)
-          return match ? `${match[1]}mm` : phone.thickness_mm ? `${phone.thickness_mm}mm` : '—'
-        }
-        return phone.thickness_mm ? `${phone.thickness_mm}mm` : '—'
-      },
-      parse: (v) => (v === '—' ? null : parseFloat(v.replace('mm', ''))),
-    },
-    {
-      label: 'Release Year',
-      type: 'high_wins',
-      tooltip: { layman: 'When released', nerd: 'Year of market release' },
-      fmt: (_, phone) => phone.release_year?.toString() || '—',
-      parse: (v) => (v === '—' ? null : Number(v)),
-    },
-    {
-      label: 'AnTuTu Score',
-      type: 'high_wins',
-      tooltip: { layman: 'Performance', nerd: 'AnTuTu benchmark score' },
-      fmt: (_, phone) => (phone.antutu_score ? phone.antutu_score.toLocaleString() : '—'),
-      parse: (v) => (v === '—' ? null : Number(v.replace(/,/g, ''))),
-    },
+    { label: 'Price', type: 'low_wins', tooltip: { layman: 'Total cost', nerd: 'MSRP USD' }, fmt: (s) => findSpec(s, '💰'), parse: (v) => v === '—' ? null : Number(v.match(/(\d+)/)?.[1]) ?? null },
+    { label: 'Chipset', type: 'flagship', tooltip: { layman: 'Brain of the phone', nerd: 'System on Chip' }, fmt: (s) => findSpec(s, '🔧'), parse: (v) => v === '—' ? null : v },
+    { label: 'Display', type: 'none', tooltip: { layman: 'Screen type', nerd: 'Display tech and specs' }, fmt: (s) => findSpec(s, '📱'), parse: () => null },
+    { label: 'Screen Size', type: 'high_wins', tooltip: { layman: 'Display size', nerd: 'Screen diagonal inches' }, fmt: (s) => { const v = findSpec(s, '📱'); const m = v.match(/([\d.]+)"/); return m ? `${m[1]}"` : '—' }, parse: (v) => v === '—' ? null : parseFloat(v.replace('"', '')) },
+    { label: 'Refresh Rate', type: 'high_wins', tooltip: { layman: 'Screen smoothness', nerd: 'Display Hz' }, fmt: (s) => { const v = findSpec(s, '📱'); const m = v.match(/(\d+)Hz/); return m ? `${m[1]} Hz` : '—' }, parse: (v) => v === '—' ? null : Number(v.replace(' Hz', '')) },
+    { label: 'Brightness', type: 'high_wins', tooltip: { layman: 'Max brightness', nerd: 'Peak nits' }, fmt: (s) => findSpec(s, '☀️'), parse: (v) => v === '—' ? null : Number(v.match(/(\d+)/)?.[1]) ?? null },
+    { label: 'Main Camera', type: 'high_wins', tooltip: { layman: 'Photo quality', nerd: 'Main sensor MP' }, fmt: (s) => findSpec(s, '📷', (x) => x.label.includes('Wide')), parse: (v) => v === '—' ? null : Number(v.match(/(\d+)MP/)?.[1]) ?? null },
+    { label: 'Ultrawide', type: 'high_wins', tooltip: { layman: 'Wide-angle', nerd: 'Ultrawide sensor MP' }, fmt: (s) => findSpec(s, '📸', (x) => x.label.includes('Ultrawide')), parse: (v) => v === '—' ? null : Number(v.match(/(\d+)MP/)?.[1]) ?? null },
+    { label: 'Telephoto', type: 'high_wins', tooltip: { layman: 'Zoom lens', nerd: 'Telephoto sensor MP' }, fmt: (s) => findSpec(s, '🔭', (x) => x.label.includes('Telephoto') || x.label.includes('Periscope')), parse: (v) => v === '—' ? null : Number(v.match(/(\d+)MP/)?.[1]) ?? null },
+    { label: 'Optical Zoom', type: 'high_wins', tooltip: { layman: 'Zoom factor', nerd: 'Optical zoom multiplier' }, fmt: (s) => findSpec(s, '🔍'), parse: (v) => v === '—' ? null : Number(v.match(/(\d+)x/)?.[1]) ?? null },
+    { label: 'Front Camera', type: 'high_wins', tooltip: { layman: 'Selfie camera', nerd: 'Front sensor MP' }, fmt: (s) => findSpec(s, '🤳'), parse: (v) => v === '—' ? null : Number(v.match(/(\d+)MP/)?.[1]) ?? null },
+    { label: 'Battery', type: 'high_wins', tooltip: { layman: 'Battery life', nerd: 'Capacity mAh' }, fmt: (s) => findSpec(s, '🔋'), parse: (v) => v === '—' ? null : Number(v.match(/(\d+)/)?.[1]) ?? null },
+    { label: 'Fast Charging', type: 'high_wins', tooltip: { layman: 'Charging speed', nerd: 'Max watts' }, fmt: (s) => findSpec(s, '⚡'), parse: (v) => v === '—' ? null : Number(v.match(/(\d+)W/)?.[1]) ?? null },
+    { label: 'RAM', type: 'high_wins', tooltip: { layman: 'App memory', nerd: 'Max RAM GB' }, fmt: (s) => findSpec(s, '💾'), parse: (v) => v === '—' ? null : Number(v.match(/(\d+)GB/)?.[1]) ?? null },
+    { label: 'Storage', type: 'high_wins', tooltip: { layman: 'File space', nerd: 'Max storage GB' }, fmt: (s) => findSpec(s, '📂'), parse: (v) => v === '—' ? null : Math.max(...(v.match(/\d+/g) || []).map(Number)) },
+    { label: 'Frame', type: 'high_wins', tooltip: { layman: 'Build material', nerd: 'Frame material' }, fmt: (s) => findSpec(s, '🏗️'), parse: (v) => { if (v === '—') return null; if (v.includes('Titanium')) return 4; if (v.includes('Aluminum')) return 3; if (v.includes('Steel')) return 2; if (v.includes('Plastic')) return 1; return 0 } },
+    { label: 'Wi-Fi', type: 'high_wins', tooltip: { layman: 'Wi-Fi version', nerd: 'Wi-Fi protocol' }, fmt: (s) => findSpec(s, '📡'), parse: (v) => ({'Wi-Fi 7':7,'Wi-Fi 6E':6.5,'Wi-Fi 6':6,'Wi-Fi 5':5,'Wi-Fi':4} as Record<string,number>)[v] || 0 },
+    { label: 'Weight', type: 'low_wins', tooltip: { layman: 'How heavy', nerd: 'Weight grams' }, fmt: (s, p) => { const v = findSpec(s, '📏'); if (v.includes('g')) return v; return p.weight_g ? `${p.weight_g}g` : '—' }, parse: (v) => v === '—' ? null : Number(v.match(/(\d+)/)?.[1]) ?? null },
+    { label: 'Thickness', type: 'low_wins', tooltip: { layman: 'How thin', nerd: 'Thickness mm' }, fmt: (s, p) => { const v = findSpec(s, '📏'); if (v.includes('mm')) { const m = v.match(/([\d.]+)\s*mm/); return m ? `${m[1]}mm` : p.thickness_mm ? `${p.thickness_mm}mm` : '—' } return p.thickness_mm ? `${p.thickness_mm}mm` : '—' }, parse: (v) => v === '—' ? null : parseFloat(v.replace('mm', '')) },
+    { label: 'Release Year', type: 'high_wins', tooltip: { layman: 'When released', nerd: 'Year of launch' }, fmt: (_, p) => p.release_year?.toString() || '—', parse: (v) => v === '—' ? null : Number(v) },
+    { label: 'AnTuTu Score', type: 'high_wins', tooltip: { layman: 'Performance score', nerd: 'AnTuTu benchmark' }, fmt: (_, p) => p.antutu_score ? p.antutu_score.toLocaleString() : '—', parse: (v) => v === '—' ? null : Number(v.replace(/,/g, '')) },
   ]
 
-  const phoneSpecs = phones.map((phone) => extractCleanSpecs(phone))
+  const phoneSpecs = phones.map(extractCleanSpecs)
 
   const getWinnerIdx = (row: Row): number => {
     if (row.type === 'none') return -1
-
-    const parsed = phones.map((phone, i) => row.parse(row.fmt(phoneSpecs[i], phone)))
+    const parsed = phones.map((p, i) => row.parse(row.fmt(phoneSpecs[i], p)))
 
     if (row.type === 'flagship') {
-      const scores = parsed.map((p) => (isFlagshipChip((p as string) || '') ? 1 : 0))
-      const maxScore = Math.max(...scores)
-      if (maxScore === 0) return -1
-      const winners = scores.map((s, i) => (s === maxScore ? i : -1)).filter((i) => i !== -1)
+      const scores = parsed.map((p) => isFlagshipChip((p as string) || '') ? 1 : 0)
+      const max = Math.max(...scores)
+      if (max === 0) return -1
+      const winners = scores.map((s, i) => s === max ? i : -1).filter((i) => i !== -1)
       return winners.length === phones.length ? -1 : winners[0]
     }
 
     const vals = parsed as (number | null)[]
     const valid = vals.filter((v): v is number => v != null)
-    if (valid.length < 2) return -1
-    if (new Set(valid).size === 1) return -1
+    if (valid.length < 2 || new Set(valid).size === 1) return -1
 
-    const bestVal = row.type === 'low_wins' ? Math.min(...valid) : Math.max(...valid)
-    const winners = vals.map((v, i) => (v === bestVal ? i : -1)).filter((i) => i !== -1)
+    const best = row.type === 'low_wins' ? Math.min(...valid) : Math.max(...valid)
+    const winners = vals.map((v, i) => v === best ? i : -1).filter((i) => i !== -1)
     return winners.length === phones.length ? -1 : winners[0]
   }
 
   const addPhone = async (phone: Phone) => {
     if (phones.length >= 4) return
-
     if (isAuthenticated()) {
       fetch(`${API_BASE_URL}/comparisons`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAuthToken()}` },
         body: JSON.stringify({ phoneIds: [...phones.map((p) => p.id), phone.id] }),
-      }).catch(console.error)
+      }).catch(() => {})
     }
-
     onPhonesChange([...phones, phone])
     setShowAddModal(false)
   }
@@ -296,23 +124,55 @@ export default function DesktopCompare({ phones, onPhonesChange }: DesktopCompar
   }
 
   const handlePhoneClick = (phone: Phone) => {
-    const brandSlug = phone.brand.toLowerCase().replace(/\s+/g, '-')
-    const modelSlug = createPhoneSlug(phone)
-    router.push(APP_ROUTES.phoneDetail(brandSlug, modelSlug))
+    router.push(APP_ROUTES.phoneDetail(phone.brand.toLowerCase().replace(/\s+/g, '-'), createPhoneSlug(phone)))
   }
 
   const COLUMN_WIDTH = 240
 
+  // Empty state
+  if (phones.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: color.bg }}>
+        <div className="sticky top-0 z-30 border-b" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
+          <div className="max-w-7xl mx-auto px-8 py-4 flex items-center gap-6">
+            <ButtonPressFeedback onClick={() => router.push(APP_ROUTES.home)} className="flex items-center gap-3 hover:opacity-70">
+              <ArrowLeft size={20} style={{ color: color.text }} />
+              <img src="/logo.svg" alt="Mobylite" className="w-8 h-8" />
+              <h2 className="text-xl font-bold" style={{ color: color.text }}>Mobylite</h2>
+            </ButtonPressFeedback>
+            <UserMenu variant="desktop" />
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
+          <GitCompare size={64} style={{ color: color.borderLight }} className="mb-6" />
+          <h2 className="text-2xl font-bold mb-3" style={{ fontFamily: font.primary, color: color.text }}>
+            No phones to compare
+          </h2>
+          <p className="text-base mb-8" style={{ color: color.textMuted }}>
+            Add up to 4 phones to compare their specifications side-by-side
+          </p>
+          <ButtonPressFeedback
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-8 py-4 rounded-xl font-bold"
+            style={{ backgroundColor: color.text, color: color.bg }}
+          >
+            <Plus size={20} />
+            Add Phone
+          </ButtonPressFeedback>
+        </div>
+        {showAddModal && (
+          <AddPhoneModal onSelect={addPhone} onClose={() => setShowAddModal(false)} existingIds={[]} variant="desktop" />
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: color.bg }}>
-      {/* Navbar */}
       <div className="sticky top-0 z-30 border-b" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
         <div className="max-w-7xl mx-auto px-8 py-4">
           <div className="flex items-center gap-6">
-            <ButtonPressFeedback
-              onClick={() => router.push(APP_ROUTES.home)}
-              className="flex items-center gap-3 hover:opacity-70 transition-opacity"
-            >
+            <ButtonPressFeedback onClick={() => router.push(APP_ROUTES.home)} className="flex items-center gap-3 hover:opacity-70 transition-opacity">
               <ArrowLeft size={20} style={{ color: color.text }} />
               <img src="/logo.svg" alt="Mobylite" className="w-8 h-8" />
               <h2 className="text-xl font-bold" style={{ color: color.text }}>Mobylite</h2>
@@ -326,11 +186,7 @@ export default function DesktopCompare({ phones, onPhonesChange }: DesktopCompar
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && searchQuery.trim()) {
-                    router.push(`/?q=${encodeURIComponent(searchQuery.trim())}`)
-                  }
-                }}
+                onKeyPress={(e) => { if (e.key === 'Enter' && searchQuery.trim()) router.push(`/?q=${encodeURIComponent(searchQuery.trim())}`) }}
                 className="block w-full pl-12 pr-4 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all"
                 style={{ backgroundColor: color.borderLight, border: `1px solid ${color.border}`, color: color.text }}
                 onFocus={(e) => (e.currentTarget.style.borderColor = color.primary)}
@@ -345,27 +201,21 @@ export default function DesktopCompare({ phones, onPhonesChange }: DesktopCompar
               <ButtonPressFeedback
                 onClick={shareComparison}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
-                style={
-                  linkCopied
-                    ? { backgroundColor: color.success, color: color.bg }
-                    : { backgroundColor: color.borderLight, color: color.text }
-                }
+                style={linkCopied ? { backgroundColor: color.success, color: color.bg } : { backgroundColor: color.borderLight, color: color.text }}
               >
                 {linkCopied ? <Check size={16} /> : <Share2 size={16} />}
                 <span className="text-xs font-bold">{linkCopied ? 'Copied!' : 'Share'}</span>
               </ButtonPressFeedback>
 
-              {phones.length > 0 && (
-                <ButtonPressFeedback
-                  onClick={clearAll}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
-                  style={{ backgroundColor: color.borderLight, color: color.text }}
-                  hoverStyle={{ backgroundColor: color.border }}
-                >
-                  <RefreshCw size={16} />
-                  <span className="text-xs font-bold">Clear All</span>
-                </ButtonPressFeedback>
-              )}
+              <ButtonPressFeedback
+                onClick={clearAll}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
+                style={{ backgroundColor: color.borderLight, color: color.text }}
+                hoverStyle={{ backgroundColor: color.border }}
+              >
+                <RefreshCw size={16} />
+                <span className="text-xs font-bold">Clear All</span>
+              </ButtonPressFeedback>
 
               {phones.length < 4 && (
                 <ButtonPressFeedback
@@ -382,50 +232,32 @@ export default function DesktopCompare({ phones, onPhonesChange }: DesktopCompar
         </div>
       </div>
 
-      {/* Hero */}
-      <div className="border-b" style={{ backgroundColor: color.bgInverse }}>
-        <div className="max-w-7xl mx-auto px-8 py-12">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: color.bg }}>
-                  <GitCompare size={24} style={{ color: color.bgInverse }} />
-                </div>
-                <h1
-                  className="text-4xl font-bold tracking-tight"
-                  style={{ fontFamily: font.primary, color: color.textInverse }}
-                >
-                  Phone Comparison
-                </h1>
-              </div>
-              <p className="text-xl font-medium" style={{ color: color.textLight }}>
-                Compare specifications side-by-side — Black highlights the winner
-              </p>
-            </div>
-            <div
-              className="text-center rounded-2xl px-10 py-6 border"
-              style={{ backgroundColor: color.bg, borderColor: color.borderLight }}
-            >
-              <div className="text-5xl font-bold mb-2" style={{ fontFamily: font.numeric, color: color.text }}>
-                {phones.length}/4
-              </div>
-              <div className="text-sm font-medium" style={{ color: color.textMuted }}>Phones</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
       <div className="max-w-7xl mx-auto px-8 py-12">
+        {/* Prompt shown only when < 2 phones — above the table, not mixed into columns */}
+        {phones.length < 2 && (
+          <div
+            className="mb-6 p-5 rounded-2xl border-2 border-dashed flex items-center gap-4"
+            style={{ borderColor: color.border }}
+          >
+            <Plus size={24} style={{ color: color.textMuted }} />
+            <div className="flex-1">
+              <p className="font-bold text-sm" style={{ color: color.text }}>Add another phone to compare</p>
+              <p className="text-xs mt-0.5" style={{ color: color.textMuted }}>You need at least 2 phones to see a comparison</p>
+            </div>
+            <ButtonPressFeedback
+              onClick={() => setShowAddModal(true)}
+              className="px-5 py-2.5 rounded-xl font-bold text-sm"
+              style={{ backgroundColor: color.text, color: color.bg }}
+            >
+              Add Phone
+            </ButtonPressFeedback>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table
             className="w-full border-2 rounded-2xl"
-            style={{
-              borderColor: color.border,
-              backgroundColor: color.bg,
-              borderCollapse: 'separate',
-              borderSpacing: 0,
-            }}
+            style={{ borderColor: color.border, backgroundColor: color.bg, borderCollapse: 'separate', borderSpacing: 0 }}
           >
             <thead>
               <tr style={{ backgroundColor: color.bg }}>
@@ -433,88 +265,64 @@ export default function DesktopCompare({ phones, onPhonesChange }: DesktopCompar
                   className="border-r-2 p-6 text-left sticky left-0 z-20"
                   style={{ borderColor: color.border, backgroundColor: color.bg, width: '200px', minWidth: '200px' }}
                 >
-                  <span className="text-sm font-bold uppercase tracking-wide" style={{ color: color.textMuted }}>
-                    Specification
-                  </span>
+                  <span className="text-sm font-bold uppercase tracking-wide" style={{ color: color.textMuted }}>Specification</span>
                 </th>
 
-                {[0, 1, 2, 3].map((idx) => {
-                  const phone = phones[idx]
-                  return (
-                    <th
-                      key={idx}
-                      className="border-r-2 p-6 relative"
-                      style={{
-                        borderColor: color.border,
-                        backgroundColor: color.bg,
-                        width: `${COLUMN_WIDTH}px`,
-                        minWidth: `${COLUMN_WIDTH}px`,
-                        maxWidth: `${COLUMN_WIDTH}px`,
-                      }}
+                {phones.map((phone) => (
+                  <th
+                    key={phone.id}
+                    className="border-r-2 p-6 relative"
+                    style={{ borderColor: color.border, backgroundColor: color.bg, width: `${COLUMN_WIDTH}px`, minWidth: `${COLUMN_WIDTH}px` }}
+                  >
+                    <ButtonPressFeedback
+                      onClick={() => removePhone(phone.id)}
+                      className="absolute top-4 right-4 p-2 rounded-full transition-all shadow-sm border z-10"
+                      style={{ backgroundColor: color.bg, borderColor: color.border }}
+                      hoverStyle={{ backgroundColor: color.borderLight }}
                     >
-                      {phone ? (
-                        <>
-                          <ButtonPressFeedback
-                            onClick={() => removePhone(phone.id)}
-                            className="absolute top-4 right-4 p-2 rounded-full transition-all shadow-sm border z-10"
-                            style={{ backgroundColor: color.bg, borderColor: color.border }}
-                            hoverStyle={{ backgroundColor: color.borderLight }}
-                          >
-                            <X size={16} style={{ color: color.textMuted }} />
-                          </ButtonPressFeedback>
+                      <X size={16} style={{ color: color.textMuted }} />
+                    </ButtonPressFeedback>
 
-                          <ButtonPressFeedback onClick={() => handlePhoneClick(phone)} className="w-full">
-                            <div
-                              className="w-40 h-40 rounded-2xl mx-auto mb-5 flex items-center justify-center overflow-hidden border-2 shadow-sm transition-all cursor-pointer"
-                              style={{ backgroundColor: color.bg, borderColor: color.border }}
-                              onMouseEnter={(e) => (e.currentTarget.style.borderColor = color.text)}
-                              onMouseLeave={(e) => (e.currentTarget.style.borderColor = color.border)}
-                            >
-                              {phone.main_image_url ? (
-                                <img
-                                  src={phone.main_image_url}
-                                  alt={phone.model_name}
-                                  className="w-full h-full object-contain p-6"
-                                />
-                              ) : (
-                                <Smartphone size={48} style={{ color: color.textLight }} />
-                              )}
-                            </div>
-
-                            <div className="text-center">
-                              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: color.textMuted }}>
-                                {phone.brand}
-                              </p>
-                              <p className="text-base font-bold leading-tight mb-3 px-2 line-clamp-2" style={{ color: color.text }}>
-                                {phone.model_name}
-                              </p>
-                              {phone.price_usd && (
-                                <div
-                                  className="inline-block px-4 py-2 rounded-lg"
-                                  style={{ backgroundColor: color.text, color: color.bg }}
-                                >
-                                  <p className="text-xl font-bold">${phone.price_usd}</p>
-                                </div>
-                              )}
-                            </div>
-                          </ButtonPressFeedback>
-                        </>
-                      ) : (
-                        <ButtonPressFeedback
-                          onClick={() => setShowAddModal(true)}
-                          className="w-full h-full flex flex-col items-center justify-center gap-4 rounded-2xl transition-all py-8 border-2 border-dashed"
-                          style={{ borderColor: color.border, backgroundColor: color.bg }}
-                          hoverStyle={{ borderColor: color.text }}
-                        >
-                          <div className="w-40 h-40 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: color.bg }}>
-                            <Plus size={48} style={{ color: color.textMuted }} />
+                    <ButtonPressFeedback onClick={() => handlePhoneClick(phone)} className="w-full">
+                      <div
+                        className="w-36 h-36 rounded-2xl mx-auto mb-5 flex items-center justify-center overflow-hidden border-2"
+                        style={{ backgroundColor: color.borderLight, borderColor: color.border }}
+                      >
+                        {phone.main_image_url ? (
+                          <img src={phone.main_image_url} alt={phone.model_name} className="w-full h-full object-contain p-5" />
+                        ) : (
+                          <Smartphone size={48} style={{ color: color.textLight }} />
+                        )}
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: color.textMuted }}>{phone.brand}</p>
+                        <p className="text-base font-bold leading-tight mb-3 px-2 line-clamp-2" style={{ color: color.text }}>{phone.model_name}</p>
+                        {phone.price_usd && (
+                          <div className="inline-block px-4 py-2 rounded-lg" style={{ backgroundColor: color.text, color: color.bg }}>
+                            <p className="text-xl font-bold">${phone.price_usd}</p>
                           </div>
-                          <span className="text-base font-bold" style={{ color: color.textMuted }}>Add Phone</span>
-                        </ButtonPressFeedback>
-                      )}
-                    </th>
-                  )
-                })}
+                        )}
+                      </div>
+                    </ButtonPressFeedback>
+                  </th>
+                ))}
+
+                {phones.length < 4 && (
+                  <th
+                    className="border-r-2 p-6"
+                    style={{ borderColor: color.border, backgroundColor: color.bg, width: `${COLUMN_WIDTH}px`, minWidth: `${COLUMN_WIDTH}px` }}
+                  >
+                    <ButtonPressFeedback
+                      onClick={() => setShowAddModal(true)}
+                      className="w-full h-full flex flex-col items-center justify-center rounded-2xl border-2 border-dashed py-12 transition-all"
+                      style={{ borderColor: color.border }}
+                      hoverStyle={{ borderColor: color.text }}
+                    >
+                      <Plus size={32} style={{ color: color.textMuted }} />
+                      <span className="text-sm font-bold mt-3" style={{ color: color.textMuted }}>Add Phone</span>
+                    </ButtonPressFeedback>
+                  </th>
+                )}
               </tr>
             </thead>
 
@@ -529,36 +337,39 @@ export default function DesktopCompare({ phones, onPhonesChange }: DesktopCompar
                     >
                       <div className="flex items-center gap-1">
                         <span className="text-sm font-bold" style={{ color: color.text }}>{row.label}</span>
-                        {row.tooltip && (
-                          <Tooltip term={row.label} layman={row.tooltip.layman} nerd={row.tooltip.nerd} />
-                        )}
+                        {row.tooltip && <Tooltip term={row.label} layman={row.tooltip.layman} nerd={row.tooltip.nerd} />}
                       </div>
                     </td>
 
-                    {[0, 1, 2, 3].map((idx) => {
-                      const phone = phones[idx]
+                    {phones.map((phone, idx) => {
                       const isWinner = winner === idx
-                      const displayVal = phone ? row.fmt(phoneSpecs[idx], phone) : ''
-
+                      const displayVal = row.fmt(phoneSpecs[idx], phone)
                       return (
                         <td
-                          key={idx}
-                          className="border-r-2 p-5 transition-all"
+                          key={phone.id}
+                          className="border-r-2 p-5"
                           style={{
                             borderColor: color.border,
-                            backgroundColor: isWinner ? color.bgInverse : color.bg,
-                            color: isWinner ? color.textInverse : color.text,
-                            width: `${COLUMN_WIDTH}px`,
-                            minWidth: `${COLUMN_WIDTH}px`,
-                            maxWidth: `${COLUMN_WIDTH}px`,
+                            backgroundColor: color.bg,
+                            borderLeft: isWinner ? `3px solid ${color.success}` : undefined,
                           }}
                         >
-                          <span className={`block text-center text-sm ${isWinner ? 'font-bold' : 'font-semibold'}`}>
-                            {displayVal}
-                          </span>
+                          <div className="flex items-center justify-center gap-1.5">
+                            {isWinner && <Trophy size={12} style={{ color: color.success, flexShrink: 0 }} />}
+                            <span
+                              className={`text-sm text-center ${isWinner ? 'font-bold' : 'font-semibold'}`}
+                              style={{ color: isWinner ? color.success : color.text }}
+                            >
+                              {displayVal}
+                            </span>
+                          </div>
                         </td>
                       )
                     })}
+
+                    {phones.length < 4 && (
+                      <td className="border-r-2 p-5" style={{ borderColor: color.border, backgroundColor: color.bg }} />
+                    )}
                   </tr>
                 )
               })}
