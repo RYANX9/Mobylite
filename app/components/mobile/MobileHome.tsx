@@ -1,39 +1,51 @@
 'use client'
 import React, { useState, useEffect, useRef } from 'react'
-import { Search, Loader2, Smartphone, SlidersHorizontal, X, Sparkles } from 'lucide-react'
-import { Phone, Filters } from '@/lib/types'
-import { APP_ROUTES, RECOMMENDATION_CATEGORIES, createPhoneSlug } from '@/lib/config'
+import { Search, Loader2, Smartphone, SlidersHorizontal, X, Star, Sparkles } from 'lucide-react'
+import { Phone, Filters, User } from '@/lib/types'
+import { API_BASE_URL, APP_ROUTES, RECOMMENDATION_CATEGORIES } from '@/lib/config'
 import { isAuthenticated, getAuthToken } from '@/lib/auth'
+import { navigateToLogin, navigateToPhone, navigateToCompare } from '@/lib/navigation'
 import { ButtonPressFeedback } from '@/app/components/shared/ButtonPressFeedback'
 import { PhoneCard } from '@/app/components/shared/PhoneCard'
 import { RecommendationButtons } from '@/app/components/shared/RecommendationButtons'
 import { CompareFloatingPanel } from '@/app/components/shared/CompareFloatingPanel'
+import { ActiveFilterChips } from '@/app/components/shared/ActiveFilterChips'
 import QuizModal from '@/app/components/shared/QuizModal'
 import { PriceAlertModal } from '@/app/components/shared/PriceAlertModal'
 import { UserMenu } from '@/app/components/shared/UserMenu'
 import { FilterPanel } from '@/app/components/shared/FilterPanel'
-import { PhoneGridSkeletonMobile } from '@/app/components/shared/Skeleton'
-import { useCompare } from '@/lib/compare-context'
 import { useRouter } from 'next/navigation'
 import { color, font } from '@/lib/tokens'
 import { api } from '@/lib/api'
 
 interface ExtendedFilters extends Filters {
   brands?: string[]
-  has_5g?: boolean
 }
 
-const INITIAL_FILTERS: ExtendedFilters = { brands: [], has_5g: undefined }
+const INITIAL_FILTERS: ExtendedFilters = { brands: [] }
 
-export default function MobileHome() {
+interface MobileHomeProps {
+  setSelectedPhone: (phone: Phone) => void
+  setView: (view: string) => void
+  setComparePhones: (phones: Phone[]) => void
+  onNavigateToCompare?: (phones: Phone[]) => void
+  onNavigateToPhone?: (phone: Phone) => void
+}
+
+export default function MobileHome({
+  setSelectedPhone,
+  setView,
+  setComparePhones,
+}: MobileHomeProps) {
   const router = useRouter()
-  const compare = useCompare()
-
   const [phonesList, setPhonesList] = useState<Phone[]>([])
+  const [topRatedPhones, setTopRatedPhones] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [warmingUp, setWarmingUp] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [totalResults, setTotalResults] = useState(0)
   const [activeRecommendation, setActiveRecommendation] = useState<string | null>(null)
+  const [compareList, setCompareList] = useState<Phone[]>([])
   const [showQuiz, setShowQuiz] = useState(false)
   const [showPriceAlert, setShowPriceAlert] = useState(false)
   const [selectedPhoneForAlert, setSelectedPhoneForAlert] = useState<Phone | null>(null)
@@ -44,6 +56,10 @@ export default function MobileHome() {
   const [filters, setFilters] = useState<ExtendedFilters>(INITIAL_FILTERS)
   const [favoritePhoneIds, setFavoritePhoneIds] = useState<Set<number>>(new Set())
   const [searchFocused, setSearchFocused] = useState(false)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const warmupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (showFilters) {
@@ -55,50 +71,92 @@ export default function MobileHome() {
   }, [showFilters])
 
   useEffect(() => {
-    const debounceTimer = setTimeout(() => {
+    const loadUser = async () => {
+      if (!isAuthenticated()) return
+      try {
+        const res = await api.auth.getMe()
+        if (res.success || res.id) setCurrentUser(res.user || res)
+      } catch {}
+    }
+    loadUser()
+  }, [])
+
+  useEffect(() => { fetchTopRated() }, [])
+
+  useEffect(() => {
+    const t = setTimeout(() => {
       setActiveRecommendation(null)
       fetchPhones()
     }, 300)
-    return () => clearTimeout(debounceTimer)
+    return () => clearTimeout(t)
   }, [searchQuery])
 
   useEffect(() => {
     if (!activeRecommendation) fetchPhones()
   }, [filters, sortBy, sortOrder, currentPage])
 
-  useEffect(() => { setCurrentPage(1) }, [searchQuery, filters, sortBy, sortOrder])
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, filters])
+  // Sort changes do NOT reset page
 
   useEffect(() => {
     const loadFavorites = async () => {
       if (!isAuthenticated()) return
       try {
-        const response = await api.favorites.list()
-        if (response.success && response.favorites) {
-          setFavoritePhoneIds(new Set(response.favorites.map((fav: any) => fav.phone_id)))
+        const res = await api.favorites.list()
+        if (res.success && res.favorites) {
+          setFavoritePhoneIds(new Set(res.favorites.map((f: any) => f.phone_id)))
         }
       } catch {}
     }
     loadFavorites()
-  }, [])
+  }, [currentUser])
+
+  const fetchTopRated = async () => {
+    try {
+      const data = await api.phones.search({ sort_by: 'antutu_score', page_size: 30 })
+      const withRatings = await Promise.all(
+        (data.results || []).slice(0, 15).map(async (phone: Phone) => {
+          try {
+            const s = await api.phones.getStats(phone.id)
+            if (s.success && s.stats) {
+              return { ...phone, rating: s.stats.average_rating, review_count: s.stats.total_reviews }
+            }
+          } catch {}
+          return { ...phone, rating: 0, review_count: 0 }
+        })
+      )
+      const rated = withRatings
+        .filter((p) => p.review_count > 0)
+        .sort((a, b) => b.rating !== a.rating ? b.rating - a.rating : b.review_count - a.review_count)
+        .slice(0, 6)
+      setTopRatedPhones(rated)
+    } catch {
+      setTopRatedPhones([])
+    }
+  }
 
   const fetchPhones = async () => {
     setLoading(true)
+    warmupTimerRef.current = setTimeout(() => setWarmingUp(true), 4000)
     try {
-      const params = {
+      const data = await api.phones.search({
         ...filters,
         q: searchQuery || undefined,
         sort_by: sortBy,
         sort_order: sortOrder,
         page: currentPage,
         page_size: 20,
-      }
-      const data = await api.phones.search(params)
+      })
       setPhonesList(data.results || [])
       setTotalResults(data.total || 0)
     } catch {
       setPhonesList([])
       setTotalResults(0)
     } finally {
+      if (warmupTimerRef.current) clearTimeout(warmupTimerRef.current)
+      setWarmingUp(false)
       setLoading(false)
     }
   }
@@ -121,7 +179,7 @@ export default function MobileHome() {
   const handleRecommendationClick = (id: string) => {
     if (activeRecommendation === id) {
       setActiveRecommendation(null)
-      setFilters(INITIAL_FILTERS)
+      fetchPhones()
     } else {
       fetchRecommendations(id)
     }
@@ -132,56 +190,78 @@ export default function MobileHome() {
     setFilters(newFilters)
   }
 
-  const handlePhoneClick = (phone: Phone) => {
-    const brandSlug = phone.brand.toLowerCase().replace(/\s+/g, '-')
-    const modelSlug = createPhoneSlug(phone)
-    router.push(`/${brandSlug}/${modelSlug}`)
+  const handleRemoveFilter = (key: keyof Filters) => {
+    const updated = { ...filters }
+    if (key === 'min_price') { delete updated.min_price; delete updated.max_price }
+    else delete (updated as any)[key]
+    handleFiltersChange(updated)
   }
 
-  const handleQuizComplete = (newFilters: Partial<Filters>) => {
-    setActiveRecommendation(null)
-    setFilters({ ...filters, ...newFilters })
-    setShowQuiz(false)
+  const handleRemoveBrand = (brand: string) => {
+    handleFiltersChange({ ...filters, brands: (filters.brands || []).filter((b) => b !== brand) })
   }
 
-  const handleFavoriteToggle = async (phone: Phone) => {
-    const newFavorites = new Set(favoritePhoneIds)
-    if (newFavorites.has(phone.id)) newFavorites.delete(phone.id)
-    else newFavorites.add(phone.id)
-    setFavoritePhoneIds(newFavorites)
+  const addToCompare = (phone: Phone) => {
+    if (compareList.length >= 4 || compareList.find((p) => p.id === phone.id)) return
+    if (isAuthenticated()) {
+      fetch(`${API_BASE_URL}/comparisons`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAuthToken()}` },
+        body: JSON.stringify({ phoneIds: [...compareList.map((p) => p.id), phone.id] }),
+      }).catch(() => {})
+    }
+    setCompareList([...compareList, phone])
   }
 
-  const activeFilterCount = Object.entries(filters).filter(([key, value]) => {
-    if (key === 'brands') return Array.isArray(value) && value.length > 0
-    return value !== undefined && value !== null && value !== ''
-  }).length
+  const removeFromCompare = (phoneId: number) =>
+    setCompareList(compareList.filter((p) => p.id !== phoneId))
+
+  const handleFavoriteToggle = (phone: Phone) => {
+    setFavoritePhoneIds((prev) => {
+      const next = new Set(prev)
+      next.has(phone.id) ? next.delete(phone.id) : next.add(phone.id)
+      return next
+    })
+  }
+
+  const handlePhoneClick = (phone: Phone) => navigateToPhone(router, phone)
+  const handleCompareNavigate = () => navigateToCompare(router, compareList)
+
+  const activeFilterCount = [
+    filters.min_price || filters.max_price,
+    ...(filters.brands || []),
+    filters.min_ram,
+    filters.min_storage,
+    filters.min_battery,
+    filters.min_camera_mp,
+    filters.min_year,
+  ].filter(Boolean).length
 
   const totalPages = Math.ceil(totalResults / 20)
 
   return (
     <div className="min-h-screen pb-20" style={{ backgroundColor: color.bg }}>
-      <QuizModal show={showQuiz} onClose={() => setShowQuiz(false)} onComplete={handleQuizComplete} />
+      <QuizModal show={showQuiz} onClose={() => setShowQuiz(false)} onComplete={(f) => { setFilters({ ...filters, ...f }); setShowQuiz(false) }} />
       <PriceAlertModal show={showPriceAlert} onClose={() => setShowPriceAlert(false)} phone={selectedPhoneForAlert} />
-
       <CompareFloatingPanel
-        compareList={compare.list}
-        onRemove={compare.remove}
-        onClear={compare.clear}
-        onCompare={compare.navigate}
+        compareList={compareList}
+        onRemove={removeFromCompare}
+        onClear={() => setCompareList([])}
+        onCompare={handleCompareNavigate}
         variant="mobile"
       />
 
-      <div
-        className="sticky top-0 z-40 border-b"
-        style={{ backgroundColor: color.bg, borderColor: color.borderLight }}
-      >
+      {/* Sticky navbar */}
+      <div className="sticky top-0 z-40 border-b" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
         <div className="px-4 py-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <img src="/logo.svg" alt="Mobylite" className="w-7 h-7" />
-              <h1 className="text-lg font-bold" style={{ fontFamily: font.primary, color: color.text }}>Mobylite</h1>
+              <h1 className="text-lg font-bold" style={{ fontFamily: font.primary, color: color.text }}>
+                Mobylite
+              </h1>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <div className="relative">
                 <ButtonPressFeedback
                   onClick={() => setShowFilters(true)}
@@ -206,6 +286,7 @@ export default function MobileHome() {
           <div className="relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: color.textMuted }} />
             <input
+              ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -228,11 +309,9 @@ export default function MobileHome() {
         </div>
       </div>
 
+      {/* Recommendation strip */}
       {!searchQuery && (
-        <div
-          className="sticky top-[109px] z-30 py-3 border-b"
-          style={{ backgroundColor: color.bg, borderColor: color.borderLight }}
-        >
+        <div className="sticky top-[109px] z-30 py-3 border-b" style={{ backgroundColor: color.bg, borderColor: color.borderLight }}>
           <div className="px-4">
             <RecommendationButtons
               activeRecommendation={activeRecommendation}
@@ -244,7 +323,25 @@ export default function MobileHome() {
       )}
 
       <div className="px-4 pt-4">
-        <div className="flex items-center justify-between mb-4">
+        {/* Top rated */}
+        {topRatedPhones.length > 0 && !activeRecommendation && !searchQuery && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Star size={16} style={{ color: color.starFilled }} fill={color.starFilled} />
+              <h2 className="text-base font-bold" style={{ fontFamily: font.primary, color: color.text }}>
+                Top Rated
+              </h2>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-hide -mx-4 px-4">
+              {topRatedPhones.map((phone) => (
+                <TopRatedMobileCard key={phone.id} phone={phone} onClick={handlePhoneClick} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Results header */}
+        <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-base font-bold" style={{ color: color.text }}>
               {activeRecommendation
@@ -273,7 +370,32 @@ export default function MobileHome() {
           </select>
         </div>
 
-        {loading && <PhoneGridSkeletonMobile count={6} />}
+        {/* Active filter chips */}
+        {activeFilterCount > 0 && (
+          <div className="mb-3">
+            <ActiveFilterChips
+              filters={filters}
+              onRemove={handleRemoveFilter}
+              onRemoveBrand={handleRemoveBrand}
+            />
+          </div>
+        )}
+
+        {/* Warmup message */}
+        {loading && warmingUp && (
+          <div
+            className="mb-4 px-4 py-3 rounded-xl text-xs font-medium text-center"
+            style={{ backgroundColor: color.borderLight, color: color.textMuted }}
+          >
+            Server is warming up — this may take a few seconds...
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="animate-spin" size={32} style={{ color: color.textMuted }} />
+          </div>
+        )}
 
         {!loading && phonesList.length > 0 && (
           <>
@@ -284,26 +406,23 @@ export default function MobileHome() {
                   phone={phone}
                   variant="mobile"
                   onPhoneClick={handlePhoneClick}
-                  onCompareToggle={(p) => compare.has(p.id) ? compare.remove(p.id) : compare.add(p)}
+                  onCompareToggle={(p) =>
+                    compareList.find((cp) => cp.id === p.id) ? removeFromCompare(p.id) : addToCompare(p)
+                  }
                   onPriceAlert={(p) => { setSelectedPhoneForAlert(p); setShowPriceAlert(true) }}
                   onFavoriteToggle={handleFavoriteToggle}
-                  isInCompare={compare.has(phone.id)}
+                  isInCompare={!!compareList.find((p) => p.id === phone.id)}
                   isInFavorites={favoritePhoneIds.has(phone.id)}
                 />
               ))}
             </div>
-
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-2 py-6">
                 <ButtonPressFeedback
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                   className="px-3 py-2 rounded-lg font-bold text-xs"
-                  style={{
-                    backgroundColor: currentPage === 1 ? color.borderLight : color.text,
-                    color: currentPage === 1 ? color.textMuted : color.bg,
-                    opacity: currentPage === 1 ? 0.5 : 1,
-                  }}
+                  style={{ backgroundColor: currentPage === 1 ? color.borderLight : color.text, color: currentPage === 1 ? color.textMuted : color.bg, opacity: currentPage === 1 ? 0.5 : 1 }}
                 >
                   Prev
                 </ButtonPressFeedback>
@@ -311,14 +430,10 @@ export default function MobileHome() {
                   {currentPage} / {totalPages}
                 </span>
                 <ButtonPressFeedback
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
                   className="px-3 py-2 rounded-lg font-bold text-xs"
-                  style={{
-                    backgroundColor: currentPage === totalPages ? color.borderLight : color.text,
-                    color: currentPage === totalPages ? color.textMuted : color.bg,
-                    opacity: currentPage === totalPages ? 0.5 : 1,
-                  }}
+                  style={{ backgroundColor: currentPage === totalPages ? color.borderLight : color.text, color: currentPage === totalPages ? color.textMuted : color.bg, opacity: currentPage === totalPages ? 0.5 : 1 }}
                 >
                   Next
                 </ButtonPressFeedback>
@@ -331,11 +446,21 @@ export default function MobileHome() {
           <div className="text-center py-16">
             <Smartphone size={48} style={{ color: color.borderLight }} className="mx-auto mb-3" />
             <h3 className="font-bold text-sm mb-1" style={{ color: color.text }}>No phones found</h3>
-            <p className="text-xs" style={{ color: color.textMuted }}>Try adjusting your search or filters</p>
+            <p className="text-xs mb-4" style={{ color: color.textMuted }}>Try adjusting your search or filters</p>
+            {activeFilterCount > 0 && (
+              <ButtonPressFeedback
+                onClick={() => setFilters(INITIAL_FILTERS)}
+                className="px-5 py-2.5 rounded-xl font-bold text-xs"
+                style={{ backgroundColor: color.text, color: color.bg }}
+              >
+                Clear all filters
+              </ButtonPressFeedback>
+            )}
           </div>
         )}
       </div>
 
+      {/* Filter bottom sheet — quiz button removed from here */}
       {showFilters && (
         <div
           className="fixed inset-0 z-50 flex items-end"
@@ -349,7 +474,7 @@ export default function MobileHome() {
           >
             <div
               className="sticky top-0 z-10 px-4 py-3 border-b flex items-center justify-between shrink-0"
-              style={{ backgroundColor: color.bg, borderColor: color.borderLight }}
+              style={{ backgroundColor: color.bg, borderColor: color.borderLight, paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}
             >
               <h3 className="text-lg font-bold" style={{ color: color.text }}>Filters</h3>
               <button onClick={() => setShowFilters(false)} className="p-1">
@@ -357,23 +482,13 @@ export default function MobileHome() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-              <div className="px-4 py-4">
-                <ButtonPressFeedback
-                  onClick={() => { setShowFilters(false); setShowQuiz(true) }}
-                  className="w-full py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 mb-6"
-                  style={{ backgroundColor: color.primary, color: color.primaryText }}
-                >
-                  <Sparkles size={20} strokeWidth={2.5} />
-                  Find Your Perfect Phone
-                </ButtonPressFeedback>
-                <FilterPanel
-                  filters={filters}
-                  setFilters={handleFiltersChange}
-                  onReset={() => setFilters(INITIAL_FILTERS)}
-                  variant="mobile"
-                />
-              </div>
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              <FilterPanel
+                filters={filters}
+                setFilters={handleFiltersChange}
+                onReset={() => setFilters(INITIAL_FILTERS)}
+                variant="mobile"
+              />
             </div>
 
             <div
@@ -399,5 +514,58 @@ export default function MobileHome() {
         </div>
       )}
     </div>
+  )
+}
+
+interface TopRatedMobileCardProps {
+  phone: Phone & { rating?: number; review_count?: number }
+  onClick: (phone: Phone) => void
+}
+
+const TopRatedMobileCard: React.FC<TopRatedMobileCardProps> = ({ phone, onClick }) => {
+  const [imgFailed, setImgFailed] = useState(false)
+
+  return (
+    <ButtonPressFeedback
+      onClick={() => onClick(phone)}
+      className="rounded-xl overflow-hidden flex-shrink-0 w-[160px] border transition-all"
+      style={{ backgroundColor: color.bg, borderColor: color.borderLight }}
+    >
+      <div
+        className="w-full h-32 flex items-center justify-center p-3 border-b"
+        style={{ backgroundColor: color.borderLight, borderColor: color.border }}
+      >
+        {phone.main_image_url && !imgFailed ? (
+          <img
+            src={phone.main_image_url}
+            alt={phone.model_name}
+            className="w-full h-full object-contain"
+            onError={() => setImgFailed(true)}
+          />
+        ) : (
+          <Smartphone size={32} style={{ color: color.textLight }} />
+        )}
+      </div>
+
+      <div className="p-3">
+        {phone.rating && phone.rating > 0 && (
+          <div className="flex items-center gap-1 mb-1">
+            <Star size={11} fill={color.starFilled} style={{ color: color.starFilled }} />
+            <span className="text-xs font-bold" style={{ color: color.text }}>
+              {phone.rating.toFixed(1)}
+            </span>
+          </div>
+        )}
+        <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: color.textMuted }}>
+          {phone.brand}
+        </p>
+        <p className="font-bold text-xs leading-tight line-clamp-2 mb-2" style={{ color: color.text }}>
+          {phone.model_name}
+        </p>
+        {phone.price_usd && (
+          <p className="font-bold text-sm" style={{ color: color.text }}>${phone.price_usd}</p>
+        )}
+      </div>
+    </ButtonPressFeedback>
   )
 }
