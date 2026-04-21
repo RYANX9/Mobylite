@@ -3,7 +3,6 @@
 :root {
   --color-bg: #ffffff;
   --color-bg-inverse: #000000;
-  --color-bg-2: #f9fafb;
   --color-text: #111827;
   --color-text-muted: #6b7280;
   --color-text-light: #9ca3af;
@@ -24,7 +23,6 @@
   :root {
     --color-bg: #0f172a;
     --color-bg-inverse: #f8fafc;
-    --color-bg-2: #1e293b;
     --color-text: #f1f5f9;
     --color-text-muted: #94a3b8;
     --color-text-light: #64748b;
@@ -37,8 +35,6 @@
     --color-success-bg: #064e3b;
     --color-danger: #f87171;
     --color-danger-bg: #7f1d1d;
-    --color-star-empty: #334155;
-    --color-star-filled: #fbbf24;
   }
 }
 
@@ -54,8 +50,28 @@
     background: var(--color-bg);
     color: var(--color-text);
     font-family: var(--font-body);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /*
+    Scoped font override — only targets app elements, not third-party widgets.
+    The old rule used * { font-family: !important } which overrode the Google
+    OAuth button, any iframe content, and injected scripts.
+  */
+  #__next,
+  [data-nextjs-scroll-focus-boundary],
+  main,
+  header,
+  footer,
+  nav,
+  section,
+  article,
+  aside,
+  div:not([class*="google"]):not([id*="google"]):not([class*="gsi"]):not([id*="gsi"]) {
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-primary);
   }
 }
 
@@ -63,17 +79,14 @@
   font-family: var(--font-primary) !important;
 }
 
-*,
-*::before,
-*::after {
-  font-family: var(--font-body) !important;
+@font-face {
+  font-family: "DigitsOnly";
+  src: local("Young Serif");
+  unicode-range: U+30-39;
+  font-weight: 400;
+  font-display: swap;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--font-primary) !important;
+body {
+  font-family: "DigitsOnly", var(--font-body);
 }
