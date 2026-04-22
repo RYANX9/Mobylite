@@ -16,14 +16,14 @@ export default function ComparePage() {
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024)
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+    const check = () => setIsMobile(window.innerWidth < 1024)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
   }, [])
 
   useEffect(() => {
-    const loadPhones = async () => {
+    const load = async () => {
       const phoneParam = params.phones as string
 
       if (!phoneParam) {
@@ -37,8 +37,8 @@ export default function ComparePage() {
       try {
         const results = await Promise.all(
           slugs.map(async (slug) => {
-            const searchTerm = slug.replace(/-/g, ' ')
-            const data = await api.phones.search({ q: searchTerm, page_size: 1 })
+            const q = slug.replace(/-/g, ' ')
+            const data = await api.phones.search({ q, page_size: 1 })
             if (data.results?.length > 0) {
               return api.phones.getDetails(data.results[0].id)
             }
@@ -46,44 +46,28 @@ export default function ComparePage() {
           })
         )
         setPhones(results.filter((p): p is Phone => p !== null))
-      } catch (error) {
-        console.error('Error loading phones for comparison:', error)
+      } catch (err) {
+        console.error('Error loading compare phones:', err)
+        setPhones([])
       } finally {
         setLoading(false)
       }
     }
 
-    loadPhones()
+    load()
   }, [params])
-
-  // Sync URL when phones list changes (add/remove from compare table)
-  useEffect(() => {
-    if (loading) return
-
-    if (phones.length === 0) {
-      router.replace('/')
-      return
-    }
-
-    const phoneSlugs = phones.map(createPhoneSlug)
-    const newUrl = APP_ROUTES.compare(phoneSlugs)
-
-    if (window.location.pathname !== newUrl) {
-      window.history.replaceState(null, '', newUrl)
-    }
-  }, [phones, loading, router])
 
   const handlePhonesChange = (newPhones: Phone[]) => {
     setPhones(newPhones)
 
     if (newPhones.length === 0) {
-      router.push('/')
+      // Stay on compare page and show empty state — do NOT redirect home
+      window.history.replaceState(null, '', '/compare')
       return
     }
 
-    const phoneSlugs = newPhones.map(createPhoneSlug)
-    const newUrl = APP_ROUTES.compare(phoneSlugs)
-    window.history.replaceState(null, '', newUrl)
+    const slugs = newPhones.map(createPhoneSlug)
+    window.history.replaceState(null, '', APP_ROUTES.compare(slugs))
   }
 
   if (loading) {
@@ -102,7 +86,7 @@ export default function ComparePage() {
       <MobileCompare
         phones={phones}
         onPhonesChange={handlePhonesChange}
-        onBack={() => router.push('/')}
+        onBack={() => router.push(APP_ROUTES.home)}
       />
     )
   }
