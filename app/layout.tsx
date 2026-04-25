@@ -1,52 +1,30 @@
-// app/layout.tsx
-import type { Metadata } from "next";
-import "./globals.css";
-import { AuthProvider } from "@/lib/auth-context";
-import { CompareProvider } from "@/lib/compare-context";
-import { Young_Serif, Space_Grotesk } from "next/font/google";
-
-const youngSerif = Young_Serif({
-  weight: ["400"],
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-primary",
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-body",
-});
+import type { Metadata } from 'next'
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: "Mobylite | Simple comparisons. Confident decisions.",
-  description: "Choose your next phone with confidence",
-  icons: {
-    icon: [{ url: "/logo.svg", type: "image/svg+xml" }],
-    apple: "/logo.svg",
+  title: 'Mobylite — Find Your Next Phone',
+  description:
+    'No clutter. No discontinued junk. Find and compare phones you can actually buy today.',
+  icons: { icon: '/logored.svg', apple: '/logored.svg' },
+  openGraph: {
+    title: 'Mobylite — Find Your Next Phone',
+    description: 'Compare phones side-by-side with honest specs and verdicts.',
+    type: 'website',
   },
-};
+}
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${youngSerif.variable} ${spaceGrotesk.variable}`}>
+    <html lang="en">
       <head>
-        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
-        <link rel="shortcut icon" href="/logo.svg" />
-        <link rel="apple-touch-icon" href="/logo.svg" />
-        <meta name="theme-color" content="#000000" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
       </head>
-      <body>
-        <AuthProvider>
-          <CompareProvider>
-            {children}
-          </CompareProvider>
-        </AuthProvider>
-      </body>
+      <body>{children}</body>
     </html>
-  );
+  )
 }
