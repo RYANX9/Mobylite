@@ -1,260 +1,93 @@
-// lib/api.ts
-import { API_BASE_URL, API_ENDPOINTS, STORAGE_KEYS } from './config';
+import { API_BASE } from './config'
+import type {
+  SearchResponse,
+  SearchFilters,
+  Phone,
+  FilterStats,
+  CategoryResult,
+  BrandStats,
+} from './types'
 
 class APIError extends Error {
   constructor(public status: number, message: string) {
-    super(message);
-    this.name = 'APIError';
+    super(message)
+    this.name = 'APIError'
   }
 }
 
-async function fetchAPI<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const token = typeof window !== 'undefined' 
-    ? localStorage.getItem(STORAGE_KEYS.authToken) 
-    : null;
-
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` }),
-    ...options.headers,
-  };
-
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    let errorMessage = 'Request failed';
+async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
+  })
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`
     try {
-      const error = await response.json();
-      errorMessage = error.detail || error.message || JSON.stringify(error);
-    } catch (e) {
-      errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-    }
-    
-    if (response.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEYS.authToken);
-    }
-    
-    throw new APIError(response.status, errorMessage);
+      const e = await res.json()
+      msg = e.detail || e.message || msg
+    } catch {}
+    throw new APIError(res.status, msg)
   }
-
-  return response.json();
+  return res.json()
 }
 
-// ✅ SINGLETON CLASS
-class API {
-  // Phones API
-  phones = {
-    search: async (params: {
-      q?: string;
-      min_price?: number;
-      max_price?: number;
-      min_ram?: number;
-      min_storage?: number;
-      min_battery?: number;
-      min_screen_size?: number;
-      min_camera_mp?: number;
-      brand?: string;
-      min_year?: number;
-      sort_by?: string;
-      sort_order?: string;
-      page?: number;
-      page_size?: number;
-    }) => {
-      const queryParams = new URLSearchParams();
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          queryParams.append(key, String(value));
-        }
-      });
-      return fetchAPI<any>(`${API_ENDPOINTS.phones.search}?${queryParams}`);
-    },
-
-    getDetails: async (id: number) => {
-      return fetchAPI<any>(API_ENDPOINTS.phones.detail(id));
-    },
-
-    getLatest: async (limit: number = 20) => {
-      return fetchAPI<any>(`${API_ENDPOINTS.phones.latest}?limit=${limit}`);
-    },
-
-    recommend: async (use_case: string, max_price?: number, limit: number = 10) => {
-      const params = new URLSearchParams({ use_case, limit: String(limit) });
-      if (max_price) params.append('max_price', String(max_price));
-      return fetchAPI<any>(`${API_ENDPOINTS.phones.recommend}?${params}`);
-    },
-
-    compare: async (ids: number[]) => {
-      const idsString = ids.join(',');
-      return fetchAPI<any>(`${API_ENDPOINTS.phones.compare}?ids=${idsString}`);
-    },
-
-    getStats: async (id: number) => {
-      return fetchAPI<any>(`${API_ENDPOINTS.phones.detail(id)}/stats`);
-    },
-
-    getAlsoCompared: async (id: number) => {
-      return fetchAPI<any>(`${API_ENDPOINTS.phones.detail(id)}/also-compared`);
-    },
-  };
-
-  // Reviews API
-  reviews = {
-    getByPhone: async (phoneId: number, page: number = 1, page_size: number = 10) => {
-      return fetchAPI<any>(
-        `${API_ENDPOINTS.reviews.byPhone(phoneId)}?page=${page}&page_size=${page_size}`
-      );
-    },
-
-    getByUser: async () => {
-      return fetchAPI<any>(API_ENDPOINTS.reviews.byUser);
-    },
-
-    create: async (data: {
-      phone_id: number;
-      rating: number;
-      title: string;
-      body: string;
-      pros?: string[];
-      cons?: string[];
-      is_owner?: boolean;
-    }) => {
-      return fetchAPI<any>(API_ENDPOINTS.reviews.create, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    },
-
-    update: async (reviewId: string, data: Partial<{
-      rating: number;
-      title: string;
-      body: string;
-      is_owner: boolean;
-    }>) => {
-      return fetchAPI<any>(`/reviews/${reviewId}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
-    },
-
-    helpful: async (reviewId: string) => {
-      return fetchAPI<any>(`/reviews/${reviewId}/helpful`, {
-        method: 'POST',
-      });
-    },
-  };
-
-  // Favorites API
-  favorites = {
-    list: async () => {
-      return fetchAPI<{ success: boolean; favorites: any[] }>(API_ENDPOINTS.favorites.list);
-    },
-
-    add: async (phone_id: number, notes?: string) => {
-      return fetchAPI<{ success: boolean; favorite?: any; message?: string }>(
-        API_ENDPOINTS.favorites.add,
-        {
-          method: 'POST',
-          body: JSON.stringify({ phone_id, notes }),
-        }
-      );
-    },
-
-    remove: async (phoneId: number) => {
-      return fetchAPI<{ success: boolean; message: string }>(
-        API_ENDPOINTS.favorites.remove(phoneId),
-        {
-          method: 'DELETE',
-        }
-      );
-    },
-  };
-
-  // Price Alerts API
-  priceAlerts = {
-    list: async () => {
-      return fetchAPI<any>(API_ENDPOINTS.priceAlerts.list);
-    },
-
-    create: async (phone_id: number, target_price: number) => {
-      return fetchAPI<any>(API_ENDPOINTS.priceAlerts.create, {
-        method: 'POST',
-        body: JSON.stringify({ phone_id, target_price }),
-      });
-    },
-
-    delete: async (alertId: string) => {
-      return fetchAPI<any>(API_ENDPOINTS.priceAlerts.delete(alertId), {
-        method: 'DELETE',
-      });
-    },
-  };
-
-  // Auth API
-  auth = {
-    signup: async (email: string, password: string, display_name: string) => {
-      const data = await fetchAPI<{ token: string; user: any }>(
-        API_ENDPOINTS.auth.signup,
-        {
-          method: 'POST',
-          body: JSON.stringify({ email, password, display_name }),
-        }
-      );
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEYS.authToken, data.token);
-      }
-      return data;
-    },
-
-    login: async (email: string, password: string) => {
-      const data = await fetchAPI<{ token: string; user: any }>(
-        API_ENDPOINTS.auth.login,
-        {
-          method: 'POST',
-          body: JSON.stringify({ email, password }),
-        }
-      );
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEYS.authToken, data.token);
-      }
-      return data;
-    },
-
-    getMe: async () => {
-      return fetchAPI<any>(API_ENDPOINTS.auth.me);
-    },
-
-    logout: () => {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(STORAGE_KEYS.authToken);
-      }
-    },
-
-    isAuthenticated: () => {
-      if (typeof window === 'undefined') return false;
-      return !!localStorage.getItem(STORAGE_KEYS.authToken);
-    },
-    
-    // ✅ FIXED: Properly indented inside auth object
-    googleOAuth: async (credential: string) => {
-      const data = await fetchAPI<{ token: string; user: any }>(
-        API_ENDPOINTS.auth.google,
-        {
-          method: 'POST',
-          body: JSON.stringify({ credential }),
-        }
-      );
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEYS.authToken, data.token);
-      }
-      return data;
-    },
-  };
+function qs(params: Record<string, unknown>): string {
+  const p = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== '') p.append(k, String(v))
+  }
+  const s = p.toString()
+  return s ? `?${s}` : ''
 }
-// ✅ EXPORT SINGLETON INSTANCE
-export const api = new API();
+
+export const api = {
+  phones: {
+    search: (filters: SearchFilters) =>
+      req<SearchResponse>(`/phones/search${qs(filters as Record<string, unknown>)}`),
+
+    detail: (id: number) =>
+      req<Phone>(`/phones/${id}`),
+
+    latest: (limit = 20) =>
+      req<{ phones: Phone[] }>(`/phones/latest?limit=${limit}`),
+
+    trending: (limit = 10) =>
+      req<{ phones: Phone[] }>(`/phones/trending?limit=${limit}`),
+
+    similar: (id: number, limit = 12) =>
+      req<{ phones: Phone[] }>(`/phones/${id}/similar?limit=${limit}`),
+
+    compare: (ids: number[]) =>
+      req<{ phones: Phone[] }>(`/phones/compare?ids=${ids.join(',')}`),
+
+    recommend: (params: {
+      min_price?: number
+      max_price?: number
+      priorities: string
+      limit?: number
+    }) => req<{ phones: Phone[]; priorities: string[] }>(`/phones/recommend${qs(params as Record<string, unknown>)}`),
+  },
+
+  brands: {
+    list: () =>
+      req<{ brands: { brand: string; count: number }[] }>('/brands'),
+
+    stats: (slug: string) =>
+      req<BrandStats>(`/brands/${slug}`),
+
+    phones: (slug: string, filters: SearchFilters) =>
+      req<SearchResponse>(`/brands/${slug}/phones${qs(filters as Record<string, unknown>)}`),
+  },
+
+  categories: {
+    list: () =>
+      req<{ categories: { slug: string; title: string; description: string }[] }>('/categories'),
+
+    get: (slug: string, limit = 10) =>
+      req<CategoryResult>(`/categories/${slug}?limit=${limit}`),
+  },
+
+  filters: {
+    stats: () => req<FilterStats>('/filters/stats'),
+  },
+}
