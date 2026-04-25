@@ -1,37 +1,56 @@
-export const color = {
-  bg: 'var(--color-bg)',
-  bgInverse: 'var(--color-bg-inverse)',
-  text: 'var(--color-text)',
-  textMuted: 'var(--color-text-muted)',
-  textLight: 'var(--color-text-light)',
-  textInverse: 'var(--color-text-inverse)',
-  primary: 'var(--color-primary)',
-  primaryText: 'var(--color-primary-text)',
-  border: 'var(--color-border)',
-  borderLight: 'var(--color-border-light)',
-  success: 'var(--color-success)',
-  successBg: 'var(--color-success-bg)',
-  danger: 'var(--color-danger)',
-  dangerBg: 'var(--color-danger-bg)',
-  starEmpty: 'var(--color-star-empty)',
-  starFilled: 'var(--color-star-filled)',
+// Design tokens — use these everywhere instead of raw CSS vars
+// so TypeScript catches typos and refactors are safe
+
+export const c = {
+  bg: 'var(--bg)',
+  surface: 'var(--surface)',
+  border: 'var(--border)',
+  borderHover: 'var(--border-hover)',
+  primary: 'var(--primary)',
+  accent: 'var(--accent)',
+  accentLight: 'var(--accent-light)',
+  accentBorder: 'var(--accent-border)',
+  text1: 'var(--text-1)',
+  text2: 'var(--text-2)',
+  text3: 'var(--text-3)',
+  green: 'var(--green)',
+  greenLight: 'var(--green-light)',
+  greenBorder: 'var(--green-border)',
+  orange: 'var(--orange)',
+  blue: 'var(--blue)',
+  blueLight: 'var(--blue-light)',
 } as const
 
-export const font = {
-  primary: 'var(--font-primary)',
-  body: 'var(--font-body)',
-  numeric: 'var(--font-primary)',
+export const f = {
+  serif: 'var(--font-serif)',
+  sans: 'var(--font-sans)',
 } as const
 
+export const r = {
+  sm: 'var(--r-sm)',
+  md: 'var(--r-md)',
+  lg: 'var(--r-lg)',
+  xl: 'var(--r-xl)',
+  full: 'var(--r-full)',
+} as const
+
+export const sh = {
+  sm: 'var(--shadow-sm)',
+  md: 'var(--shadow-md)',
+  lg: 'var(--shadow-lg)',
+  xl: 'var(--shadow-xl)',
+} as const
+
+// Raw values for calculations / non-CSS-var usage
 export const raw = {
-  white: '#FFFFFF',
-  black: '#000000',
-  gray: {
-    900: '#111827',
-    800: '#1F2937',
-    500: '#6B7280',
-    400: '#9CA3AF',
-    300: '#D1D5DB',
-    200: '#E5E7EB',
-  },
-}
+  bg: '#F8F8F5',
+  surface: '#FFFFFF',
+  border: '#E8E8E4',
+  primary: '#1A1A2E',
+  accent: '#E63946',
+  text1: '#0D0D0D',
+  text2: '#4A4A4A',
+  text3: '#9A9A9A',
+  green: '#2D6A4F',
+  orange: '#E76F51',
+} as const
