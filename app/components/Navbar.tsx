@@ -133,11 +133,7 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
               letterSpacing: '-0.4px',
             }}
           >
-            <img
-              src="/logo-red.svg"
-              alt="Mobylite logo"
-              style={{ height: '1em', width: 'auto' }}
-            />
+            <img  src="/logored.svg"  alt="Mobylite"  style={{ height: '1em', width: 'auto' }} />
             Mobylite
           </Link>
 
