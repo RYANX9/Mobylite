@@ -1,5 +1,3 @@
-// Core domain types
-
 export interface Phone {
   id: number
   model_name: string
@@ -18,6 +16,8 @@ export interface Phone {
   release_month: number | null
   release_day: number | null
   release_date_full: string | null
+  // Unix timestamp computed server-side: EXTRACT(EPOCH FROM MAKE_DATE(year, month, day))
+  release_ts: number | null
   // Detail-only (null on list endpoints)
   weight_g: number | null
   thickness_mm: number | null
@@ -102,6 +102,7 @@ export interface BrandStats {
 }
 
 export type SortOption =
+  | 'release_ts'
   | 'release_year'
   | 'price_usd'
   | 'battery_capacity'
