@@ -10,23 +10,25 @@ export const ROUTES = {
   about: '/about',
 } as const
 
+// sort_by: 'release_ts' maps to the Unix timestamp expression on the backend,
+// which uses MAKE_DATE(year, month, day) so partial dates sort correctly.
 export const SORT_OPTIONS = [
-  { value: 'release_year', label: 'Newest First', order: 'desc' },
-  { value: 'price_usd', label: 'Price: Low to High', order: 'asc' },
-  { value: 'price_usd', label: 'Price: High to Low', order: 'desc' },
-  { value: 'antutu_score', label: 'Best Performance', order: 'desc' },
-  { value: 'battery_capacity', label: 'Best Battery', order: 'desc' },
-  { value: 'main_camera_mp', label: 'Best Camera', order: 'desc' },
+  { value: 'release_ts',       label: 'Newest First',       order: 'desc' },
+  { value: 'price_usd',        label: 'Price: Low to High', order: 'asc'  },
+  { value: 'price_usd',        label: 'Price: High to Low', order: 'desc' },
+  { value: 'antutu_score',     label: 'Best Performance',   order: 'desc' },
+  { value: 'battery_capacity', label: 'Best Battery',       order: 'desc' },
+  { value: 'main_camera_mp',   label: 'Best Camera',        order: 'desc' },
 ] as const
 
 export const CATEGORY_META: Record<string, { title: string; icon: string; desc: string }> = {
   'camera-phones': { title: 'Best Camera', icon: 'camera', desc: 'Top 10 ranked' },
-  'battery-life': { title: 'Battery Kings', icon: 'battery', desc: '5000mAh+' },
+  'battery-life':  { title: 'Battery Kings', icon: 'battery', desc: '5000mAh+' },
   'gaming-phones': { title: 'Gaming', icon: 'zap', desc: 'Flagship chips' },
-  'under-300': { title: 'Under $300', icon: 'dollar', desc: 'Best value' },
-  'under-500': { title: 'Under $500', icon: 'tag', desc: 'Sweet spot' },
-  'lightweight': { title: 'Lightweight', icon: 'feather', desc: 'Under 175g' },
-  'compact-phones': { title: 'Compact', icon: 'smartphone', desc: 'Under 6.3"' },
+  'under-300':     { title: 'Under $300', icon: 'dollar', desc: 'Best value' },
+  'under-500':     { title: 'Under $500', icon: 'tag', desc: 'Sweet spot' },
+  'lightweight':   { title: 'Lightweight', icon: 'feather', desc: 'Under 175g' },
+  'compact-phones':{ title: 'Compact', icon: 'smartphone', desc: 'Under 6.3"' },
   'fast-charging': { title: 'Fast Charge', icon: 'bolt', desc: '65W+' },
 }
 
