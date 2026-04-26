@@ -635,32 +635,33 @@ function HomeContent() {
       )}
 
       <style>{`
-        /* 2-column grid by default next to sidebar */
+        /* Desktop: 4 cols alongside sidebar (~268px) */
         .phone-grid-layout {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: repeat(4, 1fr);
           gap: 14px;
         }
 
-        @media (max-width: 1400px) {
-          .phone-grid-layout { grid-template-columns: repeat(2, 1fr); }
-        }
-
+        /* Sidebar collapses at 1024px — give grid more room, keep 4 cols */
         @media (max-width: 1024px) {
           #phone-grid { grid-template-columns: 1fr !important; }
           .filter-sidebar { display: none !important; }
           .mobile-filter-btn { display: flex !important; }
-          /* More space without sidebar: allow 3 cols on tablet */
-          .phone-grid-layout { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+          .phone-grid-layout { grid-template-columns: repeat(4, 1fr); gap: 12px; }
         }
 
-        @media (max-width: 768px) {
-          .phone-grid-layout { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        /* Tablet portrait */
+        @media (max-width: 860px) {
+          .phone-grid-layout { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        }
+
+        /* Mobile — 2 cols */
+        @media (max-width: 600px) {
+          .phone-grid-layout { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         }
 
         @media (max-width: 480px) {
           #phone-grid { padding-bottom: 40px !important; }
-          .phone-grid-layout { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         }
       `}</style>
     </div>
