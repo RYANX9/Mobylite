@@ -133,16 +133,10 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
               letterSpacing: '-0.4px',
             }}
           >
-            <span
-              style={{
-                width: 10,
-                height: 10,
-                background: c.accent,
-                borderRadius: 2,
-                transform: 'rotate(45deg)',
-                display: 'block',
-                flexShrink: 0,
-              }}
+            <img
+              src="/logo-red.svg"
+              alt="Mobylite logo"
+              style={{ height: '1em', width: 'auto' }}
             />
             Mobylite
           </Link>
