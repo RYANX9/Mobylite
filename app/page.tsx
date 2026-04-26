@@ -17,8 +17,6 @@ import { ROUTES, brandSlug, phoneSlug, PAGE_SIZE, MAX_COMPARE, CATEGORY_META } f
 import { c, f } from '@/lib/tokens'
 import type { Phone, SearchFilters } from '@/lib/types'
 
-// ─── Category icons ────────────────────────────────────────────────────────
-
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   'camera-phones':  <Camera size={22} strokeWidth={1.5} />,
   'battery-life':   <Battery size={22} strokeWidth={1.5} />,
@@ -30,22 +28,19 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   'fast-charging':  <Zap size={22} strokeWidth={1.5} />,
 }
 
-// ─── Sort options ──────────────────────────────────────────────────────────
-
+// release_ts as primary default — backend computes epoch from year/month/day
 const SORT_OPTIONS = [
-  { label: 'Newest First',         sort_by: 'release_year', sort_order: 'desc' },
-  { label: 'Price: Low to High',   sort_by: 'price_usd',    sort_order: 'asc'  },
-  { label: 'Price: High to Low',   sort_by: 'price_usd',    sort_order: 'desc' },
-  { label: 'Best Performance',     sort_by: 'antutu_score', sort_order: 'desc' },
-  { label: 'Best Battery',         sort_by: 'battery_capacity', sort_order: 'desc' },
-  { label: 'Best Camera',          sort_by: 'main_camera_mp',   sort_order: 'desc' },
+  { label: 'Newest First',       sort_by: 'release_ts',       sort_order: 'desc' },
+  { label: 'Price: Low to High', sort_by: 'price_usd',        sort_order: 'asc'  },
+  { label: 'Price: High to Low', sort_by: 'price_usd',        sort_order: 'desc' },
+  { label: 'Best Performance',   sort_by: 'antutu_score',     sort_order: 'desc' },
+  { label: 'Best Battery',       sort_by: 'battery_capacity', sort_order: 'desc' },
+  { label: 'Best Camera',        sort_by: 'main_camera_mp',   sort_order: 'desc' },
 ] as const
 
 const POPULAR = ['Galaxy S25 Ultra', 'iPhone 16 Pro', 'Pixel 9', 'OnePlus 13', 'Xiaomi 15 Pro']
 
 const EMPTY_FILTERS: SearchFilters = {}
-
-// ─── Active filter chip pills ─────────────────────────────────────────────
 
 function FilterChips({ filters, onChange }: { filters: SearchFilters; onChange: (f: SearchFilters) => void }) {
   const chips: { label: string; clear: () => void }[] = []
@@ -87,7 +82,9 @@ function FilterChips({ filters, onChange }: { filters: SearchFilters; onChange: 
           }}
         >
           {chip.label}
-          <button onClick={chip.clear} style={{ color: c.text3, display: 'flex', transition: 'color 0.1s' }}
+          <button
+            onClick={chip.clear}
+            style={{ color: c.text3, display: 'flex', transition: 'color 0.1s' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = c.accent }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = c.text3 }}
           >
@@ -106,8 +103,6 @@ function FilterChips({ filters, onChange }: { filters: SearchFilters; onChange: 
     </div>
   )
 }
-
-// ─── Pagination ────────────────────────────────────────────────────────────
 
 function Pagination({ page, total, pageSize, onChange }: { page: number; total: number; pageSize: number; onChange: (p: number) => void }) {
   const totalPages = Math.ceil(total / pageSize)
@@ -142,11 +137,7 @@ function Pagination({ page, total, pageSize, onChange }: { page: number; total: 
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 40 }}>
-      <button
-        style={btnStyle(false, page === 1)}
-        onClick={() => page > 1 && onChange(page - 1)}
-        disabled={page === 1}
-      >
+      <button style={btnStyle(false, page === 1)} onClick={() => page > 1 && onChange(page - 1)} disabled={page === 1}>
         <ChevronLeft size={16} />
       </button>
       {pages.map((p, i) =>
@@ -164,18 +155,12 @@ function Pagination({ page, total, pageSize, onChange }: { page: number; total: 
           </button>
         )
       )}
-      <button
-        style={btnStyle(false, page === totalPages)}
-        onClick={() => page < totalPages && onChange(page + 1)}
-        disabled={page === totalPages}
-      >
+      <button style={btnStyle(false, page === totalPages)} onClick={() => page < totalPages && onChange(page + 1)} disabled={page === totalPages}>
         <ChevronRight size={16} />
       </button>
     </div>
   )
 }
-
-// ─── Trending scroll ───────────────────────────────────────────────────────
 
 function TrendingScroll({ phones }: { phones: Phone[] }) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -195,17 +180,11 @@ function TrendingScroll({ phones }: { phones: Phone[] }) {
       </div>
 
       <div style={{ position: 'relative' }}>
-        {/* Fade edges */}
         <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 60, background: 'linear-gradient(-90deg, var(--bg) 0%, transparent 100%)', pointerEvents: 'none', zIndex: 2 }} />
 
         <button
           onClick={() => scroll('left')}
-          style={{
-            position: 'absolute', top: '50%', left: -14, transform: 'translateY(-50%)',
-            width: 36, height: 36, background: c.surface, border: `1px solid ${c.border}`,
-            borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: c.text2, zIndex: 3, boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s',
-          }}
+          style={{ position: 'absolute', top: '50%', left: -14, transform: 'translateY(-50%)', width: 36, height: 36, background: c.surface, border: `1px solid ${c.border}`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.text2, zIndex: 3, boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s' }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)' }}
         >
@@ -221,33 +200,22 @@ function TrendingScroll({ phones }: { phones: Phone[] }) {
             <div
               key={phone.id}
               onClick={() => router.push(ROUTES.phone(brandSlug(phone.brand), phoneSlug(phone)))}
-              style={{
-                flexShrink: 0,
-                width: 168,
-                scrollSnapAlign: 'start',
-                background: c.surface,
-                border: `1px solid ${c.border}`,
-                borderRadius: 'var(--r-lg)',
-                padding: 14,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                textAlign: 'center',
-              }}
+              style={{ flexShrink: 0, width: 148, scrollSnapAlign: 'start', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-lg)', padding: 12, cursor: 'pointer', transition: 'all 0.15s', textAlign: 'center' }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
             >
               <div style={{ fontSize: 11, fontWeight: 700, color: c.text3, marginBottom: 8 }}>#{i + 1}</div>
-              <div style={{ width: 88, height: 88, margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 72, height: 72, margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {phone.main_image_url ? (
                   <img src={phone.main_image_url} alt={phone.model_name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 ) : (
-                  <Smartphone size={36} color={c.border} strokeWidth={1} />
+                  <Smartphone size={32} color={c.border} strokeWidth={1} />
                 )}
               </div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 13, color: c.text1, marginBottom: 4, lineHeight: 1.3 }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 12, color: c.text1, marginBottom: 4, lineHeight: 1.3 }}>
                 {phone.model_name}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: c.text1 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: c.text1 }}>
                 {phone.price_usd ? `$${phone.price_usd.toLocaleString()}` : '—'}
               </div>
             </div>
@@ -256,12 +224,7 @@ function TrendingScroll({ phones }: { phones: Phone[] }) {
 
         <button
           onClick={() => scroll('right')}
-          style={{
-            position: 'absolute', top: '50%', right: -14, transform: 'translateY(-50%)',
-            width: 36, height: 36, background: c.surface, border: `1px solid ${c.border}`,
-            borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: c.text2, zIndex: 3, boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s',
-          }}
+          style={{ position: 'absolute', top: '50%', right: -14, transform: 'translateY(-50%)', width: 36, height: 36, background: c.surface, border: `1px solid ${c.border}`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.text2, zIndex: 3, boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s' }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)' }}
         >
@@ -271,8 +234,6 @@ function TrendingScroll({ phones }: { phones: Phone[] }) {
     </section>
   )
 }
-
-// ─── Footer ────────────────────────────────────────────────────────────────
 
 function Footer() {
   const cols = [
@@ -353,22 +314,15 @@ function Footer() {
 
       <style>{`
         @media (max-width: 768px) {
-          footer > div > div:first-child {
-            grid-template-columns: 1fr 1fr !important;
-            gap: 24px !important;
-          }
+          footer > div > div:first-child { grid-template-columns: 1fr 1fr !important; gap: 24px !important; }
         }
         @media (max-width: 480px) {
-          footer > div > div:first-child {
-            grid-template-columns: 1fr !important;
-          }
+          footer > div > div:first-child { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </footer>
   )
 }
-
-// ─── Main home content ─────────────────────────────────────────────────────
 
 function HomeContent() {
   const router = useRouter()
@@ -432,14 +386,14 @@ function HomeContent() {
   const handleCompareToggle = (phone: Phone) => {
     setComparePhones(prev => {
       if (prev.find(p => p.id === phone.id)) {
-        toast(`Removed from compare`, 'info')
+        toast('Removed from compare', 'info')
         return prev.filter(p => p.id !== phone.id)
       }
       if (prev.length >= MAX_COMPARE) {
         toast(`Maximum ${MAX_COMPARE} phones in compare`, 'error')
         return prev
       }
-      toast(`Added to compare`, 'success')
+      toast('Added to compare', 'success')
       return [...prev, phone]
     })
   }
@@ -448,7 +402,6 @@ function HomeContent() {
     e.preventDefault()
     if (!heroQuery.trim()) return
     handleFiltersChange({ ...filters, q: heroQuery.trim() })
-    // Scroll to grid
     document.getElementById('phone-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -463,7 +416,7 @@ function HomeContent() {
     <div style={{ minHeight: '100vh', background: c.bg }}>
       <Navbar compareCount={comparePhones.length} onOpenCompare={() => comparePhones.length >= 2 && router.push(ROUTES.compare(...comparePhones.map(p => phoneSlug(p))))} />
 
-      {/* ── Hero ── */}
+      {/* Hero */}
       <section style={{ maxWidth: 720, margin: '0 auto', padding: '72px var(--page-px) 48px', textAlign: 'center' }}>
         <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(36px, 5vw, 54px)', color: c.text1, letterSpacing: '-0.8px', lineHeight: 1.15, marginBottom: 16 }}>
           Find your next phone.
@@ -477,38 +430,13 @@ function HomeContent() {
             value={heroQuery}
             onChange={e => setHeroQuery(e.target.value)}
             placeholder='Search phones or ask "best camera under $500"'
-            style={{
-              width: '100%',
-              height: 56,
-              padding: '0 56px 0 22px',
-              background: c.surface,
-              border: `1px solid ${c.border}`,
-              borderRadius: 'var(--r-full)',
-              fontSize: 16,
-              color: c.text1,
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all 0.15s',
-            }}
+            style={{ width: '100%', height: 56, padding: '0 56px 0 22px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-full)', fontSize: 16, color: c.text1, boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s' }}
             onFocus={e => { e.currentTarget.style.borderColor = c.primary; e.currentTarget.style.boxShadow = '0 0 0 4px rgba(26,26,46,0.07)' }}
             onBlur={e => { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.boxShadow = 'var(--shadow-sm)' }}
           />
           <button
             type="submit"
-            style={{
-              position: 'absolute',
-              right: 6,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              width: 44,
-              height: 44,
-              background: c.primary,
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              transition: 'background 0.15s',
-            }}
+            style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, background: c.primary, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', transition: 'background 0.15s' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2A2A42' }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = c.primary }}
           >
@@ -522,15 +450,7 @@ function HomeContent() {
             <button
               key={tag}
               onClick={() => handlePopularTag(tag)}
-              style={{
-                fontSize: 13,
-                color: c.text2,
-                padding: '4px 12px',
-                background: c.surface,
-                border: `1px solid ${c.border}`,
-                borderRadius: 'var(--r-full)',
-                transition: 'all 0.15s',
-              }}
+              style={{ fontSize: 13, color: c.text2, padding: '4px 12px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-full)', transition: 'all 0.15s' }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = c.primary; (e.currentTarget as HTMLElement).style.color = c.text1 }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = c.border; (e.currentTarget as HTMLElement).style.color = c.text2 }}
             >
@@ -541,15 +461,7 @@ function HomeContent() {
 
         <Link
           href={ROUTES.pick}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 15,
-            fontWeight: 500,
-            color: c.accent,
-            transition: 'gap 0.15s',
-          }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 500, color: c.accent, transition: 'gap 0.15s' }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.gap = '10px' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.gap = '6px' }}
         >
@@ -558,24 +470,14 @@ function HomeContent() {
         </Link>
       </section>
 
-      {/* ── Category quick links ── */}
+      {/* Category quick links */}
       <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto', padding: '0 var(--page-px)', marginBottom: 48 }}>
         <div className="scrollbar-none" style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4 }}>
           {Object.entries(CATEGORY_META).map(([slug, meta]) => (
             <Link
               key={slug}
               href={ROUTES.category(slug)}
-              style={{
-                flexShrink: 0,
-                width: 138,
-                padding: '18px 14px',
-                background: c.surface,
-                border: `1px solid ${c.border}`,
-                borderRadius: 'var(--r-lg)',
-                textAlign: 'center',
-                transition: 'all 0.15s',
-                display: 'block',
-              }}
+              style={{ flexShrink: 0, width: 138, padding: '18px 14px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-lg)', textAlign: 'center', transition: 'all 0.15s', display: 'block' }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
             >
@@ -589,7 +491,7 @@ function HomeContent() {
         </div>
       </div>
 
-      {/* ── Filter + Grid ── */}
+      {/* Filter + Grid */}
       <div
         id="phone-grid"
         style={{
@@ -602,34 +504,19 @@ function HomeContent() {
           alignItems: 'start',
         }}
       >
-        {/* Sidebar filter */}
         <div className="filter-sidebar">
           <FilterPanel filters={filters} onChange={handleFiltersChange} onReset={handleReset} />
         </div>
 
-        {/* Grid area */}
         <div>
-          {/* Active filter chips */}
           <FilterChips filters={filters} onChange={handleFiltersChange} />
 
           {/* Sort bar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              {/* Mobile filter button */}
               <button
                 onClick={() => setMobileFiltersOpen(true)}
-                style={{
-                  display: 'none',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '7px 14px',
-                  background: c.surface,
-                  border: `1px solid ${c.border}`,
-                  borderRadius: 'var(--r-sm)',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: c.text1,
-                }}
+                style={{ display: 'none', alignItems: 'center', gap: 6, padding: '7px 14px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-sm)', fontSize: 13, fontWeight: 500, color: c.text1 }}
                 className="mobile-filter-btn"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
@@ -645,17 +532,7 @@ function HomeContent() {
                 <select
                   value={sortIdx}
                   onChange={e => handleSortChange(Number(e.target.value))}
-                  style={{
-                    appearance: 'none',
-                    padding: '7px 30px 7px 12px',
-                    background: c.surface,
-                    border: `1px solid ${c.border}`,
-                    borderRadius: 'var(--r-sm)',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: c.text1,
-                    cursor: 'pointer',
-                  }}
+                  style={{ appearance: 'none', padding: '7px 30px 7px 12px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-sm)', fontSize: 13, fontWeight: 500, color: c.text1, cursor: 'pointer' }}
                 >
                   {SORT_OPTIONS.map((o, i) => (
                     <option key={i} value={i}>{o.label}</option>
@@ -672,14 +549,14 @@ function HomeContent() {
             </div>
           </div>
 
-          {/* Phone grid */}
+          {/* Phone grid — 2 columns */}
           {loading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+            <div className="phone-grid-layout">
               {Array.from({ length: PAGE_SIZE }).map((_, i) => <PhoneCardSkeleton key={i} />)}
             </div>
           ) : phones.length > 0 ? (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+              <div className="phone-grid-layout">
                 {phones.map(phone => (
                   <PhoneCard
                     key={phone.id}
@@ -689,7 +566,15 @@ function HomeContent() {
                   />
                 ))}
               </div>
-              <Pagination page={page} total={total} pageSize={PAGE_SIZE} onChange={p => { setPage(p); document.getElementById('phone-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />
+              <Pagination
+                page={page}
+                total={total}
+                pageSize={PAGE_SIZE}
+                onChange={p => {
+                  setPage(p)
+                  document.getElementById('phone-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }}
+              />
             </>
           ) : (
             <div style={{ textAlign: 'center', padding: '80px 0' }}>
@@ -709,47 +594,33 @@ function HomeContent() {
         </div>
       </div>
 
-      {/* ── Trending ── */}
+      {/* Trending */}
       <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto', padding: '0 var(--page-px)' }}>
         <TrendingScroll phones={trending} />
       </div>
 
       <Footer />
 
-      {/* Compare floating bar */}
       <CompareBar
         phones={comparePhones}
         onRemove={id => setComparePhones(prev => prev.filter(p => p.id !== id))}
         onClear={() => setComparePhones([])}
       />
 
-      {/* Mobile filter sheet */}
       {mobileFiltersOpen && (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.45)' }}
           onClick={() => setMobileFiltersOpen(false)}
         >
           <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              background: c.surface,
-              borderRadius: 'var(--r-xl) var(--r-xl) 0 0',
-              maxHeight: '85vh',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              animation: 'slideUp 0.25s ease',
-            }}
+            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: c.surface, borderRadius: 'var(--r-xl) var(--r-xl) 0 0', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: 'slideUp 0.25s ease' }}
             onClick={e => e.stopPropagation()}
           >
             <div style={{ padding: '10px 0 0', display: 'flex', justifyContent: 'center' }}>
               <div style={{ width: 36, height: 4, background: c.border, borderRadius: 2 }} />
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 20px' }}>
-              <FilterPanel filters={filters} onChange={f => { handleFiltersChange(f); }} onReset={() => { handleReset(); setMobileFiltersOpen(false) }} />
+              <FilterPanel filters={filters} onChange={f => { handleFiltersChange(f) }} onReset={() => { handleReset(); setMobileFiltersOpen(false) }} />
             </div>
             <div style={{ padding: '12px 16px', borderTop: `1px solid ${c.border}`, display: 'flex', gap: 10 }}>
               <button onClick={handleReset} style={{ flex: 1, padding: '11px 0', background: 'var(--bg)', border: `1px solid ${c.border}`, borderRadius: 'var(--r-md)', fontSize: 14, fontWeight: 600, color: c.text1 }}>
@@ -764,28 +635,37 @@ function HomeContent() {
       )}
 
       <style>{`
+        /* 2-column grid by default next to sidebar */
+        .phone-grid-layout {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 14px;
+        }
+
+        @media (max-width: 1400px) {
+          .phone-grid-layout { grid-template-columns: repeat(2, 1fr); }
+        }
+
         @media (max-width: 1024px) {
           #phone-grid { grid-template-columns: 1fr !important; }
           .filter-sidebar { display: none !important; }
           .mobile-filter-btn { display: flex !important; }
-          #phone-grid > div:last-child > div:nth-child(2) > div {
-            grid-template-columns: repeat(3, 1fr) !important;
-          }
+          /* More space without sidebar: allow 3 cols on tablet */
+          .phone-grid-layout { grid-template-columns: repeat(3, 1fr); gap: 12px; }
         }
+
         @media (max-width: 768px) {
-          #phone-grid > div:last-child > div:nth-child(2) > div {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
+          .phone-grid-layout { grid-template-columns: repeat(2, 1fr); gap: 10px; }
         }
+
         @media (max-width: 480px) {
           #phone-grid { padding-bottom: 40px !important; }
+          .phone-grid-layout { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         }
       `}</style>
     </div>
   )
 }
-
-// ─── Page export ───────────────────────────────────────────────────────────
 
 import { Suspense } from 'react'
 
