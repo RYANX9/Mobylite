@@ -273,7 +273,7 @@ function Footer() {
         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: 40, marginBottom: 40 }}>
           <div>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <img src="/logo-red.svg" alt="Mobylite logo" style={{ width: 12, height: 12 }} />
+              <img src="/logored.svg" alt="Mobylite logo" style={{ width: 12, height: 12 }} />
               Mobylite
             </div>
             <p style={{ fontSize: 14, color: '#A0A0B0', lineHeight: 1.6, maxWidth: 260 }}>
