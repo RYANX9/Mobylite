@@ -16,79 +16,193 @@ import Navbar from '@/app/components/Navbar'
 import { ToastProvider, useToast } from '@/app/components/Toast'
 import CompareBar from '@/app/components/CompareBar'
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+// ─── HTML / text helpers ──────────────────────────────────────────────────────
 
-/** Safely convert any spec value to a renderable string */
+/** Strip all HTML tags and decode common entities */
+function stripHtml(raw: string): string {
+  return raw
+    .replace(/<br\s*\/?>/gi, '\n')          // <br> → newline
+    .replace(/<[^>]+>/g, '')                // remove all other tags
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')            // collapse excess newlines
+    .trim()
+}
+
+/** Recursively convert any value to a clean, renderable string */
 function specValueToString(v: unknown): string {
   if (v === null || v === undefined) return '—'
-  if (typeof v === 'string') return v || '—'
-  if (typeof v === 'number' || typeof v === 'boolean') return String(v)
-  if (Array.isArray(v)) return v.map(specValueToString).join(', ')
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No'
+  if (typeof v === 'number') return String(v)
+  if (typeof v === 'string') {
+    const stripped = stripHtml(v)
+    return stripped || '—'
+  }
+  if (Array.isArray(v)) {
+    return v.map(specValueToString).filter(s => s !== '—').join(', ') || '—'
+  }
   if (typeof v === 'object') {
-    // flatten object to "key: value" pairs
+    // flatten object → "key: value" pairs, skip url-looking values
     return Object.entries(v as Record<string, unknown>)
+      .filter(([, val]) => {
+        const s = String(val ?? '')
+        return !s.startsWith('http') && s !== 'null' && s !== ''
+      })
       .map(([k, val]) => `${k}: ${specValueToString(val)}`)
-      .join(' · ')
+      .join(' · ') || '—'
   }
   return String(v)
 }
 
-/**
- * Extract spec groups from full_specifications.
- * Handles both { specifications: { … } } and flat { Display: { … }, … } shapes.
- */
-function getSpecGroups(phone: Phone): [string, Record<string, string>][] {
+// keys in full_specifications to completely skip when building spec groups
+const SKIP_SPEC_KEYS = new Set([
+  'metadata', 'media', 'benchmarks', 'price_info',
+  'quick_specs', 'processed_at', 'source_url', 'specifications',
+])
+
+// keys whose values are objects containing the actual spec rows
+// shape: full_specifications.specifications.Display = { Size: '...', Type: '...' }
+// OR:   full_specifications.Display = { Size: '...', Type: '...' }
+function getSpecGroups(phone: Phone): Array<[string, Record<string, string>]> {
   const fs = phone.full_specifications
   if (!fs || typeof fs !== 'object') return []
 
-  // preferred shape: full_specifications.specifications
-  const specsSource =
+  // prefer the nested `specifications` key if present
+  const root: Record<string, unknown> =
     (fs as any).specifications && typeof (fs as any).specifications === 'object'
       ? (fs as any).specifications
-      : fs
+      : (fs as any)
 
-  return Object.entries(specsSource)
-    .filter(([key]) => {
-      // skip known non-spec metadata keys
-      const skip = new Set([
-        'metadata', 'media', 'benchmarks', 'price_info',
-        'quick_specs', 'processed_at', 'source_url',
-      ])
-      return !skip.has(key)
-    })
-    .map(([groupName, groupVal]) => {
-      // each group should be an object of label→value pairs
-      if (groupVal && typeof groupVal === 'object' && !Array.isArray(groupVal)) {
-        const safe: Record<string, string> = {}
-        for (const [k, v] of Object.entries(groupVal as Record<string, unknown>)) {
-          safe[k] = specValueToString(v)
-        }
-        return [groupName, safe] as [string, Record<string, string>]
-      }
-      // scalar group value — show as single row
-      return [groupName, { Value: specValueToString(groupVal) }] as [string, Record<string, string>]
-    })
-    .filter(([, specs]) => Object.keys(specs).length > 0)
+  const groups: Array<[string, Record<string, string>]> = []
+
+  for (const [groupName, groupVal] of Object.entries(root)) {
+    if (SKIP_SPEC_KEYS.has(groupName)) continue
+    if (!groupVal || typeof groupVal !== 'object' || Array.isArray(groupVal)) continue
+
+    const rows: Record<string, string> = {}
+    for (const [k, v] of Object.entries(groupVal as Record<string, unknown>)) {
+      // skip fields that look like internal metadata
+      if (k.toLowerCase().includes('url') && typeof v === 'string' && v.startsWith('http')) continue
+      const val = specValueToString(v)
+      if (val && val !== '—') rows[k] = val
+    }
+    if (Object.keys(rows).length > 0) groups.push([groupName, rows])
+  }
+
+  return groups
+}
+
+// ─── slug resolution ──────────────────────────────────────────────────────────
+
+function pickBest(phones: Phone[], targetSlug: string): Phone | null {
+  if (!phones.length) return null
+  const target = targetSlug.toLowerCase()
+  let best: Phone | null = null
+  let bestScore = -1
+
+  for (const p of phones) {
+    const ps = phoneSlug(p).toLowerCase()
+    if (ps === target) return p
+    let score = 0; let ti = 0
+    for (let pi = 0; pi < ps.length && ti < target.length; pi++) {
+      if (ps[pi] === target[ti]) { score++; ti++ }
+    }
+    if (score > bestScore) { bestScore = score; best = p }
+  }
+  return bestScore > target.length * 0.45 ? best : null
+}
+
+async function resolvePhone(brand: string, model: string): Promise<Phone | null> {
+  const brandName  = brand.replace(/-/g, ' ')
+  const modelWords = model.replace(/-/g, ' ')
+
+  // attempt 1 — full model slug + brand filter
+  try {
+    const res = await api.phones.search({ q: modelWords, brand: brandName, page_size: 10 })
+    const match = pickBest(res.results, model)
+    if (match) return api.phones.detail(match.id)
+  } catch { /* continue */ }
+
+  // attempt 2 — full model slug, no brand filter
+  try {
+    const res = await api.phones.search({ q: modelWords, page_size: 10 })
+    const match = pickBest(res.results, model)
+    if (match) return api.phones.detail(match.id)
+  } catch { /* continue */ }
+
+  // attempt 3 — strip leading brand tokens
+  const brandTokens = brandName.toLowerCase().split(' ')
+  let   queryTokens = modelWords.toLowerCase().split(' ')
+  for (const bt of brandTokens) {
+    if (queryTokens[0] === bt) queryTokens = queryTokens.slice(1)
+  }
+  const stripped = queryTokens.join(' ')
+  if (stripped && stripped !== modelWords.toLowerCase()) {
+    try {
+      const res = await api.phones.search({ q: stripped, brand: brandName, page_size: 10 })
+      const match = pickBest(res.results, model)
+      if (match) return api.phones.detail(match.id)
+    } catch { /* continue */ }
+  }
+
+  // attempt 4 — browse brand, fuzzy slug
+  try {
+    const res = await api.phones.search({ brand: brandName, page_size: 50 })
+    const match = pickBest(res.results, model)
+    if (match) return api.phones.detail(match.id)
+  } catch { /* ignore */ }
+
+  return null
 }
 
 // ─── sub-components ───────────────────────────────────────────────────────────
 
-function TabButton({
-  active, onClick, children,
-}: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function TabButton({ active, onClick, children }: {
+  active: boolean; onClick: () => void; children: React.ReactNode
+}) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: '14px 20px', fontSize: 14, fontWeight: 500,
-        color: active ? c.text1 : c.text3,
-        borderBottom: `2px solid ${active ? c.accent : 'transparent'}`,
-        transition: 'all 0.15s', whiteSpace: 'nowrap',
-        background: 'none', border: 'none', cursor: 'pointer',
-      }}
-    >
+    <button onClick={onClick} style={{
+      padding: '14px 20px', fontSize: 14, fontWeight: 500,
+      color: active ? c.text1 : c.text3,
+      borderBottom: `2px solid ${active ? c.accent : 'transparent'}`,
+      transition: 'all 0.15s', whiteSpace: 'nowrap',
+      background: 'none', border: 'none', cursor: 'pointer',
+    }}>
       {children}
     </button>
+  )
+}
+
+function SpecRow({ label, value, alt }: { label: string; value: string; alt: boolean }) {
+  // value may contain \n from <br> stripping — render each line
+  const lines = value.split('\n').filter(Boolean)
+  return (
+    <div style={{
+      display: 'flex', gap: 16, padding: '11px 20px',
+      borderBottom: `1px solid ${c.border}`,
+      background: alt ? 'rgba(248,248,245,0.6)' : 'transparent',
+    }}>
+      <div style={{
+        width: 160, flexShrink: 0, fontSize: 13,
+        color: c.text3, fontWeight: 500, paddingTop: 1,
+      }}>
+        {label}
+      </div>
+      <div style={{ flex: 1, fontSize: 13, color: c.text1, lineHeight: 1.6 }}>
+        {lines.length <= 1
+          ? value
+          : lines.map((line, i) => (
+              <div key={i} style={{ marginBottom: i < lines.length - 1 ? 4 : 0 }}>
+                {line}
+              </div>
+            ))
+        }
+      </div>
+    </div>
   )
 }
 
@@ -98,43 +212,24 @@ function SpecGroup({ title, specs }: { title: string; specs: Record<string, stri
   if (!entries.length) return null
 
   return (
-    <div style={{ marginBottom: 8 }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-          padding: '14px 20px', background: c.surface,
-          border: `1px solid ${c.border}`,
-          borderRadius: open ? 'var(--r-md) var(--r-md) 0 0' : 'var(--r-md)',
-          textAlign: 'left', transition: 'all 0.15s', cursor: 'pointer',
-        }}
-      >
-        <span style={{ flex: 1, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: c.text1 }}>
+    <div style={{ marginBottom: 8, borderRadius: 'var(--r-md)', overflow: 'hidden', border: `1px solid ${c.border}` }}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+        padding: '13px 20px', background: c.surface,
+        textAlign: 'left', cursor: 'pointer',
+        border: 'none', borderBottom: open ? `1px solid ${c.border}` : 'none',
+      }}>
+        <span style={{ flex: 1, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: c.text1 }}>
           {title}
         </span>
-        <span style={{ fontSize: 12, color: c.text3 }}>{entries.length}</span>
-        <ChevronDown size={14} color={c.text3} style={{ transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none' }} />
+        <span style={{ fontSize: 11, color: c.text3, marginRight: 6 }}>{entries.length} specs</span>
+        <ChevronDown size={14} color={c.text3} style={{ transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none', flexShrink: 0 }} />
       </button>
 
       {open && (
-        <div style={{
-          background: c.surface, border: `1px solid ${c.border}`,
-          borderTop: 'none', borderRadius: '0 0 var(--r-md) var(--r-md)', overflow: 'hidden',
-        }}>
+        <div style={{ background: c.surface }}>
           {entries.map(([k, v], i) => (
-            <div key={k} style={{
-              display: 'flex', gap: 16, padding: '11px 20px',
-              borderBottom: i < entries.length - 1 ? `1px solid ${c.border}` : 'none',
-              background: i % 2 === 1 ? 'rgba(248,248,245,0.6)' : 'transparent',
-            }}>
-              <div style={{ width: 180, flexShrink: 0, fontSize: 13, color: c.text3, fontWeight: 500, paddingTop: 1 }}>
-                {k}
-              </div>
-              {/* v is always a string now — safe to render directly */}
-              <div style={{ flex: 1, fontSize: 13, color: c.text1, lineHeight: 1.5 }}>
-                {v}
-              </div>
-            </div>
+            <SpecRow key={k} label={k} value={v} alt={i % 2 === 1} />
           ))}
         </div>
       )}
@@ -155,10 +250,8 @@ function QuickSpecCard({ icon, value, label }: { icon: React.ReactNode; value: s
   )
 }
 
-function OverviewSection({ title, headline, specs, note }: {
-  title: string; headline: string
-  specs: { label: string; value: string }[]
-  note?: string
+function OverviewSection({ title, headline, specs }: {
+  title: string; headline: string; specs: { label: string; value: string }[]
 }) {
   if (!specs.length) return null
   return (
@@ -169,31 +262,21 @@ function OverviewSection({ title, headline, specs, note }: {
         {specs.map(s => (
           <div key={s.label} style={{ padding: '9px 12px', background: c.bg, borderRadius: 'var(--r-sm)' }}>
             <div style={{ fontSize: 11, color: c.text3, marginBottom: 3 }}>{s.label}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: c.text1 }}>{s.value}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: c.text1, lineHeight: 1.4 }}>{s.value}</div>
           </div>
         ))}
       </div>
-      {note && (
-        <div style={{
-          marginTop: 14, padding: '12px 14px',
-          background: 'rgba(69,123,157,0.06)', border: '1px solid rgba(69,123,157,0.12)',
-          borderRadius: 'var(--r-sm)', fontSize: 13, color: c.text2, lineHeight: 1.6, fontStyle: 'italic',
-        }}>
-          {note}
-        </div>
-      )}
     </div>
   )
 }
 
 function SimilarCard({ phone }: { phone: Phone }) {
   const [imgErr, setImgErr] = useState(false)
-  const href = ROUTES.phone(brandSlug(phone.brand), phoneSlug(phone))
   return (
     <Link
-      href={href}
+      href={ROUTES.phone(brandSlug(phone.brand), phoneSlug(phone))}
       style={{
-        flexShrink: 0, width: 160, background: c.surface,
+        flexShrink: 0, width: 156, background: c.surface,
         border: `1px solid ${c.border}`, borderRadius: 'var(--r-md)',
         padding: '14px 12px', textAlign: 'center', transition: 'all 0.15s',
         scrollSnapAlign: 'start', display: 'block', textDecoration: 'none',
@@ -206,103 +289,44 @@ function SimilarCard({ phone }: { phone: Phone }) {
       }}
       onMouseLeave={e => {
         const el = e.currentTarget as HTMLElement
-        el.style.transform = 'none'
-        el.style.boxShadow = 'none'
-        el.style.borderColor = c.border
+        el.style.transform = 'none'; el.style.boxShadow = 'none'; el.style.borderColor = c.border
       }}
     >
-      <div style={{ width: 80, height: 80, margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 72, height: 72, margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {phone.main_image_url && !imgErr
           ? <img src={phone.main_image_url} alt={phone.model_name} onError={() => setImgErr(true)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-          : <Smartphone size={36} color={c.border} strokeWidth={1} />}
+          : <Smartphone size={32} color={c.border} strokeWidth={1} />}
       </div>
       <div style={{ fontSize: 10, color: c.text3, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>{phone.brand}</div>
-      <div style={{ fontFamily: f.serif, fontSize: 13, color: c.text1, lineHeight: 1.3, marginBottom: 4 }}>{phone.model_name}</div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: c.text1 }}>
-        {phone.price_usd ? `$${phone.price_usd.toLocaleString()}` : '—'}
+      <div style={{ fontSize: 12, fontWeight: 600, color: c.text1, lineHeight: 1.3, marginBottom: 6, fontFamily: f.serif }}>{phone.model_name}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: c.text1 }}>
+        {phone.price_usd ? `$${Math.round(phone.price_usd).toLocaleString()}` : '—'}
       </div>
+      {phone.main_camera_mp && (
+        <div style={{ fontSize: 11, color: c.text3, marginTop: 3 }}>{phone.main_camera_mp}MP · {phone.battery_capacity ? `${phone.battery_capacity}mAh` : ''}</div>
+      )}
     </Link>
   )
 }
 
-// ─── slug resolution ──────────────────────────────────────────────────────────
-
-function pickBest(phones: Phone[], targetSlug: string): Phone | null {
-  if (!phones.length) return null
-  const target = targetSlug.toLowerCase()
-  let best: Phone | null = null
-  let bestScore = -1
-
-  for (const p of phones) {
-    const ps = phoneSlug(p).toLowerCase()
-    if (ps === target) return p
-    let score = 0; let ti = 0
-    for (let pi = 0; pi < ps.length && ti < target.length; pi++) {
-      if (ps[pi] === target[ti]) { score++; ti++ }
-    }
-    if (score > bestScore) { bestScore = score; best = p }
-  }
-  return bestScore > target.length * 0.5 ? best : null
-}
-
-async function resolvePhone(brand: string, model: string): Promise<Phone | null> {
-  const brandName  = brand.replace(/-/g, ' ')
-  const modelWords = model.replace(/-/g, ' ')
-
-  // attempt 1 — full model slug + brand filter
-  {
-    const res = await api.phones.search({ q: modelWords, brand: brandName, page_size: 10 })
-    const match = pickBest(res.results, model)
-    if (match) return api.phones.detail(match.id)
-  }
-
-  // attempt 2 — full model slug, no brand filter
-  {
-    const res = await api.phones.search({ q: modelWords, page_size: 10 })
-    const match = pickBest(res.results, model)
-    if (match) return api.phones.detail(match.id)
-  }
-
-  // attempt 3 — strip leading brand tokens
-  const brandTokens = brandName.toLowerCase().split(' ')
-  let queryTokens   = modelWords.toLowerCase().split(' ')
-  for (const bt of brandTokens) {
-    if (queryTokens[0] === bt) queryTokens = queryTokens.slice(1)
-  }
-  const stripped = queryTokens.join(' ')
-  if (stripped && stripped !== modelWords.toLowerCase()) {
-    const res = await api.phones.search({ q: stripped, brand: brandName, page_size: 10 })
-    const match = pickBest(res.results, model)
-    if (match) return api.phones.detail(match.id)
-  }
-
-  // attempt 4 — browse brand phones, fuzzy-match slug
-  try {
-    const res = await api.phones.search({ brand: brandName, page_size: 50 })
-    const match = pickBest(res.results, model)
-    if (match) return api.phones.detail(match.id)
-  } catch { /* ignore */ }
-
-  return null
-}
-
-// ─── main page ────────────────────────────────────────────────────────────────
+// ─── main page component ──────────────────────────────────────────────────────
 
 function PhoneDetailContent() {
-  const params   = useParams()
-  const router   = useRouter()
+  const params = useParams()
+  const router = useRouter()
   const { toast } = useToast()
 
   const brand = (params?.brand as string) ?? ''
   const model = (params?.model as string) ?? ''
 
-  const [phone, setPhone]             = useState<Phone | null>(null)
-  const [similar, setSimilar]         = useState<Phone[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [notFound, setNotFound]       = useState(false)
-  const [tab, setTab]                 = useState<'overview' | 'specs' | 'compare'>('overview')
-  const [imgErr, setImgErr]           = useState(false)
-  const [copied, setCopied]           = useState(false)
+  const [phone, setPhone]                 = useState<Phone | null>(null)
+  const [similar, setSimilar]             = useState<Phone[]>([])
+  const [similarLoading, setSimilarLoading] = useState(false)
+  const [loading, setLoading]             = useState(true)
+  const [notFound, setNotFound]           = useState(false)
+  const [tab, setTab]                     = useState<'overview' | 'specs' | 'compare'>('overview')
+  const [imgErr, setImgErr]               = useState(false)
+  const [copied, setCopied]               = useState(false)
   const [comparePhones, setComparePhones] = useState<Phone[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -319,13 +343,14 @@ function PhoneDetailContent() {
       .then(async found => {
         if (cancelled) return
         if (!found) { setNotFound(true); return }
-
         setPhone(found)
 
-        // fetch similar separately — never crash the page if it fails
+        // fetch similar in background — never block or crash the page
+        setSimilarLoading(true)
         api.phones.similar(found.id, 12)
-          .then(sim => { if (!cancelled) setSimilar(sim?.phones ?? []) })
+          .then(res => { if (!cancelled) setSimilar(res?.phones ?? []) })
           .catch(() => { /* similar is optional */ })
+          .finally(() => { if (!cancelled) setSimilarLoading(false) })
       })
       .catch(() => { if (!cancelled) setNotFound(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -351,13 +376,12 @@ function PhoneDetailContent() {
   const handleShare = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href)
-      setCopied(true)
-      toast('Link copied!', 'success')
+      setCopied(true); toast('Link copied!', 'success')
       setTimeout(() => setCopied(false), 2000)
     } catch { /* denied */ }
   }
 
-  // ── loading skeleton ────────────────────────────────────────────────────────
+  // ── loading ─────────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ minHeight: '100vh', background: c.bg }}>
       <Navbar compareCount={0} />
@@ -365,14 +389,9 @@ function PhoneDetailContent() {
         <div className="phone-hero-grid" style={{ gap: 40, paddingBottom: 48 }}>
           <div className="skeleton" style={{ aspectRatio: '1', borderRadius: 'var(--r-xl)' }} />
           <div style={{ paddingTop: 8 }}>
-            <div className="skeleton" style={{ height: 12, width: '30%', marginBottom: 12 }} />
-            <div className="skeleton" style={{ height: 36, width: '85%', marginBottom: 8 }} />
-            <div className="skeleton" style={{ height: 28, width: '40%', marginBottom: 24 }} />
-            <div className="skeleton" style={{ height: 72, borderRadius: 'var(--r-md)', marginBottom: 20 }} />
-            <div style={{ display: 'flex', gap: 10 }}>
-              <div className="skeleton" style={{ height: 44, flex: 1, borderRadius: 22 }} />
-              <div className="skeleton" style={{ height: 44, flex: 1, borderRadius: 22 }} />
-            </div>
+            {[['30%', 12], ['85%', 36], ['40%', 28], ['100%', 72]].map(([w, h], i) => (
+              <div key={i} className="skeleton" style={{ height: h as number, width: w as string, marginBottom: 16, borderRadius: 8 }} />
+            ))}
           </div>
         </div>
         <div className="quick-specs-grid" style={{ marginBottom: 48 }}>
@@ -384,7 +403,7 @@ function PhoneDetailContent() {
     </div>
   )
 
-  // ── not found ───────────────────────────────────────────────────────────────
+  // ── not found ────────────────────────────────────────────────────────────────
   if (notFound || !phone) return (
     <div style={{ minHeight: '100vh', background: c.bg }}>
       <Navbar compareCount={0} />
@@ -395,31 +414,32 @@ function PhoneDetailContent() {
           We don't have this phone in our database. We only track phones currently available for purchase.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href={ROUTES.home} style={{
-            padding: '10px 24px', background: c.primary, color: '#fff',
-            borderRadius: 'var(--r-full)', fontSize: 14, fontWeight: 600,
-          }}>Browse All Phones</Link>
-          <Link href={ROUTES.brand(brand)} style={{
-            padding: '10px 24px', border: `1px solid ${c.border}`, color: c.text2,
-            borderRadius: 'var(--r-full)', fontSize: 14, fontWeight: 500,
-          }}>Browse {brand.replace(/-/g, ' ')} phones</Link>
+          <Link href={ROUTES.home} style={{ padding: '10px 24px', background: c.primary, color: '#fff', borderRadius: 'var(--r-full)', fontSize: 14, fontWeight: 600 }}>
+            Browse All Phones
+          </Link>
+          <Link href={ROUTES.brand(brand)} style={{ padding: '10px 24px', border: `1px solid ${c.border}`, color: c.text2, borderRadius: 'var(--r-full)', fontSize: 14, fontWeight: 500 }}>
+            Browse {brand.replace(/-/g, ' ')} phones
+          </Link>
         </div>
       </div>
     </div>
   )
 
-  // ── derived data ────────────────────────────────────────────────────────────
+  // ── derived ──────────────────────────────────────────────────────────────────
   const quickSpecs = [
-    phone.screen_size         ? { icon: <Monitor size={20} strokeWidth={1.5} />, value: `${phone.screen_size}"`,                  label: 'Display'  } : null,
-    phone.main_camera_mp      ? { icon: <Camera  size={20} strokeWidth={1.5} />, value: `${phone.main_camera_mp}MP`,              label: 'Camera'   } : null,
-    phone.battery_capacity    ? { icon: <Battery size={20} strokeWidth={1.5} />, value: phone.battery_capacity.toLocaleString(),  label: 'mAh'      } : null,
-    phone.ram_options?.length ? { icon: <Cpu     size={20} strokeWidth={1.5} />, value: `${Math.max(...phone.ram_options!)}GB`,   label: 'Max RAM'  } : null,
-    phone.fast_charging_w     ? { icon: <Zap     size={20} strokeWidth={1.5} />, value: `${phone.fast_charging_w}W`,              label: 'Charging' } : null,
-    phone.weight_g            ? { icon: <Weight  size={20} strokeWidth={1.5} />, value: `${phone.weight_g}g`,                    label: 'Weight'   } : null,
+    phone.screen_size         ? { icon: <Monitor size={20} strokeWidth={1.5} />, value: `${phone.screen_size}"`,                label: 'Display'  } : null,
+    phone.main_camera_mp      ? { icon: <Camera  size={20} strokeWidth={1.5} />, value: `${phone.main_camera_mp}MP`,            label: 'Camera'   } : null,
+    phone.battery_capacity    ? { icon: <Battery size={20} strokeWidth={1.5} />, value: `${phone.battery_capacity.toLocaleString()}`, label: 'mAh' } : null,
+    phone.ram_options?.length ? { icon: <Cpu     size={20} strokeWidth={1.5} />, value: `${Math.max(...phone.ram_options!)}GB`, label: 'Max RAM'  } : null,
+    phone.fast_charging_w     ? { icon: <Zap     size={20} strokeWidth={1.5} />, value: `${phone.fast_charging_w}W`,            label: 'Charging' } : null,
+    phone.weight_g            ? { icon: <Weight  size={20} strokeWidth={1.5} />, value: `${phone.weight_g}g`,                  label: 'Weight'   } : null,
   ].filter(Boolean) as { icon: React.ReactNode; value: string; label: string }[]
 
-  const specGroups = getSpecGroups(phone)
-  const valueScore = (phone as any).value_score as number | null
+  const specGroups  = getSpecGroups(phone)
+  const valueScore  = (phone as any).value_score as number | null
+  const fs          = phone.full_specifications as any
+
+  const str = (v: unknown) => v ? String(v) : null
 
   const overviewSections = [
     {
@@ -427,35 +447,33 @@ function PhoneDetailContent() {
       specs: [
         phone.screen_size       ? { label: 'Screen Size', value: `${phone.screen_size}"` } : null,
         phone.screen_resolution ? { label: 'Resolution',  value: phone.screen_resolution } : null,
-        (phone.full_specifications as any)?.quick_specs?.displaytype
-          ? { label: 'Type', value: String((phone.full_specifications as any).quick_specs.displaytype) } : null,
+        str(fs?.quick_specs?.displaytype) ? { label: 'Type', value: stripHtml(String(fs.quick_specs.displaytype)) } : null,
       ].filter(Boolean) as { label: string; value: string }[],
     },
     {
       title: 'Camera', headline: phone.main_camera_mp ? `${phone.main_camera_mp}MP Main Camera` : 'Camera System',
       specs: [
-        phone.main_camera_mp ? { label: 'Main Camera',  value: `${phone.main_camera_mp} MP` } : null,
-        (phone.full_specifications as any)?.quick_specs?.cam1modules
-          ? { label: 'Rear System',  value: String((phone.full_specifications as any).quick_specs.cam1modules) } : null,
-        (phone.full_specifications as any)?.quick_specs?.cam2modules
-          ? { label: 'Front Camera', value: String((phone.full_specifications as any).quick_specs.cam2modules) } : null,
+        phone.main_camera_mp ? { label: 'Main Camera', value: `${phone.main_camera_mp} MP` } : null,
+        str(fs?.quick_specs?.cam1modules) ? { label: 'Rear System',  value: stripHtml(String(fs.quick_specs.cam1modules)) } : null,
+        str(fs?.quick_specs?.cam2modules) ? { label: 'Front Camera', value: stripHtml(String(fs.quick_specs.cam2modules)) } : null,
       ].filter(Boolean) as { label: string; value: string }[],
     },
     {
       title: 'Performance', headline: phone.chipset || 'Processor',
       specs: [
         phone.chipset             ? { label: 'Chipset',     value: phone.chipset } : null,
-        phone.ram_options?.length ? { label: 'RAM Options', value: phone.ram_options!.map(r => `${r}GB`).join(' / ') } : null,
+        phone.ram_options?.length ? { label: 'RAM',         value: phone.ram_options!.map(r => `${r}GB`).join(' / ') } : null,
         phone.storage_options?.length
-          ? { label: 'Storage', value: phone.storage_options!.map(s => s >= 1000 ? `${s / 1000}TB` : `${s}GB`).join(' / ') } : null,
-        phone.antutu_score ? { label: 'AnTuTu', value: phone.antutu_score.toLocaleString() } : null,
+          ? { label: 'Storage', value: phone.storage_options!.map(s => s >= 1000 ? `${s/1000}TB` : `${s}GB`).join(' / ') } : null,
+        phone.antutu_score ? { label: 'AnTuTu Score', value: phone.antutu_score.toLocaleString() } : null,
+        phone.geekbench_multi ? { label: 'GeekBench Multi', value: phone.geekbench_multi.toLocaleString() } : null,
       ].filter(Boolean) as { label: string; value: string }[],
     },
     {
       title: 'Battery & Charging', headline: phone.battery_capacity ? `${phone.battery_capacity.toLocaleString()} mAh` : 'Battery',
       specs: [
         phone.battery_capacity ? { label: 'Capacity',      value: `${phone.battery_capacity.toLocaleString()} mAh` } : null,
-        phone.fast_charging_w  ? { label: 'Fast Charging', value: `${phone.fast_charging_w}W` } : null,
+        phone.fast_charging_w  ? { label: 'Fast Charging', value: `${phone.fast_charging_w}W wired` } : null,
       ].filter(Boolean) as { label: string; value: string }[],
     },
     {
@@ -465,9 +483,9 @@ function PhoneDetailContent() {
         phone.thickness_mm ? { label: 'Thickness', value: `${phone.thickness_mm}mm` } : null,
       ].filter(Boolean) as { label: string; value: string }[],
     },
-  ]
+  ].filter(s => s.specs.length > 0)
 
-  // ── render ──────────────────────────────────────────────────────────────────
+  // ── render ───────────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: c.bg }}>
       <Navbar
@@ -486,12 +504,12 @@ function PhoneDetailContent() {
           <ChevronRight size={12} />
           <Link href={ROUTES.brand(brandSlug(phone.brand))} style={{ color: c.text2 }}>{phone.brand}</Link>
           <ChevronRight size={12} />
-          <span>{phone.model_name}</span>
+          <span style={{ color: c.text3 }}>{phone.model_name}</span>
         </nav>
 
-        {/* hero grid */}
+        {/* hero */}
         <div className="phone-hero-grid">
-          {/* image */}
+          {/* image panel */}
           <div style={{
             background: c.surface, border: `1px solid ${c.border}`,
             borderRadius: 'var(--r-xl)', padding: 32,
@@ -499,7 +517,8 @@ function PhoneDetailContent() {
             aspectRatio: '1', position: 'relative',
           }}>
             {phone.main_image_url && !imgErr
-              ? <img src={phone.main_image_url} alt={phone.model_name} onError={() => setImgErr(true)} style={{ maxWidth: '72%', maxHeight: '72%', objectFit: 'contain' }} />
+              ? <img src={phone.main_image_url} alt={phone.model_name} onError={() => setImgErr(true)}
+                     style={{ maxWidth: '72%', maxHeight: '72%', objectFit: 'contain' }} />
               : <Smartphone size={100} color={c.border} strokeWidth={0.8} />}
             {phone.release_year && (
               <div style={{
@@ -507,26 +526,22 @@ function PhoneDetailContent() {
                 background: c.bg, border: `1px solid ${c.border}`,
                 borderRadius: 'var(--r-full)', padding: '4px 10px',
                 fontSize: 11, fontWeight: 600, color: c.text3,
-              }}>
-                {phone.release_year}
-              </div>
+              }}>{phone.release_year}</div>
             )}
           </div>
 
-          {/* info */}
+          {/* info panel */}
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', color: c.text3, marginBottom: 6 }}>
               {phone.brand}
             </div>
-            <h1 style={{ fontFamily: f.serif, fontSize: 'clamp(26px,3vw,38px)', color: c.text1, letterSpacing: '-0.4px', lineHeight: 1.15, marginBottom: 10 }}>
+            <h1 style={{ fontFamily: f.serif, fontSize: 'clamp(24px,3vw,36px)', color: c.text1, letterSpacing: '-0.4px', lineHeight: 1.15, marginBottom: 10 }}>
               {phone.model_name}
             </h1>
-            <div style={{ fontSize: 'clamp(22px,3vw,28px)', fontWeight: 600, color: c.text1, marginBottom: 4 }}>
-              {phone.price_usd ? `$${phone.price_usd.toLocaleString()}` : 'Price TBA'}
+            <div style={{ fontSize: 'clamp(20px,2.5vw,28px)', fontWeight: 600, color: c.text1, marginBottom: 4 }}>
+              {phone.price_usd ? `$${Math.round(phone.price_usd).toLocaleString()}` : 'Price TBA'}
             </div>
-            {phone.price_usd && (
-              <div style={{ fontSize: 13, color: c.text3, marginBottom: 18 }}>Starting price · US</div>
-            )}
+            {phone.price_usd && <div style={{ fontSize: 13, color: c.text3, marginBottom: 18 }}>Starting price · US</div>}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
               <span style={{ padding: '4px 12px', background: 'var(--green-light)', color: 'var(--green)', border: '1px solid var(--green-border)', borderRadius: 'var(--r-full)', fontSize: 12, fontWeight: 600 }}>
@@ -550,55 +565,49 @@ function PhoneDetailContent() {
                     <div style={{ height: '100%', width: `${valueScore * 10}%`, background: valueScoreColor(valueScore), borderRadius: 3, transition: 'width 0.6s ease' }} />
                   </div>
                 </div>
-                <div style={{ fontSize: 11, color: c.text3 }}>Specs/dollar</div>
+                <div style={{ fontSize: 11, color: c.text3 }}>vs peers</div>
               </div>
             )}
 
             <div className="hero-actions">
-              <button
-                onClick={handleCompareToggle}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px',
-                  fontSize: 14, fontWeight: 600,
-                  color: inCompare ? '#fff' : c.primary,
-                  background: inCompare ? c.primary : 'transparent',
-                  border: `1px solid ${c.primary}`, borderRadius: 'var(--r-full)',
-                  transition: 'all 0.15s', cursor: 'pointer', flex: 1,
-                }}
-              >
+              <button onClick={handleCompareToggle} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px',
+                fontSize: 14, fontWeight: 600, flex: 1,
+                color: inCompare ? '#fff' : c.primary,
+                background: inCompare ? c.primary : 'transparent',
+                border: `1px solid ${c.primary}`, borderRadius: 'var(--r-full)',
+                transition: 'all 0.15s', cursor: 'pointer',
+              }}>
                 <GitCompare size={15} strokeWidth={2} />
                 {inCompare ? 'In Compare' : 'Add to Compare'}
               </button>
 
               {phone.amazon_link && (
-                <a
-                  href={phone.amazon_link} target="_blank" rel="noopener noreferrer"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px',
-                    fontSize: 14, fontWeight: 600, color: '#fff', background: c.primary,
-                    borderRadius: 'var(--r-full)', transition: 'all 0.15s', flex: 1,
-                    textDecoration: 'none', justifyContent: 'center',
-                  }}
+                <a href={phone.amazon_link} target="_blank" rel="noopener noreferrer" style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px',
+                  fontSize: 14, fontWeight: 600, color: '#fff', background: c.primary,
+                  borderRadius: 'var(--r-full)', flex: 1, textDecoration: 'none', justifyContent: 'center',
+                }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2A2A42' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = c.primary }}
-                >
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = c.primary }}>
                   <ShoppingCart size={15} strokeWidth={2} />
                   Buy on Amazon
                 </a>
               )}
             </div>
 
-            <button
-              onClick={handleShare}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: copied ? 'var(--green)' : c.text3, transition: 'color 0.15s', marginTop: 14, background: 'none', border: 'none', cursor: 'pointer' }}
-            >
+            <button onClick={handleShare} style={{
+              display: 'flex', alignItems: 'center', gap: 6, fontSize: 13,
+              color: copied ? 'var(--green)' : c.text3, transition: 'color 0.15s',
+              marginTop: 14, background: 'none', border: 'none', cursor: 'pointer',
+            }}>
               {copied ? <Check size={13} /> : <Share2 size={13} />}
               {copied ? 'Link copied!' : 'Copy link'}
             </button>
           </div>
         </div>
 
-        {/* quick specs */}
+        {/* quick specs bar */}
         <div className="quick-specs-grid" style={{ marginBottom: 40 }}>
           {quickSpecs.map((spec, i) => <QuickSpecCard key={i} {...spec} />)}
         </div>
@@ -606,7 +615,7 @@ function PhoneDetailContent() {
         {/* sticky tabs */}
         <div style={{
           position: 'sticky', top: 'var(--nav-h)', zIndex: 50,
-          background: 'rgba(248,248,245,0.93)', backdropFilter: 'blur(16px)',
+          background: 'rgba(248,248,245,0.95)', backdropFilter: 'blur(16px)',
           borderBottom: `1px solid ${c.border}`, marginBottom: 28,
           display: 'flex', overflowX: 'auto',
         }}>
@@ -615,20 +624,18 @@ function PhoneDetailContent() {
           <TabButton active={tab === 'compare'}  onClick={() => setTab('compare')}>Compare</TabButton>
         </div>
 
-        {/* overview tab */}
+        {/* ── OVERVIEW TAB ── */}
         {tab === 'overview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 48 }}>
-            {overviewSections.map(s => s.specs.length > 0 && <OverviewSection key={s.title} {...s} />)}
+            {overviewSections.map(s => <OverviewSection key={s.title} {...s} />)}
           </div>
         )}
 
-        {/* specs tab */}
+        {/* ── SPECS TAB ── */}
         {tab === 'specs' && (
           <div style={{ marginBottom: 48 }}>
             {specGroups.length > 0
-              ? specGroups.map(([name, specs]) => (
-                  <SpecGroup key={name} title={name} specs={specs} />
-                ))
+              ? specGroups.map(([name, specs]) => <SpecGroup key={name} title={name} specs={specs} />)
               : (
                 <div style={{ textAlign: 'center', padding: '48px 0', color: c.text3 }}>
                   <Smartphone size={48} color={c.border} strokeWidth={1} style={{ margin: '0 auto 12px' }} />
@@ -639,26 +646,31 @@ function PhoneDetailContent() {
           </div>
         )}
 
-        {/* compare tab */}
+        {/* ── COMPARE TAB ── */}
         {tab === 'compare' && (
-          <div style={{ maxWidth: 580, marginBottom: 48 }}>
+          <div style={{ maxWidth: 600, marginBottom: 48 }}>
             <div style={{ fontFamily: f.serif, fontSize: 22, color: c.text1, marginBottom: 6 }}>
-              Compare {phone.model_name} with
+              Compare {phone.model_name}
             </div>
             <p style={{ fontSize: 14, color: c.text3, marginBottom: 22 }}>
-              Select a phone to see a full side-by-side spec comparison.
+              Pick any phone below for a full side-by-side spec comparison.
             </p>
 
-            {similar.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px 0', color: c.text3 }}>
-                <Smartphone size={40} color={c.border} strokeWidth={1} style={{ margin: '0 auto 12px' }} />
-                <p style={{ fontSize: 14 }}>No similar phones found to compare with.</p>
+            {similarLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="skeleton" style={{ height: 68, borderRadius: 'var(--r-md)' }} />
+                ))}
+              </div>
+            ) : similar.length === 0 ? (
+              <div style={{ padding: '32px 20px', textAlign: 'center', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-md)', color: c.text3 }}>
+                <Smartphone size={36} color={c.border} strokeWidth={1} style={{ margin: '0 auto 10px' }} />
+                <p style={{ fontSize: 14 }}>No similar phones found at this price range.</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {similar.slice(0, 6).map(p => (
-                  <Link
-                    key={p.id}
+                {similar.slice(0, 8).map(p => (
+                  <Link key={p.id}
                     href={ROUTES.compare(phoneSlug(phone), phoneSlug(p))}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px',
@@ -673,15 +685,18 @@ function PhoneDetailContent() {
                         ? <img src={p.main_image_url} alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
                         : <Smartphone size={20} color={c.border} strokeWidth={1} />}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: c.text1 }}>{p.model_name}</div>
-                      <div style={{ fontSize: 12, color: c.text3 }}>
-                        {p.price_usd ? `$${p.price_usd.toLocaleString()}` : '—'}
-                        {p.main_camera_mp ? ` · ${p.main_camera_mp}MP` : ''}
-                        {p.battery_capacity ? ` · ${p.battery_capacity.toLocaleString()}mAh` : ''}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: c.text1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {p.model_name}
+                      </div>
+                      <div style={{ fontSize: 12, color: c.text3, marginTop: 2 }}>
+                        {p.price_usd ? `$${Math.round(p.price_usd).toLocaleString()}` : '—'}
+                        {p.main_camera_mp   ? ` · ${p.main_camera_mp}MP`                         : ''}
+                        {p.battery_capacity ? ` · ${p.battery_capacity.toLocaleString()}mAh`      : ''}
+                        {p.antutu_score     ? ` · ${(p.antutu_score/1_000_000).toFixed(1)}M AnTuTu` : ''}
                       </div>
                     </div>
-                    <ArrowRight size={15} color={c.text3} />
+                    <ArrowRight size={15} color={c.text3} strokeWidth={2} />
                   </Link>
                 ))}
               </div>
@@ -689,25 +704,33 @@ function PhoneDetailContent() {
           </div>
         )}
 
-        {/* similar phones section — always shown below tabs */}
-        {similar.length > 0 && (
-          <section style={{ marginTop: 48, marginBottom: 64 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h2 style={{ fontFamily: f.serif, fontSize: 26, color: c.text1 }}>Similar Phones</h2>
-              <span style={{ fontSize: 13, color: c.text3 }}>Based on price &amp; specs</span>
+        {/* ── SIMILAR PHONES SECTION (always visible below tabs) ── */}
+        <section style={{ marginTop: 8, marginBottom: 64 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
+            <h2 style={{ fontFamily: f.serif, fontSize: 24, color: c.text1 }}>Similar Phones</h2>
+            <span style={{ fontSize: 13, color: c.text3 }}>Price · Size · Performance</span>
+          </div>
+
+          {similarLoading ? (
+            <div style={{ display: 'flex', gap: 14 }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="skeleton" style={{ width: 156, height: 200, flexShrink: 0, borderRadius: 'var(--r-md)' }} />
+              ))}
             </div>
+          ) : similar.length === 0 ? (
+            <div style={{ padding: '32px 20px', textAlign: 'center', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-md)', color: c.text3 }}>
+              <p style={{ fontSize: 14 }}>No similar phones found at a comparable price range.</p>
+            </div>
+          ) : (
             <div style={{ position: 'relative' }}>
-              <div
-                ref={scrollRef}
-                className="scrollbar-none"
-                style={{ display: 'flex', gap: 14, overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 4 }}
-              >
+              <div ref={scrollRef} className="scrollbar-none"
+                style={{ display: 'flex', gap: 14, overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 4 }}>
                 {similar.map(p => <SimilarCard key={p.id} phone={p} />)}
               </div>
               <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 56, background: 'linear-gradient(-90deg,var(--bg) 0%,transparent 100%)', pointerEvents: 'none' }} />
             </div>
-          </section>
-        )}
+          )}
+        </section>
 
       </div>
 
@@ -719,31 +742,23 @@ function PhoneDetailContent() {
 
       <style>{`
         .phone-hero-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 48px;
-          padding-bottom: 40px;
-          align-items: start;
+          display: grid; grid-template-columns: 1fr 1fr;
+          gap: 48px; padding-bottom: 40px; align-items: start;
         }
         .quick-specs-grid {
-          display: grid;
-          grid-template-columns: repeat(6, 1fr);
-          gap: 12px;
+          display: grid; grid-template-columns: repeat(6,1fr); gap: 12px;
         }
         .specs-2col {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 8px;
-          margin-bottom: 4px;
+          display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px;
         }
         .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
         @media (max-width: 1023px) {
           .phone-hero-grid { grid-template-columns: 1fr; gap: 28px; }
           .phone-hero-grid > div:first-child { max-width: 400px; margin: 0 auto; width: 100%; }
-          .quick-specs-grid { grid-template-columns: repeat(3, 1fr); }
+          .quick-specs-grid { grid-template-columns: repeat(3,1fr); }
         }
         @media (max-width: 640px) {
-          .quick-specs-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+          .quick-specs-grid { grid-template-columns: repeat(2,1fr); gap: 8px; }
           .specs-2col { grid-template-columns: 1fr; }
           .hero-actions { flex-direction: column; }
           .hero-actions a, .hero-actions button { justify-content: center; }
