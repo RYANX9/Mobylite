@@ -31,12 +31,14 @@ import {
   Trophy,
   Wifi,
   AlertCircle,
+  Menu,
+  Smartphone,
+  ArrowRight,
 } from 'lucide-react';
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 const API = 'https://renderphones.onrender.com';
-
 const MAX_PHONES = 4;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -156,10 +158,8 @@ function getBestIdx(
 }
 
 // ─── Slug → Phone resolver ────────────────────────────────────────────────────
-// Robustly searches for a phone from a URL slug like "xiaomi-poco-f8-ultra"
 
 async function resolveSlugToPhone(slug: string): Promise<SearchResult | null> {
-  // Try progressively: full slug → remove last word → etc.
   const query = slug.replace(/-/g, ' ').trim();
 
   try {
@@ -172,7 +172,6 @@ async function resolveSlugToPhone(slug: string): Promise<SearchResult | null> {
     const results: SearchResult[] = data.results || [];
     if (results.length === 0) return null;
 
-    // Score each result by how well its slugified name matches the URL slug
     const scored = results.map((r) => {
       const rSlug = slugify(r.model_name);
       const rFullSlug = slugify(`${r.brand} ${r.model_name}`);
@@ -181,7 +180,6 @@ async function resolveSlugToPhone(slug: string): Promise<SearchResult | null> {
       if (rFullSlug === slug) score += 90;
       if (slug.includes(rSlug)) score += 50;
       if (rSlug.includes(slug)) score += 40;
-      // Count matching words
       const slugWords = slug.split('-').filter(Boolean);
       const nameWords = rSlug.split('-').filter(Boolean);
       const matches = slugWords.filter((w) => nameWords.includes(w)).length;
@@ -222,76 +220,80 @@ function SpecRow({
 
   return (
     <div
-      className={`flex min-h-[46px] border-b border-gray-800/30 last:border-b-0 ${
-        zebra ? 'bg-gray-800/20' : ''
+      className={`flex flex-col sm:flex-row min-h-auto sm:min-h-[46px] border-b border-slate-800/40 last:border-b-0 ${
+        zebra ? 'bg-slate-900/30' : ''
       }`}
     >
-      {/* Label */}
-      <div className="flex items-center px-3 py-2 w-[100px] sm:w-[140px] flex-shrink-0 border-r border-gray-800/40">
-        <span className="text-xs text-gray-500 font-medium leading-tight">
+      {/* Label — sticky on mobile */}
+      <div className="px-3 sm:px-4 py-3 sm:py-2 w-full sm:w-[100px] md:w-[140px] flex-shrink-0 border-b sm:border-b-0 sm:border-r border-slate-800/40 bg-slate-900/50 sm:bg-transparent">
+        <span className="text-xs sm:text-xs font-semibold text-slate-400 leading-tight">
           {row.label}
         </span>
       </div>
 
-      {/* Values */}
-      {phones.map((p, i) => {
-        const isWin = winIdx === i && winIdx >= 0;
+      {/* Values — stack on mobile, row on desktop */}
+      <div className="flex flex-col sm:flex-row flex-1">
+        {phones.map((p, i) => {
+          const isWin = winIdx === i && winIdx >= 0;
 
-        let node: React.ReactNode;
+          let node: React.ReactNode;
 
-        if (row.isBool && row.getBool) {
-          const val = row.getBool(p);
-          if (val == null) {
-            node = <span className="text-gray-700 text-xs">—</span>;
-          } else if (val) {
-            node = (
-              <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-medium">
-                <CheckCircle2 size={12} />
-                Yes
-              </span>
-            );
+          if (row.isBool && row.getBool) {
+            const val = row.getBool(p);
+            if (val == null) {
+              node = <span className="text-slate-700 text-xs">—</span>;
+            } else if (val) {
+              node = (
+                <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-medium">
+                  <CheckCircle2 size={12} />
+                  <span className="sm:hidden">Yes</span>
+                  <span className="hidden sm:inline">Yes</span>
+                </span>
+              );
+            } else {
+              node = (
+                <span className="inline-flex items-center gap-1 text-slate-600 text-xs">
+                  <X size={11} />
+                  <span className="sm:hidden">No</span>
+                  <span className="hidden sm:inline">No</span>
+                </span>
+              );
+            }
           } else {
+            const val = row.getValue(p);
             node = (
-              <span className="inline-flex items-center gap-1 text-gray-600 text-xs">
-                <X size={11} />
-                No
+              <span
+                className={`text-xs sm:text-sm leading-tight font-medium ${
+                  isWin
+                    ? 'text-emerald-400'
+                    : val === '—'
+                    ? 'text-slate-700'
+                    : 'text-slate-200'
+                }`}
+              >
+                {val}
+                {isWin && (
+                  <Trophy
+                    size={9}
+                    className="inline ml-0.5 text-emerald-400 opacity-80"
+                  />
+                )}
               </span>
             );
           }
-        } else {
-          const val = row.getValue(p);
-          node = (
-            <span
-              className={`text-xs sm:text-sm leading-tight font-medium ${
-                isWin
-                  ? 'text-emerald-400'
-                  : val === '—'
-                  ? 'text-gray-700'
-                  : 'text-gray-200'
+
+          return (
+            <div
+              key={p.id}
+              className={`flex-1 flex items-center justify-center px-2 sm:px-3 py-2.5 sm:py-2 text-center border-r border-slate-800/30 last:border-r-0 ${
+                isWin ? 'bg-emerald-950/20' : ''
               }`}
             >
-              {val}
-              {isWin && (
-                <Trophy
-                  size={9}
-                  className="inline ml-0.5 text-emerald-400 opacity-80"
-                />
-              )}
-            </span>
+              {node}
+            </div>
           );
-        }
-
-        return (
-          <div
-            key={p.id}
-            className={`flex-1 flex items-center justify-center px-1 sm:px-2 py-2 text-center border-r border-gray-800/30 last:border-r-0 ${
-              isWin ? 'bg-emerald-950/15' : ''
-            }`}
-          >
-            {node}
-          </div>
-        );
-      })}
+        })}
+      </div>
     </div>
   );
 }
@@ -465,21 +467,21 @@ function SpecSection({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="rounded-2xl border border-gray-800/60 overflow-hidden">
+    <div className="rounded-xl md:rounded-2xl border border-slate-800/60 overflow-hidden bg-slate-900/20">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-gray-800/40 hover:bg-gray-800/60 transition-colors"
+        className="w-full flex items-center justify-between px-3 sm:px-4 py-3 bg-slate-800/40 hover:bg-slate-800/60 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <span className="text-gray-500">{section.icon}</span>
-          <span className="text-sm font-semibold text-gray-200">
+          <span className="text-slate-500">{section.icon}</span>
+          <span className="text-sm font-semibold text-slate-200">
             {section.title}
           </span>
         </div>
         {open ? (
-          <ChevronUp size={14} className="text-gray-600" />
+          <ChevronUp size={14} className="text-slate-600" />
         ) : (
-          <ChevronDown size={14} className="text-gray-600" />
+          <ChevronDown size={14} className="text-slate-600" />
         )}
       </button>
 
@@ -507,18 +509,17 @@ function WinnerBanner({ phones }: { phones: Phone[] }) {
   const winIdx = scores.indexOf(Math.max(...scores));
 
   return (
-    <div className="rounded-2xl border border-emerald-800/40 bg-gradient-to-br from-emerald-950/40 to-gray-900/30 p-4 sm:p-5">
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+    <div className="rounded-xl md:rounded-2xl border border-emerald-800/40 bg-gradient-to-br from-emerald-950/40 to-slate-900/30 p-3 sm:p-4 md:p-5">
+      <div className="flex flex-wrap items-center gap-2 mb-3 sm:mb-4">
         <Trophy size={15} className="text-emerald-400 flex-shrink-0" />
-        <span className="text-sm font-semibold text-gray-200">
-          Overall Winner
+        <span className="text-sm font-semibold text-slate-200">
+          Overall Best Value
         </span>
-        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-[11px] font-bold text-black">
-          {phones[winIdx]?.model_name}
-        </span>
-        <span className="text-xs text-gray-600 ml-auto hidden sm:inline">
-          composite score
-        </span>
+        {phones[winIdx] && (
+          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-xs font-bold text-black ml-auto sm:ml-0">
+            {phones[winIdx].model_name.split(' ').slice(-2).join(' ')}
+          </span>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -526,11 +527,11 @@ function WinnerBanner({ phones }: { phones: Phone[] }) {
           const pct = (scores[i] / maxScore) * 100;
           const isWin = i === winIdx;
           return (
-            <div key={p.id} className="flex items-center gap-3">
-              <span className="text-xs text-gray-500 truncate w-20 sm:w-32 text-right flex-shrink-0">
-                {p.model_name}
+            <div key={p.id} className="flex items-center gap-2 sm:gap-3">
+              <span className="text-xs text-slate-500 truncate w-16 sm:w-28 md:w-32 text-right flex-shrink-0">
+                {p.model_name.split(' ').slice(-2).join(' ')}
               </span>
-              <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
+              <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-700 ease-out ${
                     isWin ? 'bg-emerald-500' : 'bg-blue-500/50'
@@ -538,7 +539,7 @@ function WinnerBanner({ phones }: { phones: Phone[] }) {
                   style={{ width: `${pct}%` }}
                 />
               </div>
-              <span className="text-xs text-gray-600 w-8 text-right flex-shrink-0">
+              <span className="text-xs text-slate-600 w-7 text-right flex-shrink-0">
                 {Math.round(pct)}%
               </span>
             </div>
@@ -562,14 +563,14 @@ function PhoneCard({
 }) {
   return (
     <div
-      className={`relative flex flex-col items-center gap-2 p-3 rounded-2xl border transition-colors ${
+      className={`relative flex flex-col items-center gap-2 p-2 sm:p-3 rounded-lg md:rounded-2xl border transition-colors ${
         isBest
           ? 'border-emerald-600/50 bg-emerald-950/20'
-          : 'border-gray-800/60 bg-gray-900/30'
+          : 'border-slate-800/60 bg-slate-900/30'
       }`}
     >
       {isBest && (
-        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 px-2 py-0.5 bg-emerald-500 rounded-full text-[10px] font-bold text-black whitespace-nowrap z-10">
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 flex items-center gap-0.5 px-2 py-0.5 bg-emerald-500 rounded-full text-[9px] sm:text-[10px] font-bold text-black whitespace-nowrap z-10">
           <Trophy size={8} />
           Best
         </div>
@@ -577,15 +578,15 @@ function PhoneCard({
 
       <button
         onClick={onRemove}
-        className="absolute top-2 right-2 w-5 h-5 rounded-full bg-gray-800 hover:bg-red-900/60 flex items-center justify-center transition-colors z-10"
+        className="absolute top-1 right-1 sm:top-2 sm:right-2 w-5 h-5 rounded-full bg-slate-800 hover:bg-red-900/60 flex items-center justify-center transition-colors z-10"
         aria-label={`Remove ${phone.model_name}`}
       >
-        <X size={10} className="text-gray-400" />
+        <X size={10} className="text-slate-400" />
       </button>
 
       <Link
         href={phoneUrl(phone)}
-        className="w-14 h-14 sm:w-18 sm:h-18 md:w-20 md:h-20 rounded-xl bg-gray-800/60 overflow-hidden flex items-center justify-center hover:opacity-80 transition-opacity flex-shrink-0 mt-1"
+        className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg md:rounded-xl bg-slate-800/60 overflow-hidden flex items-center justify-center hover:opacity-80 transition-opacity flex-shrink-0 mt-1"
       >
         {phone.main_image_url ? (
           <Image
@@ -597,27 +598,27 @@ function PhoneCard({
             unoptimized
           />
         ) : (
-          <span className="text-2xl">📱</span>
+          <Smartphone size={24} className="text-slate-600" />
         )}
       </Link>
 
       <div className="text-center w-full min-w-0 px-1">
-        <p className="text-[10px] text-gray-600 uppercase tracking-wide truncate">
+        <p className="text-[9px] sm:text-[10px] text-slate-600 uppercase tracking-wide truncate">
           {phone.brand}
         </p>
         <Link
           href={phoneUrl(phone)}
-          className="block text-xs sm:text-sm font-semibold text-gray-100 hover:text-blue-400 transition-colors leading-tight mt-0.5 line-clamp-2"
+          className="block text-[10px] sm:text-xs font-semibold text-slate-100 hover:text-blue-400 transition-colors leading-tight mt-0.5 line-clamp-2"
         >
           {phone.model_name}
         </Link>
         {phone.price_usd && (
-          <p className="mt-1 text-xs sm:text-sm font-bold text-blue-400">
+          <p className="mt-1 text-[10px] sm:text-xs font-bold text-blue-400">
             ${phone.price_usd.toLocaleString()}
           </p>
         )}
         {phone.release_year && (
-          <p className="text-[10px] text-gray-700 mt-0.5">
+          <p className="text-[8px] sm:text-[9px] text-slate-700 mt-0.5">
             {phone.release_year}
           </p>
         )}
@@ -688,15 +689,15 @@ function AddSlot({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="flex flex-col items-center justify-center gap-2 w-full min-h-[156px] sm:min-h-[196px] rounded-2xl border-2 border-dashed border-gray-800 hover:border-blue-500/50 hover:bg-blue-950/10 transition-all group"
+        className="flex flex-col items-center justify-center gap-2 w-full min-h-[110px] sm:min-h-[140px] md:min-h-[180px] rounded-lg md:rounded-2xl border-2 border-dashed border-slate-800 hover:border-blue-500/50 hover:bg-blue-950/10 transition-all group"
       >
-        <div className="w-9 h-9 rounded-xl bg-gray-800 group-hover:bg-blue-900/30 flex items-center justify-center transition-colors">
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-slate-800 group-hover:bg-blue-900/30 flex items-center justify-center transition-colors">
           <Plus
-            size={18}
-            className="text-gray-600 group-hover:text-blue-400 transition-colors"
+            size={16}
+            className="text-slate-600 group-hover:text-blue-400 transition-colors"
           />
         </div>
-        <span className="text-xs text-gray-700 group-hover:text-gray-400 transition-colors">
+        <span className="text-[10px] sm:text-xs text-slate-700 group-hover:text-slate-400 transition-colors text-center px-2">
           Add phone
         </span>
       </button>
@@ -704,7 +705,7 @@ function AddSlot({
   }
 
   return (
-    <div className="w-full min-h-[156px] sm:min-h-[196px] rounded-2xl border border-blue-500/30 bg-blue-950/10 p-3 flex flex-col gap-2">
+    <div className="w-full min-h-[110px] sm:min-h-[140px] md:min-h-[180px] rounded-lg md:rounded-2xl border border-blue-500/30 bg-blue-950/10 p-2 sm:p-3 flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-blue-400">Add a phone</span>
         <button
@@ -713,7 +714,7 @@ function AddSlot({
             setQuery('');
             setResults([]);
           }}
-          className="text-gray-600 hover:text-gray-300 transition-colors"
+          className="text-slate-600 hover:text-slate-300 transition-colors"
         >
           <X size={13} />
         </button>
@@ -721,34 +722,34 @@ function AddSlot({
 
       <div className="relative">
         <Search
-          size={12}
-          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none"
+          size={11}
+          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none"
         />
         <input
           ref={inputRef}
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Type phone name…"
-          className="w-full pl-7 pr-7 py-2 bg-gray-800/70 border border-gray-700/50 rounded-xl text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500/60 transition-all"
+          placeholder="Type phone…"
+          className="w-full pl-7 pr-6 py-1.5 sm:py-2 bg-slate-800/70 border border-slate-700/50 rounded-lg text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/60 transition-all"
         />
         {loading && (
           <Loader2
-            size={11}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-600 animate-spin"
+            size={10}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600 animate-spin"
           />
         )}
       </div>
 
       {results.length > 0 && (
-        <div className="flex-1 overflow-y-auto rounded-xl bg-gray-900/80 border border-gray-800/40 divide-y divide-gray-800/30 max-h-[180px]">
+        <div className="flex-1 overflow-y-auto rounded-lg bg-slate-900/80 border border-slate-800/40 divide-y divide-slate-800/30 max-h-[140px]">
           {results.map((p) => (
             <button
               key={p.id}
               onMouseDown={() => pick(p)}
-              className="w-full flex items-center gap-2 px-2.5 py-2 hover:bg-gray-800 transition-colors text-left"
+              className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-slate-800 transition-colors text-left"
             >
-              <div className="w-7 h-7 rounded-lg bg-gray-800 flex-shrink-0 overflow-hidden">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-slate-800 flex-shrink-0 overflow-hidden">
                 {p.main_image_url ? (
                   <Image
                     src={p.main_image_url}
@@ -765,10 +766,10 @@ function AddSlot({
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-200 truncate">
+                <p className="text-xs font-medium text-slate-200 truncate">
                   {p.model_name}
                 </p>
-                <p className="text-[10px] text-gray-600">
+                <p className="text-[10px] text-slate-600">
                   {p.brand}
                   {p.release_year ? ` · ${p.release_year}` : ''}
                   {p.price_usd ? ` · $${p.price_usd}` : ''}
@@ -780,8 +781,8 @@ function AddSlot({
       )}
 
       {query.length >= 2 && !loading && results.length === 0 && (
-        <p className="text-xs text-gray-700 text-center py-3">
-          No phones found for &ldquo;{query}&rdquo;
+        <p className="text-xs text-slate-700 text-center py-2">
+          No phones found
         </p>
       )}
     </div>
@@ -828,42 +829,42 @@ function EmptyState({ onAdd }: { onAdd: (p: SearchResult) => void }) {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center py-12 sm:py-20 px-4 text-center">
-      <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-blue-600/20 to-violet-600/20 border border-blue-500/20 flex items-center justify-center mb-5">
-        <SlidersHorizontal size={26} className="text-blue-400" />
+    <div className="flex flex-col items-center justify-center py-8 sm:py-12 md:py-20 px-3 sm:px-4 text-center">
+      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-gradient-to-br from-blue-600/20 to-violet-600/20 border border-blue-500/20 flex items-center justify-center mb-4 sm:mb-5">
+        <SlidersHorizontal size={20} className="text-blue-400" />
       </div>
 
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-100 mb-2">
+      <h2 className="text-lg sm:text-2xl font-bold text-slate-100 mb-2">
         Compare Phones
       </h2>
-      <p className="text-gray-500 text-sm max-w-xs sm:max-w-sm mb-8 leading-relaxed">
+      <p className="text-slate-500 text-xs sm:text-sm max-w-xs sm:max-w-sm mb-6 sm:mb-8 leading-relaxed">
         Search for phones and add up to 4 to compare specs side by side.
       </p>
 
       {/* Search box */}
-      <div className="relative w-full max-w-sm mb-8">
+      <div className="relative w-full max-w-sm mb-6 sm:mb-8">
         <Search
-          size={16}
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+          size={14}
+          className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
         />
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search for a phone…"
+          placeholder="Search phones…"
           autoFocus
-          className="w-full pl-11 pr-4 py-3 bg-gray-800/60 border border-gray-700/50 rounded-2xl text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500/60 focus:bg-gray-800 transition-all"
+          className="w-full pl-10 sm:pl-11 pr-4 py-2.5 sm:py-3 bg-slate-800/60 border border-slate-700/50 rounded-xl sm:rounded-2xl text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/60 focus:bg-slate-800 transition-all"
         />
         {loading && (
           <Loader2
             size={14}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 animate-spin"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 animate-spin"
           />
         )}
 
         {/* Dropdown */}
         {results.length > 0 && (
-          <div className="absolute top-full mt-1.5 left-0 right-0 z-50 bg-gray-900 border border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="absolute top-full mt-1 left-0 right-0 z-50 bg-slate-900 border border-slate-700/50 rounded-lg sm:rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
             {results.map((p) => (
               <button
                 key={p.id}
@@ -872,9 +873,9 @@ function EmptyState({ onAdd }: { onAdd: (p: SearchResult) => void }) {
                   setQuery('');
                   setResults([]);
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-800 transition-colors text-left"
+                className="w-full flex items-center gap-2 sm:gap-3 px-3 py-2 sm:py-2.5 hover:bg-slate-800 transition-colors text-left border-b border-slate-800/20 last:border-b-0"
               >
-                <div className="w-9 h-9 rounded-lg bg-gray-800 flex-shrink-0 overflow-hidden">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-slate-800 flex-shrink-0 overflow-hidden">
                   {p.main_image_url ? (
                     <Image
                       src={p.main_image_url}
@@ -885,31 +886,31 @@ function EmptyState({ onAdd }: { onAdd: (p: SearchResult) => void }) {
                       unoptimized
                     />
                   ) : (
-                    <span className="w-full h-full flex items-center justify-center text-lg">
+                    <span className="w-full h-full flex items-center justify-center text-sm">
                       📱
                     </span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-200 truncate">
+                  <p className="text-xs sm:text-sm font-medium text-slate-200 truncate">
                     {p.model_name}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-[10px] sm:text-xs text-slate-500">
                     {p.brand}
                     {p.release_year ? ` · ${p.release_year}` : ''}
                     {p.price_usd ? ` · $${p.price_usd}` : ''}
                   </p>
                 </div>
-                <Plus size={13} className="text-blue-400 flex-shrink-0" />
+                <Plus size={12} className="text-blue-400 flex-shrink-0" />
               </button>
             ))}
           </div>
         )}
 
         {query.length >= 2 && !loading && results.length === 0 && (
-          <div className="absolute top-full mt-1.5 left-0 right-0 z-50 bg-gray-900 border border-gray-700/50 rounded-2xl px-4 py-3">
-            <p className="text-sm text-gray-600 text-center">
-              No phones found for &ldquo;{query}&rdquo;
+          <div className="absolute top-full mt-1 left-0 right-0 z-50 bg-slate-900 border border-slate-700/50 rounded-lg sm:rounded-2xl px-3 sm:px-4 py-3">
+            <p className="text-xs sm:text-sm text-slate-600 text-center">
+              No phones found
             </p>
           </div>
         )}
@@ -917,22 +918,22 @@ function EmptyState({ onAdd }: { onAdd: (p: SearchResult) => void }) {
 
       {/* Suggestions */}
       <div className="w-full max-w-sm">
-        <p className="text-xs text-gray-700 font-medium uppercase tracking-wider mb-3">
-          Try comparing
+        <p className="text-[10px] sm:text-xs text-slate-700 font-medium uppercase tracking-wider mb-2 sm:mb-3">
+          Popular Phones
         </p>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5 sm:gap-2">
           {suggestions.map((name) => (
             <button
               key={name}
               onClick={() => setQuery(name)}
-              className="flex items-center justify-between px-4 py-2.5 bg-gray-800/40 hover:bg-gray-800/70 rounded-xl transition-colors group text-left"
+              className="flex items-center justify-between px-3 py-2 bg-slate-800/40 hover:bg-slate-800/70 rounded-lg transition-colors group text-left text-xs sm:text-sm"
             >
-              <span className="text-sm text-gray-400 group-hover:text-gray-200 transition-colors">
+              <span className="text-slate-400 group-hover:text-slate-200 transition-colors">
                 {name}
               </span>
               <Search
                 size={12}
-                className="text-gray-700 group-hover:text-blue-400 transition-colors"
+                className="text-slate-700 group-hover:text-blue-400 transition-colors"
               />
             </button>
           ))}
@@ -952,21 +953,22 @@ function StickyColHeaders({
   bestIdx: number;
 }) {
   return (
-    <div className="sticky top-14 z-30 -mx-3 sm:-mx-4 lg:-mx-6 bg-gray-950/95 backdrop-blur-md border-b border-gray-800/40">
-      <div className="flex max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+    <div className="sticky top-14 z-30 -mx-2 sm:-mx-3 md:-mx-4 bg-slate-950/95 backdrop-blur-md border-b border-slate-800/40">
+      <div className="flex max-w-7xl mx-auto px-2 sm:px-3 md:px-4">
         {/* spacer for label col */}
-        <div className="w-[100px] sm:w-[140px] flex-shrink-0" />
+        <div className="hidden sm:block w-[100px] md:w-[140px] flex-shrink-0" />
+        
         {phones.map((p, i) => (
           <div
             key={p.id}
-            className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1.5 px-1 border-l border-gray-800/30 ${
+            className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1.5 px-1 border-l border-slate-800/30 text-center ${
               i === bestIdx ? 'bg-emerald-950/10' : ''
             }`}
           >
-            <span className="text-[9px] sm:text-[10px] text-gray-600 truncate w-full text-center uppercase tracking-wide">
+            <span className="text-[8px] sm:text-[10px] text-slate-600 truncate w-full uppercase tracking-wide">
               {p.brand}
             </span>
-            <span className="text-[10px] sm:text-xs font-semibold text-gray-300 truncate w-full text-center leading-tight">
+            <span className="text-[9px] sm:text-xs font-semibold text-slate-300 truncate w-full leading-tight line-clamp-2">
               {p.model_name}
             </span>
           </div>
@@ -990,46 +992,47 @@ function PageHeader({
   copied: boolean;
 }) {
   return (
-    <header className="sticky top-0 z-40 bg-gray-950/95 backdrop-blur-md border-b border-gray-800/60">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 h-14 flex items-center gap-3">
+    <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-md border-b border-slate-800/60">
+      <div className="max-w-7xl mx-auto px-2 sm:px-3 md:px-4 h-14 flex items-center gap-2 sm:gap-3">
         <Link
           href="/"
-          className="flex items-center gap-1.5 text-gray-500 hover:text-gray-200 transition-colors flex-shrink-0"
+          className="flex items-center gap-1 text-slate-500 hover:text-slate-200 transition-colors flex-shrink-0 p-1 hover:bg-slate-800/40 rounded-lg"
         >
-          <ArrowLeft size={15} />
-          <span className="text-sm hidden sm:inline">Home</span>
+          <ArrowLeft size={14} />
+          <span className="text-xs hidden sm:inline">Home</span>
         </Link>
 
-        <div className="w-px h-5 bg-gray-800 flex-shrink-0" />
+        <div className="w-px h-5 bg-slate-800 flex-shrink-0" />
 
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <SlidersHorizontal size={14} className="text-blue-400 flex-shrink-0" />
-          <span className="text-sm font-semibold text-gray-200 truncate">
-            Compare Phones
+          <SlidersHorizontal size={13} className="text-blue-400 flex-shrink-0 hidden sm:block" />
+          <span className="text-xs sm:text-sm font-semibold text-slate-200 truncate">
+            Compare
           </span>
           {phoneCount >= 2 && (
-            <span className="text-xs text-gray-600 hidden sm:inline">
+            <span className="text-xs text-slate-600 hidden sm:inline">
               · {phoneCount} phones
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {phoneCount >= 2 && (
             <button
               onClick={onShare}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-800/60 hover:bg-gray-800 rounded-xl text-xs text-gray-400 hover:text-gray-200 transition-colors"
+              className="flex items-center gap-1 px-2 py-1.5 sm:px-2.5 bg-slate-800/60 hover:bg-slate-800 rounded-lg text-[10px] sm:text-xs text-slate-400 hover:text-slate-200 transition-colors"
+              title="Copy link"
             >
               {copied ? (
                 <>
-                  <CheckCircle2 size={12} className="text-emerald-400" />
+                  <CheckCircle2 size={11} className="text-emerald-400" />
                   <span className="hidden sm:inline text-emerald-400">
                     Copied!
                   </span>
                 </>
               ) : (
                 <>
-                  <Share2 size={12} />
+                  <Share2 size={11} />
                   <span className="hidden sm:inline">Share</span>
                 </>
               )}
@@ -1038,9 +1041,10 @@ function PageHeader({
           {phoneCount > 0 && (
             <button
               onClick={onReset}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-800/60 hover:bg-red-950/40 rounded-xl text-xs text-gray-400 hover:text-red-400 transition-colors"
+              className="flex items-center gap-1 px-2 py-1.5 sm:px-2.5 bg-slate-800/60 hover:bg-red-950/40 rounded-lg text-[10px] sm:text-xs text-slate-400 hover:text-red-400 transition-colors"
+              title="Reset comparison"
             >
-              <RotateCcw size={12} />
+              <RotateCcw size={11} />
               <span className="hidden sm:inline">Reset</span>
             </button>
           )}
@@ -1062,18 +1066,14 @@ export default function CompareClient() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // ── Parse the URL segment ───────────────────────────────────────────────
   const urlSegment = useMemo(() => {
-    // pathname could be "/compare" or "/compare/slug-a-vs-slug-b"
     const match = pathname.match(/^\/compare\/(.+)$/);
     return match ? match[1] : '';
   }, [pathname]);
 
-  // ── Load phones from URL on mount / URL change ──────────────────────────
   const loadedSegmentRef = useRef('');
 
   useEffect(() => {
-    // Don't re-run if segment hasn't changed (avoids loop after adding phones)
     if (urlSegment === loadedSegmentRef.current) return;
     loadedSegmentRef.current = urlSegment;
 
@@ -1082,24 +1082,20 @@ export default function CompareClient() {
       return;
     }
 
-    // Format A: comma-separated numeric IDs (e.g. "12,34,56")
     if (/^\d+(,\d+)*$/.test(urlSegment)) {
       const ids = urlSegment.split(',').map(Number);
       fetchByIds(ids);
       return;
     }
 
-    // Format B: slug-vs-slug (e.g. "iphone-16-pro-vs-pixel-9")
     const slugs = urlSegment.split('-vs-').filter(Boolean);
     if (slugs.length >= 1) {
       fetchBySlugs(slugs);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlSegment]);
 
   async function fetchByIds(ids: number[]) {
     if (ids.length < 2) {
-      // Single phone — just fetch it
       setLoading(true);
       try {
         const res = await fetch(`${API}/phones/${ids[0]}`);
@@ -1131,7 +1127,6 @@ export default function CompareClient() {
     setResolving(true);
     setError(null);
     try {
-      // Resolve all slugs in parallel
       const resolved = await Promise.all(
         slugs.map((slug) => resolveSlugToPhone(slug))
       );
@@ -1168,16 +1163,13 @@ export default function CompareClient() {
     }
   }
 
-  // ── Push new URL without reloading ─────────────────────────────────────
   function pushUrl(updatedPhones: Phone[]) {
     const url = buildCompareUrl(updatedPhones);
-    // Update the ref so the useEffect doesn't re-trigger a fetch
     const seg = url.replace('/compare/', '').replace('/compare', '');
     loadedSegmentRef.current = seg;
     router.push(url, { scroll: false });
   }
 
-  // ── Add phone ───────────────────────────────────────────────────────────
   const handleAdd = useCallback(
     async (result: SearchResult) => {
       if (phones.length >= MAX_PHONES) return;
@@ -1191,29 +1183,24 @@ export default function CompareClient() {
         setPhones(updated);
         pushUrl(updated);
       } catch {
-        // Add with partial data as fallback
         const partial = { ...result } as unknown as Phone;
         const updated = [...phones, partial];
         setPhones(updated);
         pushUrl(updated);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [phones]
   );
 
-  // ── Remove phone ────────────────────────────────────────────────────────
   const handleRemove = useCallback(
     (id: number) => {
       const updated = phones.filter((p) => p.id !== id);
       setPhones(updated);
       pushUrl(updated);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [phones]
   );
 
-  // ── Reset ───────────────────────────────────────────────────────────────
   const handleReset = useCallback(() => {
     setPhones([]);
     setError(null);
@@ -1221,7 +1208,6 @@ export default function CompareClient() {
     router.push('/compare', { scroll: false });
   }, [router]);
 
-  // ── Share ───────────────────────────────────────────────────────────────
   const handleShare = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -1232,7 +1218,6 @@ export default function CompareClient() {
     }
   }, []);
 
-  // ── Best value index ────────────────────────────────────────────────────
   const bestIdx = useMemo(() => {
     if (phones.length < 2) return -1;
     const scores = phones.map((p) =>
@@ -1243,7 +1228,6 @@ export default function CompareClient() {
     return scores.indexOf(Math.max(...scores));
   }, [phones]);
 
-  // ── Spec sections ───────────────────────────────────────────────────────
   const sections = useMemo(
     () => (phones.length >= 2 ? getSections(phones) : []),
     [phones]
@@ -1251,7 +1235,6 @@ export default function CompareClient() {
 
   const isLoading = loading || resolving;
 
-  // ── Grid column class ───────────────────────────────────────────────────
   function gridClass() {
     const count = phones.length;
     const withSlot = count < MAX_PHONES ? count + 1 : count;
@@ -1261,7 +1244,7 @@ export default function CompareClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-slate-950">
       <PageHeader
         phoneCount={phones.length}
         onReset={handleReset}
@@ -1269,14 +1252,13 @@ export default function CompareClient() {
         copied={copied}
       />
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 pb-20">
-
+      <main className="max-w-7xl mx-auto px-2 sm:px-3 md:px-4 pb-16 sm:pb-20">
         {/* ── Loading overlay ── */}
         {isLoading && (
-          <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
-            <Loader2 size={30} className="animate-spin text-blue-500" />
-            <p className="text-sm text-gray-500">
-              {resolving ? 'Resolving phones from URL…' : 'Loading phones…'}
+          <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3 sm:gap-4">
+            <Loader2 size={28} className="animate-spin text-blue-500" />
+            <p className="text-xs sm:text-sm text-slate-500">
+              {resolving ? 'Resolving phones…' : 'Loading phones…'}
             </p>
           </div>
         )}
@@ -1284,8 +1266,8 @@ export default function CompareClient() {
         {!isLoading && (
           <>
             {/* ── Phone slots ── */}
-            <div className="pt-4 pb-3">
-              <div className={`grid gap-3 ${gridClass()}`}>
+            <div className="pt-3 sm:pt-4 pb-2 sm:pb-3">
+              <div className={`grid gap-2 sm:gap-3 ${gridClass()}`}>
                 {phones.map((p, i) => (
                   <PhoneCard
                     key={p.id}
@@ -1305,15 +1287,15 @@ export default function CompareClient() {
 
             {/* ── Error banner ── */}
             {error && (
-              <div className="mb-4 flex items-start gap-3 px-4 py-3 bg-red-950/30 border border-red-800/30 rounded-2xl">
+              <div className="mb-3 sm:mb-4 flex items-start gap-2 sm:gap-3 px-3 py-2 sm:py-3 bg-red-950/30 border border-red-800/30 rounded-lg md:rounded-2xl">
                 <AlertCircle
-                  size={15}
+                  size={14}
                   className="text-red-400 flex-shrink-0 mt-0.5"
                 />
-                <p className="text-sm text-red-300 flex-1">{error}</p>
+                <p className="text-xs sm:text-sm text-red-300 flex-1">{error}</p>
                 <button
                   onClick={() => setError(null)}
-                  className="text-red-600 hover:text-red-300 transition-colors"
+                  className="text-red-600 hover:text-red-300 transition-colors flex-shrink-0"
                 >
                   <X size={13} />
                 </button>
@@ -1327,10 +1309,10 @@ export default function CompareClient() {
 
             {/* ── Single phone nudge ── */}
             {phones.length === 1 && (
-              <div className="mt-5 flex items-center gap-2.5 px-4 py-3 bg-blue-950/30 border border-blue-800/30 rounded-2xl max-w-sm mx-auto">
-                <Plus size={14} className="text-blue-400 flex-shrink-0" />
-                <p className="text-sm text-blue-300">
-                  Add another phone to start comparing
+              <div className="mt-4 flex items-center gap-2 px-3 py-2.5 sm:py-3 bg-blue-950/30 border border-blue-800/30 rounded-lg max-w-sm mx-auto">
+                <Plus size={13} className="text-blue-400 flex-shrink-0" />
+                <p className="text-xs sm:text-sm text-blue-300">
+                  Add another phone to compare
                 </p>
               </div>
             )}
@@ -1340,7 +1322,7 @@ export default function CompareClient() {
               <>
                 <StickyColHeaders phones={phones} bestIdx={bestIdx} />
 
-                <div className="mt-4 space-y-3">
+                <div className="mt-3 sm:mt-4 space-y-2 sm:space-y-3">
                   <WinnerBanner phones={phones} />
 
                   {sections.map((sec, i) => (
@@ -1353,22 +1335,19 @@ export default function CompareClient() {
                   ))}
 
                   {/* Full detail links */}
-                  <div className="pt-3 border-t border-gray-800/30">
-                    <p className="text-xs text-gray-700 uppercase tracking-wider font-medium mb-3">
-                      Full Details
+                  <div className="pt-3 border-t border-slate-800/30">
+                    <p className="text-[10px] sm:text-xs text-slate-700 uppercase tracking-wider font-medium mb-2">
+                      View Full Details
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
                       {phones.map((p) => (
                         <Link
                           key={p.id}
                           href={phoneUrl(p)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-800/50 hover:bg-gray-800 rounded-xl text-xs text-gray-400 hover:text-gray-200 transition-colors"
+                          className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-slate-800/50 hover:bg-slate-800 rounded-lg text-[10px] sm:text-xs text-slate-400 hover:text-slate-200 transition-colors"
                         >
-                          {p.model_name}
-                          <ArrowLeft
-                            size={10}
-                            className="rotate-180 opacity-50"
-                          />
+                          {p.model_name.split(' ').slice(-2).join(' ')}
+                          <ArrowRight size={9} className="opacity-60" />
                         </Link>
                       ))}
                     </div>
