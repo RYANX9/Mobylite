@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   Search, X, Plus, ChevronDown, Star, Share2, RotateCcw,
-  Loader2, AlertCircle, Smartphone, ArrowLeft
+  Loader2, AlertCircle, Smartphone
 } from 'lucide-react'
 import { c, f, r } from '@/lib/tokens'
 import { ROUTES, brandSlug, phoneSlug, MAX_COMPARE } from '@/lib/config'
@@ -35,7 +35,6 @@ function scoreComposite(p: Phone): number {
   if (p.battery_capacity) s += Math.min(p.battery_capacity / 7000, 1) * 2
   if (p.fast_charging_w) s += Math.min(p.fast_charging_w / 100, 1)
   if (p.ram_options?.length) s += Math.min(Math.max(...p.ram_options) / 16, 1) * 0.5
-  // Fallback: if no value_score from API, compute rough one
   return s
 }
 
@@ -364,7 +363,6 @@ function QuickVerdict({ phones }: { phones: Phone[] }) {
     const bestIdx = getBestIdx(phones, v.getter, v.lowerIsBetter)
     if (bestIdx >= 0) wins.set(bestIdx, (wins.get(bestIdx) || 0) + 1)
 
-    // Check for ties
     const bestVal = bestIdx >= 0 ? v.getter(phones[bestIdx]) : null
     const isTie = bestVal != null && phones.filter((p, i) => i !== bestIdx && v.getter(p) === bestVal).length > 0
 
@@ -617,56 +615,69 @@ function CompareContent({ initialPhones }: CompareContentProps) {
   const searchParams = useSearchParams()
   const { toast } = useToast()
 
-  // State: phones list. Initialize from server-resolved slugs OR from ?ids= query
   const [phones, setPhones] = useState<Phone[]>(initialPhones)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  
+  // CRITICAL: Track whether we've done initial URL validation
+  // This prevents the URL sync effect from running on mount when
+  // phones came from server-resolved slugs
+  const didInitRef = useRef(false)
+  const userModifiedRef = useRef(false)
 
-  // If initialPhones is empty, try loading from ?ids= query param
-  // (for backward compat with old ?ids= URLs)
+  // On mount: if no initial phones, try loading from ?ids= (backward compat)
   useEffect(() => {
-    if (initialPhones.length > 0) return // Server already resolved
+    if (initialPhones.length > 0) {
+      didInitRef.current = true
+      return
+    }
 
     const idsParam = searchParams.get('ids')
-    if (!idsParam) return
+    if (!idsParam) {
+      didInitRef.current = true
+      return
+    }
 
     const idList = idsParam.split(',').map(Number).filter(id => !isNaN(id) && id > 0)
-    if (idList.length === 0) return
+    if (idList.length === 0) {
+      didInitRef.current = true
+      return
+    }
 
     setLoading(true)
-    setError(null)
-
     api.phones.compare(idList)
       .then(data => {
-        if (!data.phones?.length) {
+        if (data.phones?.length) {
+          setPhones(data.phones)
+        } else {
           setError('Could not find the requested phones')
-          return
         }
-        setPhones(data.phones)
       })
-      .catch(err => {
-        console.error('Compare API Error:', err)
-        setError('Failed to load phones. Please try again.')
+      .catch(() => setError('Failed to load phones. Please try again.'))
+      .finally(() => {
+        setLoading(false)
+        didInitRef.current = true
       })
-      .finally(() => setLoading(false))
   }, [searchParams, initialPhones.length])
 
-  // Sync URL when phones change (slug-based)
+  // Sync URL ONLY when user explicitly modifies phones (add/remove)
+  // NOT on initial mount, NOT when phones came from server
   useEffect(() => {
+    // Skip if we haven't finished initial load yet
+    if (!didInitRef.current) return
+    
+    // Skip if phones didn't come from user interaction
+    if (!userModifiedRef.current) return
+
     if (phones.length === 0) {
-      // Don't push /compare if we're already there
-      const currentPath = window.location.pathname
-      if (currentPath !== '/compare') {
-        router.push('/compare', { scroll: false })
-      }
+      router.push('/compare', { scroll: false })
       return
     }
 
     const slug = buildCompareSlug(phones)
     const newPath = `/compare/${slug}`
     
-    // Only push if path actually changed (avoid infinite loops)
     if (window.location.pathname !== newPath) {
       router.push(newPath, { scroll: false })
     }
@@ -681,16 +692,19 @@ function CompareContent({ initialPhones }: CompareContentProps) {
       toast(`Maximum ${MAX_COMPARE} phones allowed`, 'error')
       return
     }
-    const updated = [...phones, phone]
-    setPhones(updated)
+    userModifiedRef.current = true
+    setPhones(prev => [...prev, phone])
     toast('Phone added to comparison', 'success')
   }, [phones, toast])
 
   const handleRemove = useCallback((id: number) => {
-    const updated = phones.filter(p => p.id !== id)
-    setPhones(updated)
+    userModifiedRef.current = true
+    setPhones(prev => {
+      const updated = prev.filter(p => p.id !== id)
+      return updated
+    })
     toast('Phone removed', 'info')
-  }, [phones, toast])
+  }, [toast])
 
   const handleShare = async () => {
     try {
@@ -704,12 +718,13 @@ function CompareContent({ initialPhones }: CompareContentProps) {
   }
 
   const handleClear = () => {
+    userModifiedRef.current = true
     setPhones([])
     router.push('/compare', { scroll: false })
     toast('Comparison cleared', 'info')
   }
 
-  // Winner by composite score
+  // Winner by composite score (or value_score if available)
   const scores = phones.map(p => p.value_score ?? scoreComposite(p))
   const bestIdx = scores.length >= 1 ? scores.indexOf(Math.max(...scores)) : -1
 
