@@ -1,17 +1,32 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Search, X, Plus, ChevronDown, ChevronUp, Trophy, Share2, RotateCcw, Loader2, AlertCircle } from 'lucide-react'
 import { c, f, r } from '@/lib/tokens'
-import { api } from '@/lib/api'
 import { ROUTES, brandSlug, phoneSlug } from '@/lib/config'
 import Navbar from '@/app/components/Navbar'
 import { useToast } from '@/app/components/Toast'
 import type { Phone } from '@/lib/types'
 
+const API_BASE = 'https://renderphones.onrender.com'
 const MAX_COMPARE = 4
+
+async function fetchPhones(ids: number[]): Promise<Phone[]> {
+  if (!ids.length) return []
+  const res = await fetch(`${API_BASE}/phones/compare?ids=${ids.join(',')}`)
+  if (!res.ok) throw new Error('Failed to load phones')
+  const data = await res.json()
+  return data.phones || []
+}
+
+async function searchPhones(q: string, pageSize = 8): Promise<Phone[]> {
+  const res = await fetch(`${API_BASE}/phones/search?q=${encodeURIComponent(q)}&page_size=${pageSize}`)
+  if (!res.ok) return []
+  const data = await res.json()
+  return data.results || []
+}
 
 function fmt(v: number | null, suffix = ''): string {
   if (v == null) return '—'
@@ -184,8 +199,8 @@ function AddPhoneSlot({ onSelect, excludeIds }: { onSelect: (p: Phone) => void; 
     setLoading(true)
     timerRef.current = setTimeout(async () => {
       try {
-        const res = await api.phones.search({ q: query, page_size: 8 })
-        setResults(res.results.filter(p => !excludeIds.includes(p.id)))
+        const res = await searchPhones(query, 8)
+        setResults(res.filter(p => !excludeIds.includes(p.id)))
       } catch {
         setResults([])
       } finally {
@@ -279,8 +294,9 @@ function AddPhoneSlot({ onSelect, excludeIds }: { onSelect: (p: Phone) => void; 
   )
 }
 
-export default function CompareClient() {
+function CompareContentWithSearchParams() {
   const router = useRouter()
+  const { useSearchParams } = require('next/navigation')
   const searchParams = useSearchParams()
   const { toast } = useToast()
 
@@ -290,41 +306,46 @@ export default function CompareClient() {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    const slugs = searchParams.get('phones')?.split('-vs-').filter(Boolean) || []
-    if (!slugs.length) return
+    const ids = searchParams.get('ids')
+    if (!ids) return
+
+    const idList = ids.split(',').map(Number).filter(id => !isNaN(id))
+    if (idList.length === 0) return
 
     setLoading(true)
     setError(null)
 
-    Promise.all(slugs.map(slug => api.phones.search({ q: slug, page_size: 1 })))
-      .then(results => {
-        const matched = results
-          .map(r => r.results?.[0])
-          .filter((p): p is Phone => p != null && !phones.some(x => x.id === p.id))
-        
-        if (matched.length === 0) {
+    fetchPhones(idList)
+      .then(data => {
+        if (!data.length) {
           setError('Could not find phones')
           return
         }
-
-        setPhones(matched)
+        setPhones(data)
       })
-      .catch(() => setError('Failed to load phones'))
+      .catch(err => {
+        console.error('API Error:', err)
+        setError('Failed to load phones')
+      })
       .finally(() => setLoading(false))
   }, [searchParams])
 
   const handleAdd = useCallback((phone: Phone) => {
+    if (phones.some(p => p.id === phone.id)) {
+      toast('Phone already added', 'info')
+      return
+    }
     if (phones.length >= MAX_COMPARE) {
       toast(`Maximum ${MAX_COMPARE} phones`, 'error')
       return
     }
-    if (phones.some(p => p.id === phone.id)) return
 
     const updated = [...phones, phone]
     setPhones(updated)
-    const newUrl = `/compare?phones=${updated.map(p => phoneSlug(p)).join('-vs-')}`
-    router.push(newUrl, { scroll: false })
-  }, [phones, router])
+    const ids = updated.map(p => p.id).join(',')
+    router.push(`/compare?ids=${ids}`, { scroll: false })
+    toast('Phone added to compare', 'success')
+  }, [phones, router, toast])
 
   const handleRemove = (id: number) => {
     const updated = phones.filter(p => p.id !== id)
@@ -332,17 +353,21 @@ export default function CompareClient() {
     if (updated.length === 0) {
       router.push('/compare', { scroll: false })
     } else {
-      const newUrl = `/compare?phones=${updated.map(p => phoneSlug(p)).join('-vs-')}`
-      router.push(newUrl, { scroll: false })
+      const ids = updated.map(p => p.id).join(',')
+      router.push(`/compare?ids=${ids}`, { scroll: false })
     }
+    toast('Phone removed', 'info')
   }
 
   const handleShare = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href)
       setCopied(true)
+      toast('Link copied to clipboard', 'success')
       setTimeout(() => setCopied(false), 2000)
-    } catch {}
+    } catch {
+      toast('Failed to copy link', 'error')
+    }
   }
 
   const scores = phones.map(scoreComposite)
@@ -397,7 +422,6 @@ export default function CompareClient() {
       <Navbar compareCount={0} />
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 32px 60px' }}>
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32, paddingBottom: 20, borderBottom: `1px solid ${c.border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 6, color: c.text3, transition: 'color 0.15s' }}
@@ -438,7 +462,6 @@ export default function CompareClient() {
           </div>
         </div>
 
-        {/* Error */}
         {error && (
           <div style={{ display: 'flex', gap: 12, padding: '12px 16px', background: 'rgba(230,57,70,0.06)', border: `1px solid ${c.accentBorder}`, borderRadius: r.md, marginBottom: 24 }}>
             <AlertCircle size={16} color={c.accent} style={{ flexShrink: 0 }} />
@@ -446,24 +469,22 @@ export default function CompareClient() {
           </div>
         )}
 
-        {/* Loading */}
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
             <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: c.primary }} />
           </div>
         )}
 
-        {/* Empty state */}
         {!loading && phones.length === 0 && !error && (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
             <h2 style={{ fontFamily: f.serif, fontSize: 24, color: c.text1, marginBottom: 12 }}>No phones selected</h2>
             <p style={{ fontSize: 14, color: c.text3, marginBottom: 32, maxWidth: 400, margin: '0 auto 32px' }}>
               Search and add up to 4 phones to compare specs side by side.
             </p>
+            <AddPhoneSlot onSelect={handleAdd} excludeIds={[]} />
           </div>
         )}
 
-        {/* Phone cards grid */}
         {phones.length > 0 && (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(phones.length + (phones.length < MAX_COMPARE ? 1 : 0), MAX_COMPARE)}, 1fr)`, gap: 16, marginBottom: 40 }}>
@@ -475,7 +496,6 @@ export default function CompareClient() {
               )}
             </div>
 
-            {/* Comparison table */}
             {phones.length >= 2 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {specs.map(section => (
@@ -484,7 +504,6 @@ export default function CompareClient() {
               </div>
             )}
 
-            {/* Single phone hint */}
             {phones.length === 1 && (
               <div style={{ padding: '16px 20px', background: 'rgba(26,26,46,0.04)', border: `1px solid ${c.border}`, borderRadius: r.md, display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Plus size={14} color={c.primary} />
@@ -501,5 +520,22 @@ export default function CompareClient() {
         }
       `}</style>
     </div>
+  )
+}
+
+function CompareSkeleton() {
+  return (
+    <div style={{ minHeight: '100vh', background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: c.primary }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+}
+
+export default function CompareClient() {
+  return (
+    <Suspense fallback={<CompareSkeleton />}>
+      <CompareContentWithSearchParams />
+    </Suspense>
   )
 }
