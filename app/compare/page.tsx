@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense } from 'react'
-import ComparePageClient from '@/components/compare/ComparePageClient'
+import CompareClient from '@/app/components/compare/CompareClient'
 import { c } from '@/lib/tokens'
 
 function CompareSkeleton() {
@@ -16,7 +16,7 @@ function CompareSkeleton() {
 export default function ComparePage() {
   return (
     <Suspense fallback={<CompareSkeleton />}>
-      <ComparePageClient />
+      <CompareClient />
     </Suspense>
   )
 }
