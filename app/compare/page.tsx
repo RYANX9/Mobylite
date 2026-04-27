@@ -2,20 +2,20 @@
 'use client';
 
 import { Suspense } from 'react';
-import ComparePageClient from '@/app/components/compare/ComparePageClient';
+import CompareClient from '@/app/components/compare/CompareClient';
 
 export default function ComparePage() {
   return (
-    <Suspense fallback={<ComparePageSkeleton />}>
-      <ComparePageClient />
+    <Suspense fallback={<CompareSkeleton />}>
+      <CompareClient />
     </Suspense>
   );
 }
 
-function ComparePageSkeleton() {
+function CompareSkeleton() {
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-      <div className="animate-pulse text-gray-500">Loading compare...</div>
+      <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }
