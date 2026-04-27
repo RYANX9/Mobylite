@@ -110,7 +110,11 @@ function SpecGroup({ title, specs }: { title: string; specs: Record<string, stri
   )
 }
 
-function QuickSpecCard({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
+function QuickSpecCard({ icon, value, label }: {
+  icon: React.ReactNode
+  value: string
+  label: string
+}) {
   return (
     <div style={{
       background: c.surface,
@@ -219,36 +223,70 @@ function SimilarCard({ phone }: { phone: Phone }) {
 
 // ─── slug resolution ──────────────────────────────────────────────────────────
 
-async function resolvePhone(brand: string, model: string): Promise<Phone | null> {
-  const brandNorm = brand.replace(/-/g, ' ')
-  const modelQuery = model.replace(/-/g, ' ')
+/** Pick the result whose generated slug best matches the URL slug */
+function pickBest(phones: Phone[], targetSlug: string): Phone | null {
+  if (!phones.length) return null
+  const target = targetSlug.toLowerCase()
 
-  // strip redundant brand prefix from model query
-  const lowerBrand = brandNorm.toLowerCase()
-  const lowerModel = modelQuery.toLowerCase()
-  const query = lowerModel.startsWith(lowerBrand + ' ')
-    ? modelQuery.slice(brandNorm.length + 1)
-    : modelQuery
+  let best: Phone | null = null
+  let bestScore = -1
 
-  const res = await api.phones.search({ q: query, brand: brandNorm, page_size: 5 })
-
-  if (res.results.length > 0) {
-    // pick closest slug match
-    const target = model.toLowerCase()
-    return res.results.reduce((best, p) => {
-      const score = (s: Phone) => {
-        const ps = phoneSlug(s)
-        let n = 0
-        for (const ch of ps) if (target.includes(ch)) n++
-        return n
-      }
-      return score(p) > score(best) ? p : best
-    })
+  for (const p of phones) {
+    const ps = phoneSlug(p).toLowerCase()
+    // exact slug match → instant win
+    if (ps === target) return p
+    // sliding-window character overlap
+    let score = 0
+    let ti = 0
+    for (let pi = 0; pi < ps.length && ti < target.length; pi++) {
+      if (ps[pi] === target[ti]) { score++; ti++ }
+    }
+    if (score > bestScore) { bestScore = score; best = p }
   }
 
-  // fallback without brand constraint
-  const fallback = await api.phones.search({ q: query, page_size: 5 })
-  return fallback.results[0] ?? null
+  // only return if match covers >50 % of the target slug
+  return bestScore > target.length * 0.5 ? best : null
+}
+
+async function resolvePhone(brand: string, model: string): Promise<Phone | null> {
+  const brandName  = brand.replace(/-/g, ' ')   // "xiaomi" (search lowercases anyway)
+  const modelWords = model.replace(/-/g, ' ')   // "xiaomi poco f8 ultra"
+
+  // attempt 1 — full model slug + brand filter
+  {
+    const res = await api.phones.search({ q: modelWords, brand: brandName, page_size: 10 })
+    const match = pickBest(res.results, model)
+    if (match) return api.phones.detail(match.id)
+  }
+
+  // attempt 2 — full model slug, no brand filter
+  {
+    const res = await api.phones.search({ q: modelWords, page_size: 10 })
+    const match = pickBest(res.results, model)
+    if (match) return api.phones.detail(match.id)
+  }
+
+  // attempt 3 — strip leading brand tokens from model slug
+  const brandTokens = brandName.toLowerCase().split(' ')
+  let   queryTokens  = modelWords.toLowerCase().split(' ')
+  for (const bt of brandTokens) {
+    if (queryTokens[0] === bt) queryTokens = queryTokens.slice(1)
+  }
+  const stripped = queryTokens.join(' ')
+  if (stripped && stripped !== modelWords.toLowerCase()) {
+    const res = await api.phones.search({ q: stripped, brand: brandName, page_size: 10 })
+    const match = pickBest(res.results, model)
+    if (match) return api.phones.detail(match.id)
+  }
+
+  // attempt 4 — browse brand phones and fuzzy-match slug
+  try {
+    const res = await api.phones.search({ brand: brandName, page_size: 50 })
+    const match = pickBest(res.results, model)
+    if (match) return api.phones.detail(match.id)
+  } catch { /* ignore */ }
+
+  return null
 }
 
 // ─── main ─────────────────────────────────────────────────────────────────────
@@ -283,12 +321,10 @@ function PhoneDetailContent() {
       .then(async found => {
         if (cancelled) return
         if (!found) { setNotFound(true); return }
-        const [detail, sim] = await Promise.all([
-          api.phones.detail(found.id),
-          api.phones.similar(found.id, 12),
-        ])
+        // phone detail already fetched inside resolvePhone
+        const sim = await api.phones.similar(found.id, 12).catch(() => ({ phones: [] }))
         if (cancelled) return
-        setPhone(detail)
+        setPhone(found)
         setSimilar(sim.phones)
       })
       .catch(() => { if (!cancelled) setNotFound(true) })
@@ -401,7 +437,7 @@ function PhoneDetailContent() {
       title: 'Camera',
       headline: phone.main_camera_mp ? `${phone.main_camera_mp}MP Main Camera` : 'Camera System',
       specs: [
-        phone.main_camera_mp ? { label: 'Main Camera', value: `${phone.main_camera_mp} MP` } : null,
+        phone.main_camera_mp ? { label: 'Main Camera',  value: `${phone.main_camera_mp} MP` } : null,
         phone.full_specifications?.quick_specs?.cam1modules
           ? { label: 'Rear System',  value: phone.full_specifications.quick_specs.cam1modules } : null,
         phone.full_specifications?.quick_specs?.cam2modules
@@ -431,7 +467,7 @@ function PhoneDetailContent() {
       title: 'Build & Design',
       headline: phone.weight_g ? `${phone.weight_g}g` : 'Build',
       specs: [
-        phone.weight_g     ? { label: 'Weight',    value: `${phone.weight_g}g` }    : null,
+        phone.weight_g     ? { label: 'Weight',    value: `${phone.weight_g}g` }      : null,
         phone.thickness_mm ? { label: 'Thickness', value: `${phone.thickness_mm}mm` } : null,
       ].filter(Boolean) as { label: string; value: string }[],
     },
