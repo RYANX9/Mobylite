@@ -1,20 +1,20 @@
 // app/compare/[phones]/layout.tsx
 import type { Metadata } from 'next';
 
-const API = 'https://mobylite-api.up.railway.app';
+const API = 'https://renderphones.onrender.com';
 
-async function resolveSlugToId(slug: string): Promise<number | null> {
+async function resolveSlug(slug: string): Promise<number | null> {
   try {
-    // slug like "samsung-galaxy-s25-ultra" → search for it
-    const query = slug.replace(/-/g, ' ');
+    const q = slug.replace(/-/g, ' ');
     const res = await fetch(
-      `${API}/phones/search?q=${encodeURIComponent(query)}&page_size=1`,
+      `${API}/phones/search?q=${encodeURIComponent(q)}&page_size=3`,
       { next: { revalidate: 86400 } }
     );
     if (!res.ok) return null;
     const data = await res.json();
-    if (data.results?.length > 0) return data.results[0].id;
-    return null;
+    const results = data.results || [];
+    if (!results.length) return null;
+    return results[0].id;
   } catch {
     return null;
   }
@@ -25,67 +25,50 @@ export async function generateMetadata({
 }: {
   params: Promise<{ phones: string }>;
 }): Promise<Metadata> {
-  const { phones: phonesParam } = await params;
+  const { phones: seg } = await params;
+  const slugs = seg.split('-vs-').filter(Boolean);
 
-  // Support both slug format and id format
-  const segments = phonesParam.split('-vs-');
-
-  if (segments.length < 2) {
-    return {
-      title: 'Compare Phones | Mobylite',
-      description: 'Compare smartphones side by side on Mobylite.',
-    };
+  if (slugs.length < 2) {
+    return { title: 'Compare Phones | Mobylite' };
   }
 
   try {
-    // Try to resolve slugs to IDs
-    const ids = await Promise.all(segments.map(resolveSlugToId));
-    const validIds = ids.filter((id): id is number => id !== null);
-
-    if (validIds.length < 2) {
-      return {
-        title: 'Compare Phones | Mobylite',
-        description: 'Compare smartphones side by side on Mobylite.',
-      };
-    }
-
-    const res = await fetch(
-      `${API}/phones/compare?ids=${validIds.join(',')}`,
-      { next: { revalidate: 3600 } }
+    const ids = (await Promise.all(slugs.map(resolveSlug))).filter(
+      (id): id is number => id !== null
     );
 
-    if (!res.ok) throw new Error('API error');
-    const data = await res.json();
-    const phoneList: Array<{ model_name: string; brand: string }> =
-      data.phones || [];
-
-    if (phoneList.length < 2) {
+    if (ids.length < 2) {
       return { title: 'Compare Phones | Mobylite' };
     }
 
-    const names = phoneList.map((p) => p.model_name).join(' vs ');
-    const brands = [...new Set(phoneList.map((p) => p.brand))].join(', ');
+    const res = await fetch(
+      `${API}/phones/compare?ids=${ids.join(',')}`,
+      { next: { revalidate: 3600 } }
+    );
+    if (!res.ok) throw new Error('failed');
+    const data = await res.json();
+    const list: Array<{ model_name: string; brand: string }> =
+      data.phones || [];
+
+    if (list.length < 2) return { title: 'Compare Phones | Mobylite' };
+
+    const names = list.map((p) => p.model_name).join(' vs ');
+    const brands = [...new Set(list.map((p) => p.brand))].join(', ');
 
     return {
       title: `${names} Comparison | Mobylite`,
-      description: `Compare ${names} side by side. Full specs, prices, camera, battery, and performance. Find which ${brands} phone is right for you.`,
+      description: `Compare ${names} side by side — specs, price, camera, battery, performance. Find the best ${brands} phone for you.`,
       openGraph: {
-        title: `${names} | Phone Comparison`,
-        description: `Side-by-side: ${names}. Which one wins?`,
+        title: `${names} | Mobylite`,
+        description: `Full side-by-side comparison: ${names}`,
         type: 'website',
         siteName: 'Mobylite',
       },
       twitter: {
         card: 'summary_large_image',
         title: `${names} Comparison`,
-        description: `Full spec comparison on Mobylite`,
+        description: `Full specs comparison on Mobylite`,
       },
-      keywords: [
-        ...phoneList.map((p) => p.model_name),
-        ...phoneList.map((p) => `${p.brand} comparison`),
-        'phone comparison',
-        'vs',
-      ],
     };
   } catch {
     return {
@@ -95,10 +78,6 @@ export async function generateMetadata({
   }
 }
 
-export default function CompareWithPhonesLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
