@@ -1,44 +1,91 @@
 // app/compare/[phones]/layout.tsx
 import type { Metadata } from 'next';
 
+const API = 'https://mobylite-api.up.railway.app';
+
+async function resolveSlugToId(slug: string): Promise<number | null> {
+  try {
+    // slug like "samsung-galaxy-s25-ultra" → search for it
+    const query = slug.replace(/-/g, ' ');
+    const res = await fetch(
+      `${API}/phones/search?q=${encodeURIComponent(query)}&page_size=1`,
+      { next: { revalidate: 86400 } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.results?.length > 0) return data.results[0].id;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function generateMetadata({
   params,
 }: {
-  params: { phones: string };
+  params: Promise<{ phones: string }>;
 }): Promise<Metadata> {
-  const ids = params.phones
-    .split(',')
-    .map(Number)
-    .filter((n) => !isNaN(n));
+  const { phones: phonesParam } = await params;
 
-  if (ids.length < 2) {
+  // Support both slug format and id format
+  const segments = phonesParam.split('-vs-');
+
+  if (segments.length < 2) {
     return {
       title: 'Compare Phones | Mobylite',
+      description: 'Compare smartphones side by side on Mobylite.',
     };
   }
 
   try {
+    // Try to resolve slugs to IDs
+    const ids = await Promise.all(segments.map(resolveSlugToId));
+    const validIds = ids.filter((id): id is number => id !== null);
+
+    if (validIds.length < 2) {
+      return {
+        title: 'Compare Phones | Mobylite',
+        description: 'Compare smartphones side by side on Mobylite.',
+      };
+    }
+
     const res = await fetch(
-      `https://mobylite-api.up.railway.app/phones/compare?ids=${ids.join(',')}`,
+      `${API}/phones/compare?ids=${validIds.join(',')}`,
       { next: { revalidate: 3600 } }
     );
+
+    if (!res.ok) throw new Error('API error');
     const data = await res.json();
-    const phones: Array<{ model_name: string; brand: string }> = data.phones || [];
-    const names = phones.map((p) => p.model_name).join(' vs ');
+    const phoneList: Array<{ model_name: string; brand: string }> =
+      data.phones || [];
+
+    if (phoneList.length < 2) {
+      return { title: 'Compare Phones | Mobylite' };
+    }
+
+    const names = phoneList.map((p) => p.model_name).join(' vs ');
+    const brands = [...new Set(phoneList.map((p) => p.brand))].join(', ');
 
     return {
       title: `${names} Comparison | Mobylite`,
-      description: `Compare ${names} side by side. See full specs, prices, camera, battery, and performance differences.`,
+      description: `Compare ${names} side by side. Full specs, prices, camera, battery, and performance. Find which ${brands} phone is right for you.`,
       openGraph: {
-        title: `${names} | Mobylite Compare`,
-        description: `Side-by-side spec comparison: ${names}`,
+        title: `${names} | Phone Comparison`,
+        description: `Side-by-side: ${names}. Which one wins?`,
         type: 'website',
+        siteName: 'Mobylite',
       },
       twitter: {
         card: 'summary_large_image',
         title: `${names} Comparison`,
-        description: `Full specs comparison on Mobylite`,
+        description: `Full spec comparison on Mobylite`,
       },
+      keywords: [
+        ...phoneList.map((p) => p.model_name),
+        ...phoneList.map((p) => `${p.brand} comparison`),
+        'phone comparison',
+        'vs',
+      ],
     };
   } catch {
     return {
