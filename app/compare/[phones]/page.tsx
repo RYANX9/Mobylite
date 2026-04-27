@@ -2,7 +2,7 @@
 'use client';
 
 import { Suspense } from 'react';
-import ComparePageClient from '@/components/compare/ComparePageClient';
+import ComparePageClient from '@/app/components/compare/ComparePageClient';
 
 export default function CompareWithPhonesPage() {
   return (
