@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Search, X, Plus, ChevronDown, ChevronUp, Trophy,
-  Share2, RotateCcw, Loader2, AlertCircle, Star, Info, Smartphone
+  Search, X, Plus, ChevronDown, Star, Share2, RotateCcw,
+  Loader2, AlertCircle, Smartphone, ArrowLeft
 } from 'lucide-react'
 import { c, f, r } from '@/lib/tokens'
 import { ROUTES, brandSlug, phoneSlug, MAX_COMPARE } from '@/lib/config'
@@ -35,6 +35,7 @@ function scoreComposite(p: Phone): number {
   if (p.battery_capacity) s += Math.min(p.battery_capacity / 7000, 1) * 2
   if (p.fast_charging_w) s += Math.min(p.fast_charging_w / 100, 1)
   if (p.ram_options?.length) s += Math.min(Math.max(...p.ram_options) / 16, 1) * 0.5
+  // Fallback: if no value_score from API, compute rough one
   return s
 }
 
@@ -56,8 +57,12 @@ function getBestIdx(
   return bestIdx
 }
 
+function buildCompareSlug(phones: Phone[]): string {
+  return phones.map(p => phoneSlug(p)).join('-vs-')
+}
+
 /* ═══════════════════════════════════════════════════════════════
-   VERDICT DATA — maps each category to how we determine winner
+   VERDICT CONFIG
    ═══════════════════════════════════════════════════════════════ */
 
 interface VerdictCategory {
@@ -70,41 +75,13 @@ interface VerdictCategory {
 }
 
 const VERDICTS: VerdictCategory[] = [
-  {
-    emoji: '📷', label: 'Camera', unit: ' MP',
-    getter: p => p.main_camera_mp,
-    description: 'Main sensor resolution — higher is better for detail',
-  },
-  {
-    emoji: '🔋', label: 'Battery', unit: ' mAh',
-    getter: p => p.battery_capacity,
-    description: 'Battery capacity — larger lasts longer',
-  },
-  {
-    emoji: '⚡', label: 'Charging', unit: 'W',
-    getter: p => p.fast_charging_w,
-    description: 'Wired charging speed — higher charges faster',
-  },
-  {
-    emoji: '🚀', label: 'Performance', unit: ' pts',
-    getter: p => p.antutu_score,
-    description: 'AnTuTu benchmark — higher is faster',
-  },
-  {
-    emoji: '🖥️', label: 'Display', unit: '"',
-    getter: p => p.screen_size,
-    description: 'Screen size — preference varies',
-  },
-  {
-    emoji: '🪶', label: 'Weight', unit: 'g', lowerIsBetter: true,
-    getter: p => p.weight_g,
-    description: 'Weight — lighter is easier to hold',
-  },
-  {
-    emoji: '💰', label: 'Value', unit: '/10',
-    getter: p => p.value_score,
-    description: 'Value score — specs-per-dollar ratio',
-  },
+  { emoji: '📷', label: 'Camera', unit: ' MP', getter: p => p.main_camera_mp, description: 'Main sensor resolution' },
+  { emoji: '🔋', label: 'Battery', unit: ' mAh', getter: p => p.battery_capacity, description: 'Battery capacity' },
+  { emoji: '⚡', label: 'Charging', unit: 'W', getter: p => p.fast_charging_w, description: 'Wired charging speed' },
+  { emoji: '🚀', label: 'Performance', unit: ' pts', getter: p => p.antutu_score, description: 'AnTuTu benchmark score' },
+  { emoji: '🖥️', label: 'Display', unit: '"', getter: p => p.screen_size, description: 'Screen diagonal' },
+  { emoji: '🪶', label: 'Weight', unit: 'g', lowerIsBetter: true, getter: p => p.weight_g, description: 'Total weight' },
+  { emoji: '💰', label: 'Value', unit: '/10', getter: p => p.value_score ?? scoreComposite(p), description: 'Specs-per-dollar' },
 ]
 
 /* ═══════════════════════════════════════════════════════════════
@@ -116,7 +93,6 @@ interface SpecRow {
   getValue: (p: Phone) => string
   getRaw?: (p: Phone) => number | null
   lowerIsBetter?: boolean
-  note?: string
 }
 
 const SPEC_SECTIONS: { title: string; emoji: string; rows: SpecRow[] }[] = [
@@ -239,7 +215,7 @@ function PhoneColumn({ phone, onRemove, isWinner }: {
         {fmtPrice(phone.price_usd)}
       </p>
 
-      {phone.value_score != null && (
+      {phone.value_score != null ? (
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 4,
           fontSize: 12, color: c.text3,
@@ -249,6 +225,14 @@ function PhoneColumn({ phone, onRemove, isWinner }: {
             fontWeight: 600,
             color: phone.value_score >= 8 ? 'var(--green)' : phone.value_score >= 6 ? c.text2 : 'var(--orange)'
           }}>{phone.value_score}</span>/10
+        </div>
+      ) : (
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          fontSize: 12, color: c.text3,
+          padding: '4px 10px', background: 'var(--bg)', borderRadius: r.full,
+        }}>
+          Value: <span style={{ fontWeight: 600, color: c.text3 }}>—</span>/10
         </div>
       )}
 
@@ -374,18 +358,15 @@ function AddPhoneSlot({ onSelect, excludeIds }: {
 }
 
 function QuickVerdict({ phones }: { phones: Phone[] }) {
-  const wins = new Map<number, number>() // phone index -> win count
+  const wins = new Map<number, number>()
 
   const items = VERDICTS.map(v => {
     const bestIdx = getBestIdx(phones, v.getter, v.lowerIsBetter)
     if (bestIdx >= 0) wins.set(bestIdx, (wins.get(bestIdx) || 0) + 1)
 
-    const isTie = phones.filter((p, i) => {
-      const val = v.getter(p)
-      if (val == null) return false
-      const bestVal = v.getter(phones[bestIdx])
-      return val === bestVal && i !== bestIdx
-    }).length > 0
+    // Check for ties
+    const bestVal = bestIdx >= 0 ? v.getter(phones[bestIdx]) : null
+    const isTie = bestVal != null && phones.filter((p, i) => i !== bestIdx && v.getter(p) === bestVal).length > 0
 
     return { ...v, bestIdx, isTie }
   })
@@ -431,7 +412,6 @@ function QuickVerdict({ phones }: { phones: Phone[] }) {
           )
         })}
 
-        {/* Overall */}
         {overallWinner && (
           <div style={{
             gridColumn: '1 / -1',
@@ -588,9 +568,8 @@ function DetailedVerdicts({ phones }: { phones: Phone[] }) {
 function BottomLine({ phones }: { phones: Phone[] }) {
   if (phones.length < 2) return null
 
-  // Simple recommendations based on highest value score, lowest price, best camera
-  const bestValue = phones.reduce((a, b) => ((a.value_score || 0) > (b.value_score || 0) ? a : b))
-  const cheapest = phones.reduce((a, b) => ((a.price_usd || Infinity) < (b.price_usd || Infinity) ? a : b))
+  const bestValue = phones.reduce((a, b) => ((a.value_score ?? scoreComposite(a)) > (b.value_score ?? scoreComposite(b)) ? a : b))
+  const cheapest = phones.reduce((a, b) => ((a.price_usd ?? Infinity) < (b.price_usd ?? Infinity) ? a : b))
   const bestCamera = phones.reduce((a, b) => ((a.main_camera_mp || 0) > (b.main_camera_mp || 0) ? a : b))
 
   const recs = [
@@ -626,26 +605,34 @@ function BottomLine({ phones }: { phones: Phone[] }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   MAIN CONTENT — wrapped in Suspense boundary
+   MAIN CONTENT
    ═══════════════════════════════════════════════════════════════ */
 
-function CompareContent() {
+interface CompareContentProps {
+  initialPhones: Phone[]
+}
+
+function CompareContent({ initialPhones }: CompareContentProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
 
-  const [phones, setPhones] = useState<Phone[]>([])
+  // State: phones list. Initialize from server-resolved slugs OR from ?ids= query
+  const [phones, setPhones] = useState<Phone[]>(initialPhones)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
-  // Load phones from ?ids= query param
+  // If initialPhones is empty, try loading from ?ids= query param
+  // (for backward compat with old ?ids= URLs)
   useEffect(() => {
+    if (initialPhones.length > 0) return // Server already resolved
+
     const idsParam = searchParams.get('ids')
-    if (!idsParam) { setPhones([]); setError(null); return }
+    if (!idsParam) return
 
     const idList = idsParam.split(',').map(Number).filter(id => !isNaN(id) && id > 0)
-    if (idList.length === 0) { setPhones([]); return }
+    if (idList.length === 0) return
 
     setLoading(true)
     setError(null)
@@ -654,7 +641,6 @@ function CompareContent() {
       .then(data => {
         if (!data.phones?.length) {
           setError('Could not find the requested phones')
-          setPhones([])
           return
         }
         setPhones(data.phones)
@@ -662,10 +648,29 @@ function CompareContent() {
       .catch(err => {
         console.error('Compare API Error:', err)
         setError('Failed to load phones. Please try again.')
-        setPhones([])
       })
       .finally(() => setLoading(false))
-  }, [searchParams])
+  }, [searchParams, initialPhones.length])
+
+  // Sync URL when phones change (slug-based)
+  useEffect(() => {
+    if (phones.length === 0) {
+      // Don't push /compare if we're already there
+      const currentPath = window.location.pathname
+      if (currentPath !== '/compare') {
+        router.push('/compare', { scroll: false })
+      }
+      return
+    }
+
+    const slug = buildCompareSlug(phones)
+    const newPath = `/compare/${slug}`
+    
+    // Only push if path actually changed (avoid infinite loops)
+    if (window.location.pathname !== newPath) {
+      router.push(newPath, { scroll: false })
+    }
+  }, [phones, router])
 
   const handleAdd = useCallback((phone: Phone) => {
     if (phones.some(p => p.id === phone.id)) {
@@ -678,22 +683,14 @@ function CompareContent() {
     }
     const updated = [...phones, phone]
     setPhones(updated)
-    const ids = updated.map(p => p.id).join(',')
-    router.push(`/compare?ids=${ids}`, { scroll: false })
     toast('Phone added to comparison', 'success')
-  }, [phones, router, toast])
+  }, [phones, toast])
 
   const handleRemove = useCallback((id: number) => {
     const updated = phones.filter(p => p.id !== id)
     setPhones(updated)
-    if (updated.length === 0) {
-      router.push('/compare', { scroll: false })
-    } else {
-      const ids = updated.map(p => p.id).join(',')
-      router.push(`/compare?ids=${ids}`, { scroll: false })
-    }
     toast('Phone removed', 'info')
-  }, [phones, router, toast])
+  }, [phones, toast])
 
   const handleShare = async () => {
     try {
@@ -712,9 +709,9 @@ function CompareContent() {
     toast('Comparison cleared', 'info')
   }
 
-  // Determine overall winner by composite score
-  const scores = phones.map(scoreComposite)
-  const bestIdx = scores.length >= 2 ? scores.indexOf(Math.max(...scores)) : -1
+  // Winner by composite score
+  const scores = phones.map(p => p.value_score ?? scoreComposite(p))
+  const bestIdx = scores.length >= 1 ? scores.indexOf(Math.max(...scores)) : -1
 
   const hasPhones = phones.length > 0
   const canCompare = phones.length >= 2
@@ -741,8 +738,10 @@ function CompareContent() {
             Phone Comparison
           </h1>
           <p style={{ fontSize: 16, color: c.text3 }}>
-            {canCompare
-              ? 'Side-by-side specs, winners highlighted, honest verdicts.'
+            {hasPhones
+              ? canCompare
+                ? 'Side-by-side specs, winners highlighted, honest verdicts.'
+                : 'Add one more phone to see comparisons.'
               : 'Add phones to see a detailed comparison with winners and verdicts.'}
           </p>
         </div>
@@ -789,7 +788,7 @@ function CompareContent() {
           </div>
         )}
 
-        {/* Phone columns + table + verdicts */}
+        {/* Phone columns + everything else */}
         {hasPhones && !loading && (
           <>
             {/* Phone columns grid */}
@@ -809,19 +808,17 @@ function CompareContent() {
 
             {/* Share bar */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 48 }}>
-              {canCompare && (
-                <button onClick={handleShare} style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '8px 18px', fontSize: 13, fontWeight: 500,
-                  border: `1px solid ${c.border}`, borderRadius: r.full,
-                  color: c.text2, transition: 'all 0.15s',
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = c.primary; (e.currentTarget as HTMLElement).style.color = c.text1 }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = c.border; (e.currentTarget as HTMLElement).style.color = c.text2 }}>
-                  <Share2 size={14} />
-                  {copied ? 'Copied!' : 'Copy link'}
-                </button>
-              )}
+              <button onClick={handleShare} style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '8px 18px', fontSize: 13, fontWeight: 500,
+                border: `1px solid ${c.border}`, borderRadius: r.full,
+                color: c.text2, transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = c.primary; (e.currentTarget as HTMLElement).style.color = c.text1 }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = c.border; (e.currentTarget as HTMLElement).style.color = c.text2 }}>
+                <Share2 size={14} />
+                {copied ? 'Copied!' : 'Copy link'}
+              </button>
               <button onClick={handleClear} style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '8px 18px', fontSize: 13, fontWeight: 500,
@@ -843,7 +840,7 @@ function CompareContent() {
                 display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32,
               }}>
                 <Plus size={14} color={c.primary} />
-                <p style={{ fontSize: 13, color: c.primary }}>Add another phone to start comparing specs</p>
+                <p style={{ fontSize: 13, color: c.primary }}>Add another phone to see comparisons</p>
               </div>
             )}
 
@@ -858,10 +855,9 @@ function CompareContent() {
             )}
 
             {/* Bottom actions */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 64 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 64, flexWrap: 'wrap' }}>
               {phones.length < MAX_COMPARE && (
                 <button onClick={() => {
-                  // Scroll to add slot or open modal
                   const el = document.querySelector('.phone-cols')
                   el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
                 }} style={{
@@ -902,7 +898,6 @@ function CompareContent() {
         )}
       </div>
 
-      {/* Keyframes */}
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 1023px) {
@@ -928,7 +923,7 @@ function CompareSkeleton() {
     <div style={{ minHeight: '100vh', background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
       <div style={{
         width: 32, height: 32,
-        border: `2px solid ${c.border}`, borderTopColor: c.primary,
+        border: `2px solid ${c.border}`, borderTopColor: 'var(--primary)',
         borderRadius: '50%', animation: 'spin 1s linear infinite',
       }} />
       <p style={{ fontSize: 14, color: c.text3 }}>Loading comparison…</p>
@@ -937,10 +932,14 @@ function CompareSkeleton() {
   )
 }
 
-export default function CompareClient() {
+interface CompareClientProps {
+  initialPhones?: Phone[]
+}
+
+export default function CompareClient({ initialPhones = [] }: CompareClientProps) {
   return (
     <Suspense fallback={<CompareSkeleton />}>
-      <CompareContent />
+      <CompareContent initialPhones={initialPhones} />
     </Suspense>
   )
 }
