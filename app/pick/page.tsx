@@ -8,9 +8,9 @@ import {
   Feather, Monitor, Bolt, BadgeDollarSign, Check, X, Star,
   TrendingUp, Clock, ChevronRight, Crosshair, Info,
 } from 'lucide-react'
-import Navbar from '../../components/Navbar'
-import CompareBar from '../../components/CompareBar'
-import { ToastProvider, useToast } from '../../components/Toast'
+import Navbar from '@/app/components/Navbar'
+import CompareBar from '@/app/components/CompareBar'
+import { ToastProvider, useToast } from '@/app/components/Toast'
 import { api } from '@/lib/api'
 import { ROUTES, phoneSlug, brandSlug, MAX_COMPARE } from '@/lib/config'
 import { c } from '@/lib/tokens'
