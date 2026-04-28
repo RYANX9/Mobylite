@@ -1,3 +1,4 @@
+//app/components/compare/CompareClient.tsx
 'use client'
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
