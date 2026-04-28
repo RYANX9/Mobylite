@@ -8,9 +8,9 @@ import {
   Award, TrendingUp, Info, ArrowRight, Filter, X, ChevronDown,
   Camera, Battery, Zap, Tag, Feather, Bolt, Crosshair, BarChart3,
 } from 'lucide-react'
-import Navbar from '@/components/Navbar'
-import CompareBar from '@/components/CompareBar'
-import { ToastProvider, useToast } from '@/components/Toast'
+import Navbar from '../../components/Navbar'
+import CompareBar from '../../components/CompareBar'
+import { ToastProvider, useToast } from '../../components/Toast'
 import { api } from '@/lib/api'
 import { ROUTES, brandSlug, phoneSlug, CATEGORY_META, MAX_COMPARE } from '@/lib/config'
 import { c } from '@/lib/tokens'
