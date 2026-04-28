@@ -1046,7 +1046,7 @@ function CompareSkeleton() {
         borderRadius: '50%', animation: 'spin 1s linear infinite',
       }} />
       <p style={{ fontSize: 14, color: c.text3 }}>Loading comparison…</p>
-      <style>{\`@keyframes spin { to { transform: rotate(360deg); } }\`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }
