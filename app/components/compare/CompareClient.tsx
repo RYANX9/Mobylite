@@ -57,9 +57,9 @@ function getBestIdx(
   return bestIdx
 }
 
-// 🔧 Use numeric IDs separated by commas - NO AMBIGUITY
-function buildCompareParam(phones: Phone[]): string {
-  return phones.map(p => p.id).filter(Boolean).join(',')
+// 🔧 FIX: Build SEO-friendly slug using phoneSlug helper from config
+function buildCompareSlug(phones: Phone[]): string {
+  return phones.map(p => phoneSlug(p)).filter(Boolean).join('-vs-')
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -249,19 +249,15 @@ function PhoneColumn({ phone, onRemove, isWinner }: {
   )
 }
 
-function AddPhoneSlot({ onSelect, excludeIds, isOpen: externalIsOpen }: {
+function AddPhoneSlot({ onSelect, excludeIds }: {
   onSelect: (p: Phone) => void
   excludeIds: number[]
-  isOpen?: boolean
 }) {
-  const [internalOpen, setInternalOpen] = useState(false)
+  const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Phone[]>([])
   const [loading, setLoading] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
-  
-  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalOpen
-  const setOpen = externalIsOpen !== undefined ? () => {} : setInternalOpen
 
   useEffect(() => {
     clearTimeout(timerRef.current)
@@ -276,7 +272,7 @@ function AddPhoneSlot({ onSelect, excludeIds, isOpen: externalIsOpen }: {
     }, 300)
   }, [query, excludeIds])
 
-  if (!isOpen) {
+  if (!open) {
     return (
       <button
         onClick={() => setOpen(true)}
@@ -625,24 +621,24 @@ function CompareContent({ initialPhones }: CompareContentProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [addSlotOpen, setAddSlotOpen] = useState(false)
   
   // Track initialization and user modifications
   const didInitRef = useRef(false)
   const userModifiedRef = useRef(false)
   
-  // Track last synced IDs to prevent URL sync loops
-  const lastSyncedIdsRef = useRef<string>('')
+  // 🔧 FIX: Track last synced slug to prevent URL sync loops
+  const lastSyncedSlugRef = useRef<string>('')
 
-  // On mount: if no initial phones, try loading from ?ids= (backward compat)
+  // On mount: handle initial phones from server
   useEffect(() => {
     if (initialPhones.length > 0) {
       didInitRef.current = true
-      // Initialize lastSyncedIds to match initial server state
-      lastSyncedIdsRef.current = buildCompareParam(initialPhones)
+      // 🔧 FIX: Initialize lastSyncedSlug to match server state
+      lastSyncedSlugRef.current = buildCompareSlug(initialPhones)
       return
     }
 
+    // Fallback: try loading from ?ids= for backward compat
     const idsParam = searchParams.get('ids')
     if (!idsParam) {
       didInitRef.current = true
@@ -660,7 +656,7 @@ function CompareContent({ initialPhones }: CompareContentProps) {
       .then(data => {
         if (data.phones?.length) {
           setPhones(data.phones)
-          lastSyncedIdsRef.current = buildCompareParam(data.phones)
+          lastSyncedSlugRef.current = buildCompareSlug(data.phones)
         } else {
           setError('Could not find the requested phones')
         }
@@ -672,7 +668,7 @@ function CompareContent({ initialPhones }: CompareContentProps) {
       })
   }, [searchParams, initialPhones.length])
 
-  // Sync URL with loop prevention using ID tracking
+  // 🔧 FIX: Sync URL with slug-based routing and loop prevention
   useEffect(() => {
     // Skip if we haven't finished initial load yet
     if (!didInitRef.current) return
@@ -680,28 +676,29 @@ function CompareContent({ initialPhones }: CompareContentProps) {
     // Skip if phones didn't come from user interaction
     if (!userModifiedRef.current) return
 
-    const currentIds = buildCompareParam(phones)
+    const currentSlug = buildCompareSlug(phones)
     
-    // Only update URL if the IDs actually changed from what we last synced
-    if (currentIds === lastSyncedIdsRef.current) {
+    // 🔧 FIX: Only update URL if the slug actually changed from what we last synced
+    if (currentSlug === lastSyncedSlugRef.current) {
       return
     }
 
     if (phones.length === 0) {
-      lastSyncedIdsRef.current = ''
+      lastSyncedSlugRef.current = ''
       router.replace('/compare', { scroll: false })
       return
     }
 
-    const newPath = `/compare/${currentIds}`
+    const newPath = `/compare/${currentSlug}`
     
-    // Use replace to avoid history stack buildup, and only update if path differs
+    // 🔧 FIX: Use replace to avoid history stack buildup, and only update if path differs
     if (window.location.pathname !== newPath) {
-      lastSyncedIdsRef.current = currentIds
+      lastSyncedSlugRef.current = currentSlug
       router.replace(newPath, { scroll: false })
     }
   }, [phones, router])
 
+  // 🔧 FIX: Add phone using slug-based URL
   const handleAdd = useCallback((phone: Phone) => {
     if (phones.some(p => p.id === phone.id)) {
       toast('Phone already in comparison', 'info')
@@ -712,16 +709,29 @@ function CompareContent({ initialPhones }: CompareContentProps) {
       return
     }
     userModifiedRef.current = true
-    setPhones(prev => [...prev, phone])
-    setAddSlotOpen(false)
+    const updated = [...phones, phone]
+    setPhones(updated)
+    // 🔧 FIX: Use slug-based URL for SEO
+    const slug = buildCompareSlug(updated)
+    router.replace(`/compare/${slug}`, { scroll: false })
     toast('Phone added to comparison', 'success')
-  }, [phones, toast])
+  }, [phones, router, toast])
 
+  // 🔧 FIX: Remove phone using slug-based URL
   const handleRemove = useCallback((id: number) => {
     userModifiedRef.current = true
-    setPhones(prev => prev.filter(p => p.id !== id))
+    const updated = phones.filter(p => p.id !== id)
+    setPhones(updated)
+    
+    if (updated.length === 0) {
+      router.replace('/compare', { scroll: false })
+    } else {
+      // 🔧 FIX: Use slug-based URL for SEO
+      const slug = buildCompareSlug(updated)
+      router.replace(`/compare/${slug}`, { scroll: false })
+    }
     toast('Phone removed', 'info')
-  }, [toast])
+  }, [phones, router, toast])
 
   const handleShare = async () => {
     try {
@@ -737,7 +747,6 @@ function CompareContent({ initialPhones }: CompareContentProps) {
   const handleClear = () => {
     userModifiedRef.current = true
     setPhones([])
-    setAddSlotOpen(false)
     router.replace('/compare', { scroll: false })
     toast('Comparison cleared', 'info')
   }
@@ -816,7 +825,7 @@ function CompareContent({ initialPhones }: CompareContentProps) {
               Add 2–4 phones to see a detailed comparison with winners and verdicts.
             </p>
             <div style={{ maxWidth: 400, margin: '0 auto' }}>
-              <AddPhoneSlot onSelect={handleAdd} excludeIds={[]} isOpen={addSlotOpen} />
+              <AddPhoneSlot onSelect={handleAdd} excludeIds={[]} />
             </div>
           </div>
         )}
@@ -835,11 +844,7 @@ function CompareContent({ initialPhones }: CompareContentProps) {
                 <PhoneColumn key={p.id} phone={p} onRemove={() => handleRemove(p.id)} isWinner={i === bestIdx} />
               ))}
               {phones.length < MAX_COMPARE && (
-                <AddPhoneSlot 
-                  onSelect={handleAdd} 
-                  excludeIds={phones.map(p => p.id)} 
-                  isOpen={addSlotOpen}
-                />
+                <AddPhoneSlot onSelect={handleAdd} excludeIds={phones.map(p => p.id)} />
               )}
             </div>
 
@@ -894,7 +899,10 @@ function CompareContent({ initialPhones }: CompareContentProps) {
             {/* Bottom actions */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 64, flexWrap: 'wrap' }}>
               {phones.length < MAX_COMPARE && (
-                <button onClick={() => setAddSlotOpen(true)} style={{
+                <button onClick={() => {
+                  const el = document.querySelector('.phone-cols')
+                  el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }} style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '12px 28px', background: c.primary,
                   color: '#fff', borderRadius: r.full,
