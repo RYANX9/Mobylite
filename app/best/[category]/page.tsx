@@ -641,6 +641,97 @@ function OtherCategories({ currentSlug }: { currentSlug: string }) {
   )
 }
 
+/* ─── FOOTER ─── */
+function Footer() {
+  const cols = [
+    {
+      title: 'Browse',
+      links: [
+        { label: 'All Phones', href: ROUTES.home },
+        { label: 'Brands', href: '#' },
+        { label: 'Compare', href: '/compare' },
+        { label: 'Help Me Choose', href: ROUTES.pick },
+      ],
+    },
+    {
+      title: 'Categories',
+      links: [
+        { label: 'Best Camera', href: ROUTES.category('camera-phones') },
+        { label: 'Best Battery', href: ROUTES.category('battery-life') },
+        { label: 'Under $300', href: ROUTES.category('under-300') },
+        { label: 'Gaming Phones', href: ROUTES.category('gaming-phones') },
+        { label: 'Fast Charging', href: ROUTES.category('fast-charging') },
+      ],
+    },
+    {
+      title: 'About',
+      links: [
+        { label: 'About Mobylite', href: '/about' },
+        { label: 'How We Score', href: '/about#scoring' },
+        { label: 'Data Sources', href: '/about#data' },
+        { label: 'Contact', href: '/about#contact' },
+      ],
+    },
+  ]
+
+  return (
+    <footer className="site-footer" style={{ background: c.primary, color: '#A0A0B0', padding: '56px 24px 28px', marginTop: 80 }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+        <div className="footer-grid" style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: 40, marginBottom: 40,
+        }}>
+          <div className="footer-brand" style={{ maxWidth: 280 }}>
+            <div style={{
+              fontFamily: 'var(--font-serif)', fontSize: 24,
+              color: '#fff', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <img src="/logored.svg" alt="Mobylite" style={{ height: '1.2em', width: 'auto' }} />
+              Mobylite
+            </div>
+            <p style={{ fontSize: 14, lineHeight: 1.6, color: '#8A8A9A', maxWidth: 320 }}>
+              Find your next phone. No clutter, no bias, no discontinued models.
+            </p>
+          </div>
+          {cols.map(col => (
+            <div key={col.title}>
+              <div className="footer-title" style={{
+                fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
+                letterSpacing: '0.8px', marginBottom: 16, color: '#7A7A8A',
+              }}>
+                {col.title}
+              </div>
+              <div className="footer-links" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {col.links.map(l => (
+                  <Link
+                    key={l.label}
+                    href={l.href}
+                    className="footer-link"
+                    style={{ fontSize: 14, color: '#A0A0B0', transition: 'color 0.15s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#fff' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#A0A0B0' }}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="footer-copyright" style={{
+          paddingTop: 28, borderTop: '1px solid rgba(255,255,255,0.1)',
+          textAlign: 'center', fontSize: 13, color: '#6A6A7A', lineHeight: 1.5,
+        }}>
+          © {new Date().getFullYear()} Mobylite. Data sourced from GSMArena. All trademarks belong to their owners.
+          <br />Specs updated daily.
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+/* ─── MAIN CONTENT ─── */
 function CategoryPageContent() {
   const router = useRouter()
   const params = useParams()
@@ -908,6 +999,9 @@ function CategoryPageContent() {
         <OtherCategories currentSlug={slug} />
       </div>
 
+      {/* Footer Added Here */}
+      <Footer />
+
       <CompareBar
         phones={comparePhones}
         onRemove={id => setComparePhones(prev => prev.filter(p => p.id !== id))}
@@ -944,6 +1038,10 @@ function CategoryPageContent() {
           .compact-score { display: none !important; }
           .other-cats-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .methodology-weights { grid-template-columns: repeat(2, 1fr) !important; }
+          
+          /* Tablet Footer */
+          .site-footer { margin-top: 60px !important; }
+          .footer-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 32px !important; }
         }
         
         /* Mobile (<767px) */
@@ -965,6 +1063,20 @@ function CategoryPageContent() {
           .other-cats-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
           .methodology-weights { grid-template-columns: 1fr !important; }
           .category-tabs { margin-top: 16px; }
+          
+          /* Mobile Footer */
+          .site-footer { padding: 40px 16px 24px !important; margin-top: 40px !important; }
+          .footer-brand { grid-column: 1 / -1 !important; text-align: center !important; margin-bottom: 8px !important; }
+          .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 24px 16px !important; }
+          .footer-title { text-align: center !important; }
+          .footer-links { align-items: center !important; }
+          .footer-copyright { font-size: 12px !important; padding-top: 20px !important; }
+        }
+        
+        /* Small Mobile (<480px) */
+        @media (max-width: 480px) {
+          .footer-grid { grid-template-columns: 1fr !important; text-align: center !important; }
+          .footer-brand { max-width: 100% !important; }
         }
       `}</style>
     </div>
