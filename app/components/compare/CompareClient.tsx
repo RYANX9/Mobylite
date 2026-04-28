@@ -1,4 +1,3 @@
-//app/components/compare/CompareClient.tsx
 'use client'
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
@@ -6,7 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   Search, X, Plus, ChevronDown, Star, Share2, RotateCcw,
-  Loader2, AlertCircle, Smartphone
+  Loader2, AlertCircle, Smartphone, Camera, Battery, Zap,
+  Monitor, Trophy, BadgeDollarSign, Wrench, HardHat, ChevronRight,
+  ArrowRight, Crosshair
 } from 'lucide-react'
 import { c, f, r } from '@/lib/tokens'
 import { ROUTES, brandSlug, phoneSlug, MAX_COMPARE } from '@/lib/config'
@@ -57,17 +58,16 @@ function getBestIdx(
   return bestIdx
 }
 
-// 🔧 FIX: Build SEO-friendly slug using phoneSlug helper from config
 function buildCompareSlug(phones: Phone[]): string {
   return phones.map(p => phoneSlug(p)).filter(Boolean).join('-vs-')
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   VERDICT CONFIG
+   VERDICT CONFIG — NO EMOJIS, ALL LUCIDE ICONS
    ═══════════════════════════════════════════════════════════════ */
 
 interface VerdictCategory {
-  emoji: string
+  icon: React.ReactNode
   label: string
   getter: (p: Phone) => number | null
   lowerIsBetter?: boolean
@@ -76,17 +76,17 @@ interface VerdictCategory {
 }
 
 const VERDICTS: VerdictCategory[] = [
-  { emoji: '📷', label: 'Camera', unit: ' MP', getter: p => p.main_camera_mp, description: 'Main sensor resolution' },
-  { emoji: '🔋', label: 'Battery', unit: ' mAh', getter: p => p.battery_capacity, description: 'Battery capacity' },
-  { emoji: '⚡', label: 'Charging', unit: 'W', getter: p => p.fast_charging_w, description: 'Wired charging speed' },
-  { emoji: '🚀', label: 'Performance', unit: ' pts', getter: p => p.antutu_score, description: 'AnTuTu benchmark score' },
-  { emoji: '🖥️', label: 'Display', unit: '"', getter: p => p.screen_size, description: 'Screen diagonal' },
-  { emoji: '🪶', label: 'Weight', unit: 'g', lowerIsBetter: true, getter: p => p.weight_g, description: 'Total weight' },
-  { emoji: '💰', label: 'Value', unit: '/10', getter: p => p.value_score ?? scoreComposite(p), description: 'Specs-per-dollar' },
+  { icon: <Camera size={18} strokeWidth={1.5} />, label: 'Camera', unit: ' MP', getter: p => p.main_camera_mp, description: 'Main sensor resolution' },
+  { icon: <Battery size={18} strokeWidth={1.5} />, label: 'Battery', unit: ' mAh', getter: p => p.battery_capacity, description: 'Battery capacity' },
+  { icon: <Zap size={18} strokeWidth={1.5} />, label: 'Charging', unit: 'W', getter: p => p.fast_charging_w, description: 'Wired charging speed' },
+  { icon: <Zap size={18} strokeWidth={1.5} />, label: 'Performance', unit: ' pts', getter: p => p.antutu_score, description: 'AnTuTu benchmark score' },
+  { icon: <Monitor size={18} strokeWidth={1.5} />, label: 'Display', unit: '"', getter: p => p.screen_size, description: 'Screen diagonal' },
+  { icon: <Smartphone size={18} strokeWidth={1.5} />, label: 'Weight', unit: 'g', lowerIsBetter: true, getter: p => p.weight_g, description: 'Total weight' },
+  { icon: <BadgeDollarSign size={18} strokeWidth={1.5} />, label: 'Value', unit: '/10', getter: p => p.value_score ?? scoreComposite(p), description: 'Specs-per-dollar' },
 ]
 
 /* ═══════════════════════════════════════════════════════════════
-   SPEC TABLE CONFIG
+   SPEC TABLE CONFIG — NO EMOJIS, ALL LUCIDE ICONS
    ═══════════════════════════════════════════════════════════════ */
 
 interface SpecRow {
@@ -96,9 +96,9 @@ interface SpecRow {
   lowerIsBetter?: boolean
 }
 
-const SPEC_SECTIONS: { title: string; emoji: string; rows: SpecRow[] }[] = [
+const SPEC_SECTIONS: { title: string; icon: React.ReactNode; rows: SpecRow[] }[] = [
   {
-    title: 'Display', emoji: '🖥️',
+    title: 'Display', icon: <Monitor size={18} strokeWidth={1.5} />,
     rows: [
       { label: 'Screen Size', getValue: p => fmt(p.screen_size, '"'), getRaw: p => p.screen_size },
       { label: 'Resolution', getValue: p => p.screen_resolution || '—' },
@@ -106,7 +106,7 @@ const SPEC_SECTIONS: { title: string; emoji: string; rows: SpecRow[] }[] = [
     ],
   },
   {
-    title: 'Camera', emoji: '📷',
+    title: 'Camera', icon: <Camera size={18} strokeWidth={1.5} />,
     rows: [
       { label: 'Main Camera', getValue: p => fmt(p.main_camera_mp, ' MP'), getRaw: p => p.main_camera_mp },
       { label: 'Front Camera', getValue: p => p.full_specifications?.quick_specs?.cam2modules || '—' },
@@ -114,7 +114,7 @@ const SPEC_SECTIONS: { title: string; emoji: string; rows: SpecRow[] }[] = [
     ],
   },
   {
-    title: 'Performance', emoji: '🚀',
+    title: 'Performance', icon: <Zap size={18} strokeWidth={1.5} />,
     rows: [
       { label: 'Chipset', getValue: p => p.chipset || '—' },
       { label: 'AnTuTu', getValue: p => fmt(p.antutu_score), getRaw: p => p.antutu_score },
@@ -123,14 +123,14 @@ const SPEC_SECTIONS: { title: string; emoji: string; rows: SpecRow[] }[] = [
     ],
   },
   {
-    title: 'Battery', emoji: '🔋',
+    title: 'Battery', icon: <Battery size={18} strokeWidth={1.5} />,
     rows: [
       { label: 'Capacity', getValue: p => fmt(p.battery_capacity, ' mAh'), getRaw: p => p.battery_capacity },
       { label: 'Fast Charging', getValue: p => fmt(p.fast_charging_w, 'W'), getRaw: p => p.fast_charging_w },
     ],
   },
   {
-    title: 'Build', emoji: '🏗️',
+    title: 'Build', icon: <HardHat size={18} strokeWidth={1.5} />,
     rows: [
       { label: 'Weight', getValue: p => fmt(p.weight_g, 'g'), getRaw: p => p.weight_g, lowerIsBetter: true },
       { label: 'Thickness', getValue: p => fmt(p.thickness_mm, 'mm'), getRaw: p => p.thickness_mm, lowerIsBetter: true },
@@ -387,7 +387,7 @@ function QuickVerdict({ phones }: { phones: Phone[] }) {
               padding: '18px 20px', transition: 'all 0.15s',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <span style={{ fontSize: 20 }}>{item.emoji}</span>
+                <span style={{ color: c.text2, display: 'flex', alignItems: 'center' }}>{item.icon}</span>
                 <span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: c.text3 }}>{item.label}</span>
               </div>
               <div style={{ fontFamily: f.serif, fontSize: 17, color: c.text1, marginBottom: 4 }}>
@@ -406,7 +406,7 @@ function QuickVerdict({ phones }: { phones: Phone[] }) {
                     ? { background: 'var(--accent-light)', color: c.accent }
                     : { background: 'rgba(0,0,0,0.04)', color: c.text3 }),
               }}>
-                {item.isTie ? '≈ Tie' : item.bestIdx >= 0 ? '★ Winner' : '—'}
+                {item.isTie ? '≈ Tie' : item.bestIdx >= 0 ? <><Star size={10} fill={c.accent} color={c.accent} /> Winner</> : '—'}
               </span>
             </div>
           )
@@ -419,7 +419,7 @@ function QuickVerdict({ phones }: { phones: Phone[] }) {
             padding: '18px 20px',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <span style={{ fontSize: 20 }}>🏆</span>
+              <Trophy size={20} color="#C9A84C" />
               <span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'rgba(255,255,255,0.5)' }}>Overall</span>
             </div>
             <div style={{ fontFamily: f.serif, fontSize: 22, color: '#fff', marginBottom: 4 }}>
@@ -449,7 +449,7 @@ function SpecTable({ phones }: { phones: Phone[] }) {
                   textTransform: 'uppercase', letterSpacing: '0.5px', color: c.text1,
                   background: 'var(--bg)', borderBottom: `2px solid ${c.border}`,
                 }}>
-                  <span style={{ fontSize: 16, marginRight: 8 }}>{section.emoji}</span>
+                  <span style={{ marginRight: 8, display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', color: c.text2 }}>{section.icon}</span>
                   {section.title}
                 </td>
               </tr>
@@ -503,9 +503,9 @@ function SpecTable({ phones }: { phones: Phone[] }) {
 
 function DetailedVerdicts({ phones }: { phones: Phone[] }) {
   const categories = [
-    { emoji: '📷', label: 'Camera', getter: (p: Phone) => p.main_camera_mp, max: 200 },
-    { emoji: '🚀', label: 'Performance', getter: (p: Phone) => p.antutu_score, max: 2_000_000 },
-    { emoji: '🔋', label: 'Battery', getter: (p: Phone) => p.battery_capacity, max: 7000 },
+    { icon: <Camera size={20} strokeWidth={1.5} />, label: 'Camera', getter: (p: Phone) => p.main_camera_mp, max: 200 },
+    { icon: <Zap size={20} strokeWidth={1.5} />, label: 'Performance', getter: (p: Phone) => p.antutu_score, max: 2_000_000 },
+    { icon: <Battery size={20} strokeWidth={1.5} />, label: 'Battery', getter: (p: Phone) => p.battery_capacity, max: 7000 },
   ]
 
   const colors = [c.accent, c.primary, 'var(--green)']
@@ -524,7 +524,7 @@ function DetailedVerdicts({ phones }: { phones: Phone[] }) {
             padding: 24, marginBottom: 16, transition: 'all 0.15s',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <span style={{ fontSize: 24 }}>{cat.emoji}</span>
+              <span style={{ color: c.text2, display: 'flex', alignItems: 'center' }}>{cat.icon}</span>
               <span style={{ fontFamily: f.serif, fontSize: 20, color: c.text1 }}>{cat.label}</span>
             </div>
 
@@ -605,6 +605,98 @@ function BottomLine({ phones }: { phones: Phone[] }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════════════════ */
+
+function Footer() {
+  const cols = [
+    {
+      title: 'Browse',
+      links: [
+        { label: 'All Phones', href: ROUTES.home },
+        { label: 'Brands', href: '#' },
+        { label: 'Compare', href: '/compare' },
+        { label: 'Help Me Choose', href: ROUTES.pick },
+      ],
+    },
+    {
+      title: 'Categories',
+      links: [
+        { label: 'Best Camera', href: ROUTES.category('camera-phones') },
+        { label: 'Best Battery', href: ROUTES.category('battery-life') },
+        { label: 'Under $300', href: ROUTES.category('under-300') },
+        { label: 'Gaming Phones', href: ROUTES.category('gaming-phones') },
+        { label: 'Fast Charging', href: ROUTES.category('fast-charging') },
+      ],
+    },
+    {
+      title: 'About',
+      links: [
+        { label: 'About Mobylite', href: '/about' },
+        { label: 'How We Score', href: '/about#scoring' },
+        { label: 'Data Sources', href: '/about#data' },
+        { label: 'Contact', href: '/about#contact' },
+      ],
+    },
+  ]
+
+  return (
+    <footer style={{ background: c.primary, color: '#A0A0B0', padding: '56px 24px 28px', marginTop: 60 }}>
+      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+          gap: 32, marginBottom: 40,
+        }}>
+          <div>
+            <div style={{
+              fontFamily: 'var(--font-serif)', fontSize: 22,
+              color: '#fff', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <img src="/logored.svg" alt="Mobylite" style={{ height: '1em', width: 'auto' }} />
+              Mobylite
+            </div>
+            <p style={{ fontSize: 14, lineHeight: 1.6, maxWidth: 260 }}>
+              Find your next phone. No clutter, no bias, no discontinued models.
+            </p>
+          </div>
+          {cols.map(col => (
+            <div key={col.title}>
+              <div style={{
+                fontSize: 12, fontWeight: 600, textTransform: 'uppercase',
+                letterSpacing: '0.8px', marginBottom: 14, color: '#7A7A8A',
+              }}>
+                {col.title}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {col.links.map(l => (
+                  <Link
+                    key={l.label}
+                    href={l.href}
+                    style={{ fontSize: 14, color: '#A0A0B0', transition: 'color 0.15s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#fff' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#A0A0B0' }}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{
+          paddingTop: 24, borderTop: '1px solid #2A2A3E',
+          textAlign: 'center', fontSize: 12, color: '#6A6A7A',
+        }}>
+          © 2025 Mobylite. Data sourced from GSMArena. All trademarks belong to their owners.
+          <br />Specs updated daily.
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
    MAIN CONTENT
    ═══════════════════════════════════════════════════════════════ */
 
@@ -622,23 +714,17 @@ function CompareContent({ initialPhones }: CompareContentProps) {
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   
-  // Track initialization and user modifications
   const didInitRef = useRef(false)
   const userModifiedRef = useRef(false)
-  
-  // 🔧 FIX: Track last synced slug to prevent URL sync loops
   const lastSyncedSlugRef = useRef<string>('')
 
-  // On mount: handle initial phones from server
   useEffect(() => {
     if (initialPhones.length > 0) {
       didInitRef.current = true
-      // 🔧 FIX: Initialize lastSyncedSlug to match server state
       lastSyncedSlugRef.current = buildCompareSlug(initialPhones)
       return
     }
 
-    // Fallback: try loading from ?ids= for backward compat
     const idsParam = searchParams.get('ids')
     if (!idsParam) {
       didInitRef.current = true
@@ -668,17 +754,12 @@ function CompareContent({ initialPhones }: CompareContentProps) {
       })
   }, [searchParams, initialPhones.length])
 
-  // 🔧 FIX: Sync URL with slug-based routing and loop prevention
   useEffect(() => {
-    // Skip if we haven't finished initial load yet
     if (!didInitRef.current) return
-    
-    // Skip if phones didn't come from user interaction
     if (!userModifiedRef.current) return
 
     const currentSlug = buildCompareSlug(phones)
     
-    // 🔧 FIX: Only update URL if the slug actually changed from what we last synced
     if (currentSlug === lastSyncedSlugRef.current) {
       return
     }
@@ -691,14 +772,12 @@ function CompareContent({ initialPhones }: CompareContentProps) {
 
     const newPath = `/compare/${currentSlug}`
     
-    // 🔧 FIX: Use replace to avoid history stack buildup, and only update if path differs
     if (window.location.pathname !== newPath) {
       lastSyncedSlugRef.current = currentSlug
       router.replace(newPath, { scroll: false })
     }
   }, [phones, router])
 
-  // 🔧 FIX: Add phone using slug-based URL
   const handleAdd = useCallback((phone: Phone) => {
     if (phones.some(p => p.id === phone.id)) {
       toast('Phone already in comparison', 'info')
@@ -711,13 +790,11 @@ function CompareContent({ initialPhones }: CompareContentProps) {
     userModifiedRef.current = true
     const updated = [...phones, phone]
     setPhones(updated)
-    // 🔧 FIX: Use slug-based URL for SEO
     const slug = buildCompareSlug(updated)
     router.replace(`/compare/${slug}`, { scroll: false })
     toast('Phone added to comparison', 'success')
   }, [phones, router, toast])
 
-  // 🔧 FIX: Remove phone using slug-based URL
   const handleRemove = useCallback((id: number) => {
     userModifiedRef.current = true
     const updated = phones.filter(p => p.id !== id)
@@ -726,7 +803,6 @@ function CompareContent({ initialPhones }: CompareContentProps) {
     if (updated.length === 0) {
       router.replace('/compare', { scroll: false })
     } else {
-      // 🔧 FIX: Use slug-based URL for SEO
       const slug = buildCompareSlug(updated)
       router.replace(`/compare/${slug}`, { scroll: false })
     }
@@ -751,7 +827,6 @@ function CompareContent({ initialPhones }: CompareContentProps) {
     toast('Comparison cleared', 'info')
   }
 
-  // Winner by composite score (or value_score if available)
   const scores = phones.map(p => p.value_score ?? scoreComposite(p))
   const bestIdx = scores.length >= 1 ? scores.indexOf(Math.max(...scores)) : -1
 
@@ -940,6 +1015,8 @@ function CompareContent({ initialPhones }: CompareContentProps) {
         )}
       </div>
 
+      <Footer />
+
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 1023px) {
@@ -969,7 +1046,7 @@ function CompareSkeleton() {
         borderRadius: '50%', animation: 'spin 1s linear infinite',
       }} />
       <p style={{ fontSize: 14, color: c.text3 }}>Loading comparison…</p>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{\`@keyframes spin { to { transform: rotate(360deg); } }\`}</style>
     </div>
   )
 }
