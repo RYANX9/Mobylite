@@ -57,8 +57,7 @@ function getBestIdx(
   return bestIdx
 }
 
-// 🔧 FIX: Use numeric IDs instead of slugs to avoid ambiguous parsing
-// Slugs like "pixel-8-pro-vs-oneplus-12" break when split on "-vs-"
+// 🔧 Use numeric IDs separated by commas - NO AMBIGUITY
 function buildCompareParam(phones: Phone[]): string {
   return phones.map(p => p.id).filter(Boolean).join(',')
 }
@@ -250,15 +249,19 @@ function PhoneColumn({ phone, onRemove, isWinner }: {
   )
 }
 
-function AddPhoneSlot({ onSelect, excludeIds }: {
+function AddPhoneSlot({ onSelect, excludeIds, isOpen: externalIsOpen }: {
   onSelect: (p: Phone) => void
   excludeIds: number[]
+  isOpen?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Phone[]>([])
   const [loading, setLoading] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
+  
+  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalOpen
+  const setOpen = externalIsOpen !== undefined ? () => {} : setInternalOpen
 
   useEffect(() => {
     clearTimeout(timerRef.current)
@@ -273,7 +276,7 @@ function AddPhoneSlot({ onSelect, excludeIds }: {
     }, 300)
   }, [query, excludeIds])
 
-  if (!open) {
+  if (!isOpen) {
     return (
       <button
         onClick={() => setOpen(true)}
@@ -622,19 +625,20 @@ function CompareContent({ initialPhones }: CompareContentProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [addSlotOpen, setAddSlotOpen] = useState(false)
   
   // Track initialization and user modifications
   const didInitRef = useRef(false)
   const userModifiedRef = useRef(false)
   
-  // 🔧 FIX: Track last synced IDs to prevent URL sync loops
+  // Track last synced IDs to prevent URL sync loops
   const lastSyncedIdsRef = useRef<string>('')
 
   // On mount: if no initial phones, try loading from ?ids= (backward compat)
   useEffect(() => {
     if (initialPhones.length > 0) {
       didInitRef.current = true
-      // 🔧 FIX: Initialize lastSyncedIds to match initial server state
+      // Initialize lastSyncedIds to match initial server state
       lastSyncedIdsRef.current = buildCompareParam(initialPhones)
       return
     }
@@ -668,17 +672,17 @@ function CompareContent({ initialPhones }: CompareContentProps) {
       })
   }, [searchParams, initialPhones.length])
 
-  // 🔧 FIX: Sync URL with loop prevention using ID tracking
+  // Sync URL with loop prevention using ID tracking
   useEffect(() => {
     // Skip if we haven't finished initial load yet
     if (!didInitRef.current) return
     
-    // Skip if phones didn't come from user interaction (prevents initial server state from overwriting URL)
+    // Skip if phones didn't come from user interaction
     if (!userModifiedRef.current) return
 
     const currentIds = buildCompareParam(phones)
     
-    // 🔧 FIX: Only update URL if the IDs actually changed from what we last synced
+    // Only update URL if the IDs actually changed from what we last synced
     if (currentIds === lastSyncedIdsRef.current) {
       return
     }
@@ -691,7 +695,7 @@ function CompareContent({ initialPhones }: CompareContentProps) {
 
     const newPath = `/compare/${currentIds}`
     
-    // 🔧 FIX: Use replace to avoid history stack buildup, and only update if path differs
+    // Use replace to avoid history stack buildup, and only update if path differs
     if (window.location.pathname !== newPath) {
       lastSyncedIdsRef.current = currentIds
       router.replace(newPath, { scroll: false })
@@ -709,6 +713,7 @@ function CompareContent({ initialPhones }: CompareContentProps) {
     }
     userModifiedRef.current = true
     setPhones(prev => [...prev, phone])
+    setAddSlotOpen(false)
     toast('Phone added to comparison', 'success')
   }, [phones, toast])
 
@@ -732,6 +737,7 @@ function CompareContent({ initialPhones }: CompareContentProps) {
   const handleClear = () => {
     userModifiedRef.current = true
     setPhones([])
+    setAddSlotOpen(false)
     router.replace('/compare', { scroll: false })
     toast('Comparison cleared', 'info')
   }
@@ -810,7 +816,7 @@ function CompareContent({ initialPhones }: CompareContentProps) {
               Add 2–4 phones to see a detailed comparison with winners and verdicts.
             </p>
             <div style={{ maxWidth: 400, margin: '0 auto' }}>
-              <AddPhoneSlot onSelect={handleAdd} excludeIds={[]} />
+              <AddPhoneSlot onSelect={handleAdd} excludeIds={[]} isOpen={addSlotOpen} />
             </div>
           </div>
         )}
@@ -829,7 +835,11 @@ function CompareContent({ initialPhones }: CompareContentProps) {
                 <PhoneColumn key={p.id} phone={p} onRemove={() => handleRemove(p.id)} isWinner={i === bestIdx} />
               ))}
               {phones.length < MAX_COMPARE && (
-                <AddPhoneSlot onSelect={handleAdd} excludeIds={phones.map(p => p.id)} />
+                <AddPhoneSlot 
+                  onSelect={handleAdd} 
+                  excludeIds={phones.map(p => p.id)} 
+                  isOpen={addSlotOpen}
+                />
               )}
             </div>
 
@@ -884,10 +894,7 @@ function CompareContent({ initialPhones }: CompareContentProps) {
             {/* Bottom actions */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 64, flexWrap: 'wrap' }}>
               {phones.length < MAX_COMPARE && (
-                <button onClick={() => {
-                  const el = document.querySelector('.phone-cols')
-                  el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                }} style={{
+                <button onClick={() => setAddSlotOpen(true)} style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '12px 28px', background: c.primary,
                   color: '#fff', borderRadius: r.full,
