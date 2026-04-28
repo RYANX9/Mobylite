@@ -160,7 +160,7 @@ function RankCardGold({
       : `Premium pricing at $${phone.price_usd?.toLocaleString() || '---'} -- excellent hardware, but value seekers should check the mid-range options below.`
 
   return (
-    <div style={{
+    <div className="rank-card-gold" style={{
       background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-lg)',
       overflow: 'hidden', marginBottom: 16, transition: 'all 0.15s',
     }}
@@ -173,7 +173,7 @@ function RankCardGold({
         ;(e.currentTarget as HTMLElement).style.borderColor = c.border
       }}
     >
-      <div style={{
+      <div className="rank-card-gold-top" style={{
         background: 'linear-gradient(135deg, #1A1A2E 0%, #2A2A4E 100%)',
         padding: '28px 32px', display: 'grid', gridTemplateColumns: 'auto 1fr auto',
         gap: 28, alignItems: 'center',
@@ -201,7 +201,7 @@ function RankCardGold({
             <Star size={10} fill="#FF8088" color="#FF8088" />
             Best {config.title.split(' ')[1]} Phone
           </div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: '#fff', letterSpacing: '-0.5px', marginBottom: 4 }}>
+          <div className="rank-gold-name" style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: '#fff', letterSpacing: '-0.5px', marginBottom: 4 }}>
             {phone.model_name}
           </div>
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>
@@ -231,7 +231,7 @@ function RankCardGold({
           </div>
         </div>
 
-        <div style={{ flexShrink: 0, textAlign: 'center' }}>
+        <div className="rank-score-block" style={{ flexShrink: 0, textAlign: 'center' }}>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 52, color: '#C9A84C', lineHeight: 1, letterSpacing: '-2px' }}>
             {score.toFixed(1)}
           </div>
@@ -244,7 +244,7 @@ function RankCardGold({
         </div>
       </div>
 
-      <div style={{
+      <div className="rank-card-gold-body" style={{
         padding: '24px 32px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24,
         borderTop: `1px solid ${c.border}`,
       }}>
@@ -291,7 +291,7 @@ function RankCardGold({
         </div>
       </div>
 
-      <div style={{
+      <div className="rank-card-gold-footer" style={{
         padding: '16px 32px', borderTop: `1px solid ${c.border}`,
         display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
       }}>
@@ -344,7 +344,7 @@ function RankCardMedium({
     : `Strong contender with ${phone.main_camera_mp || '---'}MP camera and ${phone.chipset || 'solid chipset'}. ${phone.fast_charging_w ? `${phone.fast_charging_w}W charging is a nice bonus.` : ''}`
 
   return (
-    <div style={{
+    <div className="rank-card-medium" style={{
       background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-lg)',
       padding: '24px 28px', marginBottom: 16, transition: 'all 0.15s',
       display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 24, alignItems: 'start',
@@ -429,7 +429,7 @@ function RankCardMedium({
         </div>
       </div>
 
-      <div style={{ flexShrink: 0, textAlign: 'right' }}>
+      <div className="rank-med-right" style={{ flexShrink: 0, textAlign: 'right' }}>
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: 38, letterSpacing: '-1px', lineHeight: 1, color: medalColor }}>
           {score.toFixed(1)}
         </div>
@@ -455,7 +455,7 @@ function RankCardCompact({
 }) {
   const router = useRouter()
   return (
-    <div
+    <div className="rank-card-compact"
       onClick={() => router.push(ROUTES.phone(brandSlug(phone.brand), phoneSlug(phone)))}
       style={{
         background: c.surface, border: '1px solid var(--border)', borderTop: 'none',
@@ -487,7 +487,7 @@ function RankCardCompact({
           {phone.brand} &middot; {phone.main_camera_mp ? `${phone.main_camera_mp}MP` : '---'} &middot; {phone.battery_capacity ? `${phone.battery_capacity.toLocaleString()}mAh` : '---'}
         </div>
       </div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: c.text2, flexShrink: 0, minWidth: 40, textAlign: 'right' }}>
+      <div className="compact-score" style={{ fontSize: 15, fontWeight: 700, color: c.text2, flexShrink: 0, minWidth: 40, textAlign: 'right' }}>
         {score.toFixed(1)}
       </div>
       <div style={{ fontSize: 14, fontWeight: 600, color: c.text1, flexShrink: 0, minWidth: 60, textAlign: 'right' }}>
@@ -541,7 +541,7 @@ function MethodologyBox({ config }: { config: typeof CATEGORY_CONFIG[string] }) 
           <p style={{ fontSize: 14, color: c.text2, lineHeight: 1.7, marginBottom: 24, maxWidth: 640 }}>
             Our {config.title.split(' ').slice(1, 3).join(' ').toLowerCase()} score is computed automatically from each phone's hardware specifications. We don't factor in real-world test results -- this is a pure spec-based ranking. Scores are relative: the highest-scoring phone in each run gets normalized to 10, all others are scored against it.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+          <div className="methodology-weights" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
             {config.weights.map((w, i) => (
               <div key={i} style={{ padding: '14px 16px', background: c.bg, borderRadius: 'var(--r-md)' }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: c.text2, marginBottom: 6 }}>{w.label}</div>
@@ -574,7 +574,7 @@ function OtherCategories({ currentSlug }: { currentSlug: string }) {
     <div style={{ marginTop: 48 }}>
       <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: c.text1, marginBottom: 6 }}>More Rankings</h2>
       <p style={{ fontSize: 14, color: c.text3, marginBottom: 20 }}>Every ranking auto-updates from live data.</p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div className="other-cats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         {cats.map(cat => (
           <div
             key={cat.slug}
@@ -698,7 +698,7 @@ function CategoryPageContent() {
         onOpenCompare={() => comparePhones.length >= 2 && router.push(ROUTES.compare(...comparePhones.map(p => phoneSlug(p))))}
       />
 
-      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 24px 80px' }}>
+      <div className="category-container" style={{ maxWidth: 1400, margin: '0 auto', padding: '0 24px 80px' }}>
         {/* Breadcrumb */}
         <nav style={{ padding: '16px 0 0', fontSize: 13, color: c.text3, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <Link href="/" style={{ color: c.text2, transition: 'color 0.15s' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = c.text1 }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = c.text2 }}>
@@ -713,7 +713,7 @@ function CategoryPageContent() {
         </nav>
 
         {/* Category Tabs */}
-        <div style={{ marginTop: 24, overflowX: 'auto', scrollbarWidth: 'none', borderBottom: `1px solid ${c.border}` }}>
+        <div className="category-tabs" style={{ marginTop: 24, overflowX: 'auto', scrollbarWidth: 'none', borderBottom: `1px solid ${c.border}` }}>
           <div style={{ display: 'flex', gap: 0, minWidth: 'max-content' }}>
             {ALL_CATEGORIES.map(cat => {
               const active = cat.slug === slug
@@ -742,7 +742,7 @@ function CategoryPageContent() {
         </div>
 
         {/* Hero */}
-        <div style={{ padding: '36px 0 32px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 32, flexWrap: 'wrap' }}>
+        <div className="hero-section" style={{ padding: '36px 0 32px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 32, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 280 }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -754,7 +754,7 @@ function CategoryPageContent() {
               <TrendingUp size={12} />
               Category Ranking
             </div>
-            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 44, color: c.text1, letterSpacing: '-1px', lineHeight: 1.1, marginBottom: 10 }}>
+            <h1 className="category-hero-title" style={{ fontFamily: 'var(--font-serif)', fontSize: 44, color: c.text1, letterSpacing: '-1px', lineHeight: 1.1, marginBottom: 10 }}>
               {config.title}
             </h1>
             <p style={{ fontSize: 16, color: c.text2, lineHeight: 1.7, maxWidth: 560, marginBottom: 16 }}>
@@ -916,24 +916,55 @@ function CategoryPageContent() {
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Desktop (>1024px) - Original layout preserved */
+        .category-container { max-width: 1400px; margin: 0 auto; padding: 0 24px 80px; }
+        .category-hero-title { font-size: 44px; }
+        .hero-section { padding: 36px 0 32px; display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; }
+        .rank-card-gold-top { padding: 28px 32px; grid-template-columns: auto 1fr auto; gap: 28px; }
+        .rank-card-gold-body { padding: 24px 32px; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .rank-card-gold-footer { padding: 16px 32px; }
+        .rank-card-medium { padding: 24px 28px; grid-template-columns: auto 1fr auto; gap: 24px; }
+        .rank-card-compact { padding: 16px 24px; gap: 20px; }
+        .other-cats-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .methodology-weights { grid-template-columns: repeat(3, 1fr); }
+        
+        /* Tablet (768px - 1023px) */
         @media (max-width: 1023px) {
-          .rank-card-gold-top { grid-template-columns: auto 1fr !important; }
+          .category-container { padding: 0 20px 60px; }
+          .category-hero-title { font-size: 36px; }
+          .hero-section { padding: 28px 0 24px; gap: 24px; }
+          .rank-card-gold-top { padding: 24px; grid-template-columns: auto 1fr; gap: 20px; }
           .rank-score-block { display: none !important; }
-          .rank-card-gold-body { grid-template-columns: 1fr !important; }
-          .other-cats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-        }
-        @media (max-width: 767px) {
-          .category-hero-title { font-size: 30px !important; }
-          .rank-card-gold-top { padding: 20px !important; gap: 16px !important; }
-          .rank-gold-name { font-size: 22px !important; }
-          .rank-card-gold-body { padding: 20px !important; }
-          .rank-card-gold-footer { padding: 14px 20px !important; flex-wrap: wrap !important; }
-          .rank-card-medium { grid-template-columns: auto 1fr !important; padding: 18px !important; gap: 16px !important; }
+          .rank-card-gold-body { padding: 20px; grid-template-columns: 1fr; gap: 20px; }
+          .rank-card-gold-footer { padding: 14px 24px; flex-wrap: wrap; }
+          .rank-card-medium { padding: 20px; grid-template-columns: auto 1fr; gap: 20px; }
           .rank-med-right { display: none !important; }
-          .rank-card-compact { padding: 12px 16px !important; gap: 12px !important; }
+          .rank-card-compact { padding: 14px 20px; gap: 16px; }
           .compact-score { display: none !important; }
-          .other-cats-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-          .methodology-weights { grid-template-columns: 1fr 1fr !important; }
+          .other-cats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .methodology-weights { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        
+        /* Mobile (<767px) */
+        @media (max-width: 767px) {
+          .category-container { padding: 0 16px 40px; }
+          .category-hero-title { font-size: 28px !important; }
+          .hero-section { padding: 20px 0 16px; flex-direction: column; gap: 16px; }
+          .rank-card-gold-top { padding: 20px 16px; grid-template-columns: 1fr !important; text-align: center; }
+          .rank-card-gold-top > div:first-child { align-items: center; margin: 0 auto 12px; }
+          .rank-card-gold-top > div:nth-child(2) { text-align: center; }
+          .rank-card-gold-body { padding: 16px; grid-template-columns: 1fr !important; }
+          .rank-card-gold-footer { padding: 12px 16px; flex-direction: column; align-items: stretch; }
+          .rank-card-gold-footer > span { margin-left: 0 !important; margin-top: 4px; text-align: center; }
+          .rank-card-medium { padding: 16px; grid-template-columns: 1fr !important; text-align: center; }
+          .rank-card-medium > div:first-child { margin: 0 auto 12px; align-items: center; }
+          .rank-card-medium > div:nth-child(2) { display: flex; flex-direction: column; align-items: center; }
+          .rank-card-compact { padding: 12px 14px; gap: 12px; flex-wrap: wrap; }
+          .compact-arrow { display: none; }
+          .other-cats-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+          .methodology-weights { grid-template-columns: 1fr !important; }
+          .category-tabs { margin-top: 16px; }
         }
       `}</style>
     </div>
