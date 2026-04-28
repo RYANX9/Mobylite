@@ -57,8 +57,10 @@ function getBestIdx(
   return bestIdx
 }
 
-function buildCompareSlug(phones: Phone[]): string {
-  return phones.map(p => phoneSlug(p)).join('-vs-')
+// 🔧 FIX: Use numeric IDs instead of slugs to avoid ambiguous parsing
+// Slugs like "pixel-8-pro-vs-oneplus-12" break when split on "-vs-"
+function buildCompareParam(phones: Phone[]): string {
+  return phones.map(p => p.id).filter(Boolean).join(',')
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -621,16 +623,19 @@ function CompareContent({ initialPhones }: CompareContentProps) {
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   
-  // CRITICAL: Track whether we've done initial URL validation
-  // This prevents the URL sync effect from running on mount when
-  // phones came from server-resolved slugs
+  // Track initialization and user modifications
   const didInitRef = useRef(false)
   const userModifiedRef = useRef(false)
+  
+  // 🔧 FIX: Track last synced IDs to prevent URL sync loops
+  const lastSyncedIdsRef = useRef<string>('')
 
   // On mount: if no initial phones, try loading from ?ids= (backward compat)
   useEffect(() => {
     if (initialPhones.length > 0) {
       didInitRef.current = true
+      // 🔧 FIX: Initialize lastSyncedIds to match initial server state
+      lastSyncedIdsRef.current = buildCompareParam(initialPhones)
       return
     }
 
@@ -651,6 +656,7 @@ function CompareContent({ initialPhones }: CompareContentProps) {
       .then(data => {
         if (data.phones?.length) {
           setPhones(data.phones)
+          lastSyncedIdsRef.current = buildCompareParam(data.phones)
         } else {
           setError('Could not find the requested phones')
         }
@@ -662,25 +668,33 @@ function CompareContent({ initialPhones }: CompareContentProps) {
       })
   }, [searchParams, initialPhones.length])
 
-  // Sync URL ONLY when user explicitly modifies phones (add/remove)
-  // NOT on initial mount, NOT when phones came from server
+  // 🔧 FIX: Sync URL with loop prevention using ID tracking
   useEffect(() => {
     // Skip if we haven't finished initial load yet
     if (!didInitRef.current) return
     
-    // Skip if phones didn't come from user interaction
+    // Skip if phones didn't come from user interaction (prevents initial server state from overwriting URL)
     if (!userModifiedRef.current) return
 
-    if (phones.length === 0) {
-      router.push('/compare', { scroll: false })
+    const currentIds = buildCompareParam(phones)
+    
+    // 🔧 FIX: Only update URL if the IDs actually changed from what we last synced
+    if (currentIds === lastSyncedIdsRef.current) {
       return
     }
 
-    const slug = buildCompareSlug(phones)
-    const newPath = `/compare/${slug}`
+    if (phones.length === 0) {
+      lastSyncedIdsRef.current = ''
+      router.replace('/compare', { scroll: false })
+      return
+    }
+
+    const newPath = `/compare/${currentIds}`
     
+    // 🔧 FIX: Use replace to avoid history stack buildup, and only update if path differs
     if (window.location.pathname !== newPath) {
-      router.push(newPath, { scroll: false })
+      lastSyncedIdsRef.current = currentIds
+      router.replace(newPath, { scroll: false })
     }
   }, [phones, router])
 
@@ -700,10 +714,7 @@ function CompareContent({ initialPhones }: CompareContentProps) {
 
   const handleRemove = useCallback((id: number) => {
     userModifiedRef.current = true
-    setPhones(prev => {
-      const updated = prev.filter(p => p.id !== id)
-      return updated
-    })
+    setPhones(prev => prev.filter(p => p.id !== id))
     toast('Phone removed', 'info')
   }, [toast])
 
@@ -721,7 +732,7 @@ function CompareContent({ initialPhones }: CompareContentProps) {
   const handleClear = () => {
     userModifiedRef.current = true
     setPhones([])
-    router.push('/compare', { scroll: false })
+    router.replace('/compare', { scroll: false })
     toast('Comparison cleared', 'info')
   }
 
