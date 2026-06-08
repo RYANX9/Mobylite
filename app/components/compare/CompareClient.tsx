@@ -11,9 +11,9 @@ import {
 import { c, f, r } from '@/lib/tokens'
 import { ROUTES, brandSlug, phoneSlug, MAX_COMPARE } from '@/lib/config'
 import { api } from '@/lib/api'
-import Navbar from '@/app/components/Navbar'
-import Footer from '@/app/components/Footer'
-import { useToast } from '@/app/components/Toast'
+import Navbar from '../Navbar'
+import Footer from '../footer'
+import { useToast } from '../Toast'
 import type { Phone } from '@/lib/types'
 
 /* ─── helpers ─── */
