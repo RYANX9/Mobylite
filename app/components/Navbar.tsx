@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Search, ChevronDown, X, Menu } from 'lucide-react'
 import { api } from '@/lib/api'
 import { ROUTES, brandSlug, phoneSlug } from '@/lib/config'
@@ -15,19 +15,29 @@ interface NavbarProps {
 }
 
 export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<Phone[]>([])
-  const [searching, setSearching] = useState(false)
-  const [focused, setFocused] = useState(false)
-  const [brands, setBrands] = useState<{ brand: string; count: number }[]>([])
+  const router       = useRouter()
+  const pathname     = usePathname()
+  const searchParams = useSearchParams()
+
+  // ── sync query with URL ?q= so the search box is never empty after a search ──
+  const [query, setQuery]           = useState(() => searchParams.get('q') || '')
+  const [results, setResults]       = useState<Phone[]>([])
+  const [searching, setSearching]   = useState(false)
+  const [focused, setFocused]       = useState(false)
+  const [brands, setBrands]         = useState<{ brand: string; count: number }[]>([])
   const [brandsOpen, setBrandsOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [scrolled, setScrolled]     = useState(false)
+
+  const inputRef  = useRef<HTMLInputElement>(null)
   const brandsRef = useRef<HTMLDivElement>(null)
-  const timerRef = useRef<ReturnType<typeof setTimeout>>()
+  const timerRef  = useRef<ReturnType<typeof setTimeout>>()
+
+  // keep the search box in sync whenever the URL ?q changes
+  useEffect(() => {
+    const q = searchParams.get('q') || ''
+    setQuery(q)
+  }, [searchParams.get('q')])
 
   useEffect(() => {
     api.brands.list().then(d => setBrands(d.brands.slice(0, 24))).catch(() => {})
@@ -90,71 +100,51 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
     router.push(`${ROUTES.home}?q=${encodeURIComponent(query.trim())}`)
   }
 
+  const handleClear = () => {
+    setQuery('')
+    setResults([])
+    inputRef.current?.focus()
+    // if we're on the home page, clear the filter too
+    if (pathname === '/') {
+      router.push('/', { scroll: false } as any)
+    }
+  }
+
   const showDropdown = focused && (results.length > 0 || (searching && query.length > 0))
 
   return (
     <>
-      <nav
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-          height: 'var(--nav-h)',
-          background: scrolled ? 'rgba(248,248,245,0.92)' : c.bg,
-          backdropFilter: scrolled ? 'blur(20px)' : 'none',
-          WebkitBackdropFilter: scrolled ? 'blur(20px)' : 'none',
-          borderBottom: `1px solid ${c.border}`,
-          transition: 'background 0.2s ease, box-shadow 0.2s ease',
-          boxShadow: scrolled ? '0 1px 0 var(--border)' : 'none',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 'var(--max-w)',
-            margin: '0 auto',
-            padding: '0 var(--page-px)',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 24,
-          }}
-        >
+      <nav style={{
+        position: 'sticky', top: 0, zIndex: 100,
+        height: 'var(--nav-h)',
+        background: scrolled ? 'rgba(248,248,245,0.92)' : c.bg,
+        backdropFilter: scrolled ? 'blur(20px)' : 'none',
+        WebkitBackdropFilter: scrolled ? 'blur(20px)' : 'none',
+        borderBottom: `1px solid ${c.border}`,
+        transition: 'background 0.2s ease, box-shadow 0.2s ease',
+        boxShadow: scrolled ? '0 1px 0 var(--border)' : 'none',
+      }}>
+        <div style={{
+          maxWidth: 'var(--max-w)', margin: '0 auto',
+          padding: '0 var(--page-px)', height: '100%',
+          display: 'flex', alignItems: 'center', gap: 24,
+        }}>
           {/* Logo */}
-          <Link
-            href={ROUTES.home}
-            style={{
-              fontFamily: f.serif,
-              fontSize: 22,
-              color: c.primary,
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              letterSpacing: '-0.4px',
-            }}
-          >
-            <img  src="/logored.svg"  alt="Mobylite"  style={{ height: '1em', width: 'auto' }} />
+          <Link href={ROUTES.home} style={{
+            fontFamily: f.serif, fontSize: 22, color: c.primary,
+            flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.4px',
+          }}>
+            <img src="/logored.svg" alt="Mobylite" style={{ height: '1em', width: 'auto' }} />
             Mobylite
           </Link>
 
           {/* Search — desktop */}
-          <form
-            onSubmit={handleSubmit}
-            style={{ flex: 1, maxWidth: 520, position: 'relative' }}
-            className="nav-search-wrap"
-          >
+          <form onSubmit={handleSubmit} style={{ flex: 1, maxWidth: 520, position: 'relative' }} className="nav-search-wrap">
             <div style={{ position: 'relative' }}>
-              <Search
-                size={15}
-                style={{
-                  position: 'absolute',
-                  left: 14,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: c.text3,
-                  pointerEvents: 'none',
-                }}
-              />
+              <Search size={15} style={{
+                position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+                color: c.text3, pointerEvents: 'none',
+              }} />
               <input
                 ref={inputRef}
                 value={query}
@@ -163,91 +153,51 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
                 onBlur={() => setTimeout(() => setFocused(false), 150)}
                 placeholder='Search phones or try "best camera under 500"'
                 style={{
-                  width: '100%',
-                  height: 40,
+                  width: '100%', height: 40,
                   padding: '0 36px 0 40px',
                   background: c.surface,
                   border: `1px solid ${focused ? c.primary : c.border}`,
                   borderRadius: 'var(--r-full)',
-                  fontSize: 14,
-                  color: c.text1,
+                  fontSize: 14, color: c.text1,
                   transition: 'border-color 0.15s, box-shadow 0.15s',
                   boxShadow: focused ? '0 0 0 3px rgba(26,26,46,0.07)' : 'none',
                 }}
               />
               {query && (
-                <button
-                  type="button"
-                  onClick={() => { setQuery(''); setResults([]); inputRef.current?.focus() }}
-                  style={{
-                    position: 'absolute',
-                    right: 12,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: c.text3,
-                    display: 'flex',
-                    padding: 2,
-                  }}
-                >
+                <button type="button" onClick={handleClear} style={{
+                  position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                  color: c.text3, display: 'flex', padding: 2,
+                }}>
                   <X size={13} />
                 </button>
               )}
             </div>
 
-            {/* Search dropdown */}
+            {/* Dropdown */}
             {showDropdown && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 6px)',
-                  left: 0,
-                  right: 0,
-                  background: c.surface,
-                  border: `1px solid ${c.border}`,
-                  borderRadius: 'var(--r-lg)',
-                  boxShadow: 'var(--shadow-lg)',
-                  overflow: 'hidden',
-                  zIndex: 200,
-                  animation: 'fadeIn 0.12s ease',
-                }}
-              >
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+                background: c.surface, border: `1px solid ${c.border}`,
+                borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-lg)',
+                overflow: 'hidden', zIndex: 200, animation: 'fadeIn 0.12s ease',
+              }}>
                 {results.map(phone => (
-                  <button
-                    key={phone.id}
-                    type="button"
-                    onMouseDown={() => handlePhoneSelect(phone)}
+                  <button key={phone.id} type="button" onMouseDown={() => handlePhoneSelect(phone)}
                     style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: '10px 14px',
-                      textAlign: 'left',
-                      transition: 'background 0.1s',
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '10px 14px', textAlign: 'left', transition: 'background 0.1s',
                       borderBottom: `1px solid ${c.border}`,
                     }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg)' }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
                   >
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        background: 'var(--bg)',
-                        borderRadius: 'var(--r-sm)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                        overflow: 'hidden',
-                      }}
-                    >
+                    <div style={{
+                      width: 40, height: 40, background: 'var(--bg)', borderRadius: 'var(--r-sm)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0, overflow: 'hidden',
+                    }}>
                       {phone.main_image_url && (
-                        <img
-                          src={phone.main_image_url}
-                          alt=""
-                          style={{ width: 32, height: 32, objectFit: 'contain' }}
-                        />
+                        <img src={phone.main_image_url} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -260,7 +210,7 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
                     </div>
                     {phone.price_usd && (
                       <div style={{ fontSize: 13, fontWeight: 600, color: c.text1, flexShrink: 0 }}>
-                        ${phone.price_usd}
+                        ${phone.price_usd.toLocaleString()}
                       </div>
                     )}
                   </button>
@@ -270,66 +220,34 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
           </form>
 
           {/* Nav links — desktop */}
-          <div
-            style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
-            className="nav-links"
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }} className="nav-links">
             {/* Brands dropdown */}
             <div ref={brandsRef} style={{ position: 'relative' }}>
-              <button
-                onClick={() => setBrandsOpen(o => !o)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '7px 12px',
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: c.text2,
-                  borderRadius: 'var(--r-sm)',
-                  transition: 'all 0.15s',
-                  background: brandsOpen ? 'rgba(26,26,46,0.05)' : 'transparent',
-                }}
+              <button onClick={() => setBrandsOpen(o => !o)} style={{
+                display: 'flex', alignItems: 'center', gap: 4, padding: '7px 12px',
+                fontSize: 14, fontWeight: 500, color: c.text2, borderRadius: 'var(--r-sm)',
+                transition: 'all 0.15s', background: brandsOpen ? 'rgba(26,26,46,0.05)' : 'transparent',
+              }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = c.text1; (e.currentTarget as HTMLElement).style.background = 'rgba(26,26,46,0.04)' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = c.text2; (e.currentTarget as HTMLElement).style.background = brandsOpen ? 'rgba(26,26,46,0.05)' : 'transparent' }}
               >
                 Brands
-                <ChevronDown
-                  size={12}
-                  style={{ transition: 'transform 0.15s', transform: brandsOpen ? 'rotate(180deg)' : 'none' }}
-                />
+                <ChevronDown size={12} style={{ transition: 'transform 0.15s', transform: brandsOpen ? 'rotate(180deg)' : 'none' }} />
               </button>
 
               {brandsOpen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 8px)',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: 360,
-                    background: c.surface,
-                    border: `1px solid ${c.border}`,
-                    borderRadius: 'var(--r-xl)',
-                    boxShadow: 'var(--shadow-xl)',
-                    padding: 16,
-                    zIndex: 200,
-                    animation: 'fadeIn 0.12s ease',
-                  }}
-                >
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)',
+                  width: 360, background: c.surface, border: `1px solid ${c.border}`,
+                  borderRadius: 'var(--r-xl)', boxShadow: 'var(--shadow-xl)', padding: 16, zIndex: 200,
+                  animation: 'fadeIn 0.12s ease',
+                }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 4 }}>
                     {brands.map(b => (
-                      <Link
-                        key={b.brand}
-                        href={ROUTES.brand(brandSlug(b.brand))}
-                        onClick={() => setBrandsOpen(false)}
+                      <Link key={b.brand} href={ROUTES.brand(brandSlug(b.brand))} onClick={() => setBrandsOpen(false)}
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '8px 10px',
-                          borderRadius: 'var(--r-sm)',
-                          transition: 'background 0.1s',
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '8px 10px', borderRadius: 'var(--r-sm)', transition: 'background 0.1s',
                         }}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg)' }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
@@ -343,16 +261,10 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
               )}
             </div>
 
-            <Link
-              href={ROUTES.pick}
-              style={{
-                padding: '7px 12px',
-                fontSize: 14,
-                fontWeight: 500,
-                color: c.accent,
-                borderRadius: 'var(--r-sm)',
-                transition: 'background 0.15s',
-              }}
+            <Link href={ROUTES.pick} style={{
+              padding: '7px 12px', fontSize: 14, fontWeight: 500, color: c.accent,
+              borderRadius: 'var(--r-sm)', transition: 'background 0.15s',
+            }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--accent-light)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
             >
@@ -360,40 +272,21 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
             </Link>
 
             {/* Compare badge */}
-            <button
-              onClick={onOpenCompare}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 7,
-                padding: '7px 14px',
-                fontSize: 14,
-                fontWeight: 500,
-                color: c.primary,
-                border: `1px solid ${c.border}`,
-                borderRadius: 'var(--r-full)',
-                transition: 'all 0.15s',
-              }}
+            <button onClick={onOpenCompare} style={{
+              display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px',
+              fontSize: 14, fontWeight: 500, color: c.primary,
+              border: `1px solid ${c.border}`, borderRadius: 'var(--r-full)', transition: 'all 0.15s',
+            }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = c.primary; (e.currentTarget as HTMLElement).style.background = 'rgba(26,26,46,0.04)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = c.border; (e.currentTarget as HTMLElement).style.background = 'transparent' }}
             >
               Compare
               {compareCount > 0 && (
-                <span
-                  style={{
-                    background: c.accent,
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    minWidth: 18,
-                    height: 18,
-                    borderRadius: 9,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '0 5px',
-                  }}
-                >
+                <span style={{
+                  background: c.accent, color: '#fff', fontSize: 11, fontWeight: 700,
+                  minWidth: 18, height: 18, borderRadius: 9,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px',
+                }}>
                   {compareCount}
                 </span>
               )}
@@ -401,8 +294,7 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
           </div>
 
           {/* Mobile menu button */}
-          <button
-            onClick={() => setMobileMenuOpen(o => !o)}
+          <button onClick={() => setMobileMenuOpen(o => !o)}
             style={{ color: c.text2, display: 'none', marginLeft: 'auto' }}
             className="nav-mobile-btn"
           >
@@ -411,29 +303,36 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
         </div>
       </nav>
 
-      {/* Mobile menu drawer */}
+      {/* Mobile drawer */}
       {mobileMenuOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            top: 'var(--nav-h)',
-            zIndex: 90,
-            background: 'rgba(0,0,0,0.4)',
-          }}
+        <div style={{ position: 'fixed', inset: 0, top: 'var(--nav-h)', zIndex: 90, background: 'rgba(0,0,0,0.4)' }}
           onClick={() => setMobileMenuOpen(false)}
         >
-          <div
-            style={{
-              width: 280,
-              height: '100%',
-              background: c.surface,
-              padding: 20,
-              animation: 'slideIn 0.2s ease',
-              overflowY: 'auto',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
+          <div style={{
+            width: 280, height: '100%', background: c.surface,
+            padding: 20, animation: 'slideIn 0.2s ease', overflowY: 'auto',
+          }} onClick={e => e.stopPropagation()}>
+            {/* Mobile search */}
+            <form onSubmit={e => { e.preventDefault(); setMobileMenuOpen(false); if (query.trim()) router.push(`/?q=${encodeURIComponent(query.trim())}`) }}
+              style={{ position: 'relative', marginBottom: 16 }}>
+              <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: c.text3, pointerEvents: 'none' }} />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search phones…"
+                style={{
+                  width: '100%', height: 40, padding: '0 36px 0 38px',
+                  background: c.bg, border: `1px solid ${c.border}`,
+                  borderRadius: 'var(--r-full)', fontSize: 14, color: c.text1,
+                }}
+              />
+              {query && (
+                <button type="button" onClick={() => setQuery('')} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: c.text3, display: 'flex' }}>
+                  <X size={13} />
+                </button>
+              )}
+            </form>
+
             <Link href={ROUTES.pick} style={{ display: 'block', padding: '10px 0', fontSize: 15, fontWeight: 600, color: c.accent }}>
               Help Me Choose
             </Link>
@@ -442,9 +341,7 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
               Brands
             </div>
             {brands.map(b => (
-              <Link
-                key={b.brand}
-                href={ROUTES.brand(brandSlug(b.brand))}
+              <Link key={b.brand} href={ROUTES.brand(brandSlug(b.brand))}
                 style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 14, color: c.text1, borderBottom: `1px solid ${c.border}` }}
               >
                 <span>{b.brand}</span>
