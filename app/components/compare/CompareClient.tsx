@@ -344,15 +344,13 @@ function QuickVerdict({ phones }: { phones: Phone[] }) {
   )
 }
 
-/* ─── spec table — fixed UI ─── */
+/* ─── spec table ─── */
 function SpecTable({ phones }: { phones: Phone[] }) {
   const colW = Math.max(120, Math.floor(500 / phones.length))
 
   return (
     <section style={{ marginBottom: 40 }}>
       <h2 style={{ fontFamily: f.serif, fontSize: 24, color: c.text1, marginBottom: 18 }}>Full Spec Comparison</h2>
-
-      {/* Scrollable wrapper with visible scrollbar hint on mobile */}
       <div style={{
         overflowX: 'auto',
         borderRadius: r.md,
@@ -367,7 +365,6 @@ function SpecTable({ phones }: { phones: Phone[] }) {
         }}>
           {SPEC_SECTIONS.map(section => (
             <tbody key={section.title}>
-              {/* Section header */}
               <tr>
                 <td colSpan={phones.length + 1} style={{
                   padding: '10px 14px 8px',
@@ -389,7 +386,6 @@ function SpecTable({ phones }: { phones: Phone[] }) {
                 const isAlt  = rowIdx % 2 === 1
                 return (
                   <tr key={row.label} style={{ background: isAlt ? 'rgba(248,248,245,0.5)' : 'transparent' }}>
-                    {/* Label column — sticky */}
                     <td style={{
                       width: 150, padding: '10px 14px',
                       borderBottom: `1px solid ${c.border}`,
@@ -402,7 +398,6 @@ function SpecTable({ phones }: { phones: Phone[] }) {
                       {row.label}
                     </td>
 
-                    {/* Value cells */}
                     {phones.map((p, i) => {
                       const isWinner = winIdx === i && winIdx >= 0
                       const val      = row.getValue(p)
@@ -421,7 +416,6 @@ function SpecTable({ phones }: { phones: Phone[] }) {
                           position: 'relative',
                           transition: 'background 0.15s',
                         }}>
-                          {/* Winner accent bar */}
                           {isWinner && (
                             <span style={{
                               position: 'absolute', left: 0, top: 4, bottom: 4,
