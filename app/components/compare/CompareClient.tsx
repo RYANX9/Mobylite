@@ -33,14 +33,28 @@ function scoreComposite(p: Phone): number {
   if (p.ram_options?.length) s += Math.min(Math.max(...p.ram_options) / 16, 1) * 0.5
   return s
 }
+
+/**
+ * Returns the index of the best phone for a given metric.
+ * Returns -1 if no values exist OR if it's a tie (multiple phones share the best value).
+ * This ensures no winner star is shown when values are equal.
+ */
 function getBestIdx(phones: Phone[], getter: (p: Phone) => number | null, lower = false): number {
-  let bestIdx = -1, bestVal = lower ? Infinity : -Infinity
-  phones.forEach((p, i) => {
-    const v = getter(p); if (v == null) return
-    if (lower ? v < bestVal : v > bestVal) { bestVal = v; bestIdx = i }
-  })
-  return bestIdx
+  const values = phones.map(getter)
+  const valid = values.filter((v): v is number => v != null)
+  if (valid.length === 0) return -1
+
+  const best = lower ? Math.min(...valid) : Math.max(...valid)
+  const bestIndices = values.reduce<number[]>((acc, v, i) => {
+    if (v === best) acc.push(i)
+    return acc
+  }, [])
+
+  // Tie → no winner
+  if (bestIndices.length !== 1) return -1
+  return bestIndices[0]
 }
+
 function buildCompareSlug(phones: Phone[]): string {
   return phones.map(p => phoneSlug(p)).filter(Boolean).join('-vs-')
 }
@@ -282,7 +296,9 @@ function QuickVerdict({ phones }: { phones: Phone[] }) {
     const bestIdx = getBestIdx(phones, v.getter, (v as any).lower)
     if (bestIdx >= 0) wins.set(bestIdx, (wins.get(bestIdx) || 0) + 1)
     const bestVal = bestIdx >= 0 ? v.getter(phones[bestIdx]) : null
-    const isTie = bestVal != null && phones.filter((p, i) => i !== bestIdx && v.getter(p) === bestVal).length > 0
+    // Since getBestIdx already returns -1 for ties, isTie is always false here
+    // but we keep the visual indicator for clarity
+    const isTie = bestIdx === -1 && phones.some(p => v.getter(p) != null)
     return { ...v, bestIdx, isTie }
   })
   const overallWinner = Array.from(wins.entries()).sort((a, b) => b[1] - a[1])[0]
@@ -303,7 +319,7 @@ function QuickVerdict({ phones }: { phones: Phone[] }) {
                 <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: c.text3 }}>{item.label}</span>
               </div>
               <div style={{ fontFamily: f.serif, fontSize: 15, color: c.text1, marginBottom: 3 }}>
-                {winner ? winner.model_name : '—'}
+                {winner ? winner.model_name : item.isTie ? '≈ Tie' : '—'}
               </div>
               <div style={{ fontSize: 12, color: c.text2, lineHeight: 1.4, marginBottom: 7 }}>
                 {item.desc}{val != null && ` (${fmt(val, item.unit)})`}
@@ -346,7 +362,8 @@ function QuickVerdict({ phones }: { phones: Phone[] }) {
 
 /* ─── spec table ─── */
 function SpecTable({ phones }: { phones: Phone[] }) {
-  const colW = Math.max(120, Math.floor(500 / phones.length))
+  // Narrower label column — gives more space to value cells
+  const LABEL_W = 100
 
   return (
     <section style={{ marginBottom: 40 }}>
@@ -360,14 +377,15 @@ function SpecTable({ phones }: { phones: Phone[] }) {
         <table style={{
           width: '100%',
           borderCollapse: 'collapse',
-          minWidth: `${150 + phones.length * colW}px`,
+          // min-width: label col + at least 120px per phone
+          minWidth: `${LABEL_W + phones.length * 120}px`,
           tableLayout: 'fixed',
         }}>
           {SPEC_SECTIONS.map(section => (
             <tbody key={section.title}>
               <tr>
                 <td colSpan={phones.length + 1} style={{
-                  padding: '10px 14px 8px',
+                  padding: '10px 12px 8px',
                   background: c.bg,
                   borderBottom: `2px solid ${c.border}`,
                   borderTop: `1px solid ${c.border}`,
@@ -386,13 +404,23 @@ function SpecTable({ phones }: { phones: Phone[] }) {
                 const isAlt  = rowIdx % 2 === 1
                 return (
                   <tr key={row.label} style={{ background: isAlt ? 'rgba(248,248,245,0.5)' : 'transparent' }}>
+                    {/* Narrower sticky label column */}
                     <td style={{
-                      width: 150, padding: '10px 14px',
+                      width: LABEL_W,
+                      minWidth: LABEL_W,
+                      maxWidth: LABEL_W,
+                      padding: '10px 10px 10px 12px',
                       borderBottom: `1px solid ${c.border}`,
-                      fontSize: 12, fontWeight: 500, color: c.text3,
-                      position: 'sticky', left: 0, zIndex: 2,
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: c.text3,
+                      position: 'sticky',
+                      left: 0,
+                      zIndex: 2,
                       background: isAlt ? '#f5f5f2' : c.surface,
                       whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                       boxShadow: '2px 0 4px rgba(0,0,0,0.04)',
                     }}>
                       {row.label}
@@ -403,7 +431,7 @@ function SpecTable({ phones }: { phones: Phone[] }) {
                       const val      = row.getValue(p)
                       return (
                         <td key={p.id} style={{
-                          padding: '10px 14px',
+                          padding: '10px 12px',
                           borderBottom: `1px solid ${c.border}`,
                           borderLeft: `1px solid ${c.border}`,
                           textAlign: 'center',
@@ -415,6 +443,7 @@ function SpecTable({ phones }: { phones: Phone[] }) {
                             : 'transparent',
                           position: 'relative',
                           transition: 'background 0.15s',
+                          wordBreak: 'break-word',
                         }}>
                           {isWinner && (
                             <span style={{
@@ -457,6 +486,8 @@ function DetailedVerdicts({ phones }: { phones: Phone[] }) {
       <h2 style={{ fontFamily: f.serif, fontSize: 24, color: c.text1, marginBottom: 18 }}>Detailed Verdicts</h2>
       {cats.map(cat => {
         const maxVal = Math.max(...phones.map(cat.getter).filter(Boolean) as number[], 1)
+        // Use getBestIdx so ties don't show a winner star
+        const winIdx = getBestIdx(phones, cat.getter)
         return (
           <div key={cat.label} style={{
             background: c.surface, border: `1px solid ${c.border}`, borderRadius: r.md,
@@ -469,7 +500,6 @@ function DetailedVerdicts({ phones }: { phones: Phone[] }) {
             {phones.map((p, i) => {
               const val = cat.getter(p) || 0
               const pct = Math.min((val / cat.max) * 100, 100)
-              const winIdx = getBestIdx(phones, cat.getter)
               const isWinner = winIdx === i
               return (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
