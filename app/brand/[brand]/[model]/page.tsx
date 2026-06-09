@@ -21,15 +21,15 @@ import CompareBar from '@/app/components/CompareBar'
 /** Strip all HTML tags and decode common entities */
 function stripHtml(raw: string): string {
   return raw
-    .replace(/<br\s*\/?>/gi, '\n')          // <br> → newline
-    .replace(/<[^>]+>/g, '')                // remove all other tags
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')            // collapse excess newlines
+    .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
 
@@ -46,7 +46,6 @@ function specValueToString(v: unknown): string {
     return v.map(specValueToString).filter(s => s !== '—').join(', ') || '—'
   }
   if (typeof v === 'object') {
-    // flatten object → "key: value" pairs, skip url-looking values
     return Object.entries(v as Record<string, unknown>)
       .filter(([, val]) => {
         const s = String(val ?? '')
@@ -58,20 +57,15 @@ function specValueToString(v: unknown): string {
   return String(v)
 }
 
-// keys in full_specifications to completely skip when building spec groups
 const SKIP_SPEC_KEYS = new Set([
   'metadata', 'media', 'benchmarks', 'price_info',
   'quick_specs', 'processed_at', 'source_url', 'specifications',
 ])
 
-// keys whose values are objects containing the actual spec rows
-// shape: full_specifications.specifications.Display = { Size: '...', Type: '...' }
-// OR:   full_specifications.Display = { Size: '...', Type: '...' }
 function getSpecGroups(phone: Phone): Array<[string, Record<string, string>]> {
   const fs = phone.full_specifications
   if (!fs || typeof fs !== 'object') return []
 
-  // prefer the nested `specifications` key if present
   const root: Record<string, unknown> =
     (fs as any).specifications && typeof (fs as any).specifications === 'object'
       ? (fs as any).specifications
@@ -85,7 +79,6 @@ function getSpecGroups(phone: Phone): Array<[string, Record<string, string>]> {
 
     const rows: Record<string, string> = {}
     for (const [k, v] of Object.entries(groupVal as Record<string, unknown>)) {
-      // skip fields that look like internal metadata
       if (k.toLowerCase().includes('url') && typeof v === 'string' && v.startsWith('http')) continue
       const val = specValueToString(v)
       if (val && val !== '—') rows[k] = val
@@ -120,21 +113,18 @@ async function resolvePhone(brand: string, model: string): Promise<Phone | null>
   const brandName  = brand.replace(/-/g, ' ')
   const modelWords = model.replace(/-/g, ' ')
 
-  // attempt 1 — full model slug + brand filter
   try {
     const res = await api.phones.search({ q: modelWords, brand: brandName, page_size: 10 })
     const match = pickBest(res.results, model)
     if (match) return api.phones.detail(match.id)
   } catch { /* continue */ }
 
-  // attempt 2 — full model slug, no brand filter
   try {
     const res = await api.phones.search({ q: modelWords, page_size: 10 })
     const match = pickBest(res.results, model)
     if (match) return api.phones.detail(match.id)
   } catch { /* continue */ }
 
-  // attempt 3 — strip leading brand tokens
   const brandTokens = brandName.toLowerCase().split(' ')
   let   queryTokens = modelWords.toLowerCase().split(' ')
   for (const bt of brandTokens) {
@@ -149,7 +139,6 @@ async function resolvePhone(brand: string, model: string): Promise<Phone | null>
     } catch { /* continue */ }
   }
 
-  // attempt 4 — browse brand, fuzzy slug
   try {
     const res = await api.phones.search({ brand: brandName, page_size: 50 })
     const match = pickBest(res.results, model)
@@ -178,25 +167,34 @@ function TabButton({ active, onClick, children }: {
 }
 
 function SpecRow({ label, value, alt }: { label: string; value: string; alt: boolean }) {
-  // value may contain \n from <br> stripping — render each line
   const lines = value.split('\n').filter(Boolean)
   return (
     <div style={{
-      display: 'flex', gap: 16, padding: '11px 20px',
+      display: 'flex',
+      gap: 0,
+      padding: '7px 14px',          // ← was 11px, tighter rows
       borderBottom: `1px solid ${c.border}`,
       background: alt ? 'rgba(248,248,245,0.6)' : 'transparent',
+      alignItems: 'flex-start',
     }}>
       <div style={{
-        width: 160, flexShrink: 0, fontSize: 13,
-        color: c.text3, fontWeight: 500, paddingTop: 1,
+        width: 120,                  // ← was 160px, narrower label
+        minWidth: 120,
+        flexShrink: 0,
+        fontSize: 12,               // ← was 13px
+        color: c.text3,
+        fontWeight: 500,
+        paddingTop: 1,
+        paddingRight: 10,
+        lineHeight: 1.4,
       }}>
         {label}
       </div>
-      <div style={{ flex: 1, fontSize: 13, color: c.text1, lineHeight: 1.6 }}>
+      <div style={{ flex: 1, fontSize: 13, color: c.text1, lineHeight: 1.5 }}>
         {lines.length <= 1
           ? value
           : lines.map((line, i) => (
-              <div key={i} style={{ marginBottom: i < lines.length - 1 ? 4 : 0 }}>
+              <div key={i} style={{ marginBottom: i < lines.length - 1 ? 3 : 0 }}>
                 {line}
               </div>
             ))
@@ -212,14 +210,15 @@ function SpecGroup({ title, specs }: { title: string; specs: Record<string, stri
   if (!entries.length) return null
 
   return (
-    <div style={{ marginBottom: 8, borderRadius: 'var(--r-md)', overflow: 'hidden', border: `1px solid ${c.border}` }}>
+    <div style={{ marginBottom: 6, borderRadius: 'var(--r-md)', overflow: 'hidden', border: `1px solid ${c.border}` }}>
       <button onClick={() => setOpen(o => !o)} style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-        padding: '13px 20px', background: c.surface,
+        padding: '10px 14px',        // ← was 13px 20px, tighter header
+        background: c.surface,
         textAlign: 'left', cursor: 'pointer',
         border: 'none', borderBottom: open ? `1px solid ${c.border}` : 'none',
       }}>
-        <span style={{ flex: 1, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: c.text1 }}>
+        <span style={{ flex: 1, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: c.text1 }}>
           {title}
         </span>
         <span style={{ fontSize: 11, color: c.text3, marginRight: 6 }}>{entries.length} specs</span>
@@ -345,7 +344,6 @@ function PhoneDetailContent() {
         if (!found) { setNotFound(true); return }
         setPhone(found)
 
-        // fetch similar in background — never block or crash the page
         setSimilarLoading(true)
         api.phones.similar(found.id, 12)
           .then(res => { if (!cancelled) setSimilar(res?.phones ?? []) })
@@ -704,7 +702,7 @@ function PhoneDetailContent() {
           </div>
         )}
 
-        {/* ── SIMILAR PHONES SECTION (always visible below tabs) ── */}
+        {/* ── SIMILAR PHONES SECTION ── */}
         <section style={{ marginTop: 8, marginBottom: 64 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
             <h2 style={{ fontFamily: f.serif, fontSize: 24, color: c.text1 }}>Similar Phones</h2>
