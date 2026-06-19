@@ -34,7 +34,10 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 function qs(params: Record<string, unknown>): string {
   const p = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== null && v !== '') {
+    if (v === undefined || v === null || v === '') continue
+    if (Array.isArray(v)) {
+      v.forEach(item => p.append(k, String(item)))
+    } else {
       p.append(k, String(v))
     }
   }
@@ -44,11 +47,14 @@ function qs(params: Record<string, unknown>): string {
 
 export const api = {
   phones: {
-    search: (filters: SearchFilters) =>
-      req<SearchResponse>(`/phones/search${qs(filters as Record<string, unknown>)}`),
+    search: (filters: SearchFilters, signal?: AbortSignal) =>
+      req<SearchResponse>(
+        `/phones/search${qs(filters as Record<string, unknown>)}`,
+        { signal },
+      ),
 
-    detail: (id: number) =>
-      req<Phone>(`/phones/${id}`),
+    detail: (id: number, signal?: AbortSignal) =>
+      req<Phone>(`/phones/${id}`, { signal }),
 
     latest: (limit = 20) =>
       req<{ phones: Phone[] }>(`/phones/latest?limit=${limit}`),
@@ -62,14 +68,13 @@ export const api = {
     compare: (ids: number[]) =>
       req<{ phones: Phone[] }>(`/phones/compare?ids=${ids.join(',')}`),
 
-    recommend: (params: {
-      min_price?: number
-      max_price?: number
-      priorities: string
-      limit?: number
-    }) =>
+    recommend: (
+      params: { min_price?: number; max_price?: number; priorities: string; limit?: number },
+      signal?: AbortSignal,
+    ) =>
       req<{ phones: Phone[]; priorities: string[] }>(
-        `/phones/recommend${qs(params as Record<string, unknown>)}`
+        `/phones/recommend${qs(params as Record<string, unknown>)}`,
+        { signal },
       ),
   },
 
@@ -77,26 +82,14 @@ export const api = {
     list: () =>
       req<{ brands: { brand: string; count: number }[] }>('/brands'),
 
-    stats: (slug: string) =>
-      req<BrandStats>(`/brands/${slug}`),
-
-    // ✅ NEW METHOD
     detail: (slug: string) =>
       req<BrandStats>(`/brands/${slug}`),
 
-    // ✅ UPDATED METHOD (with pagination + sorting)
     phones: (
       slug: string,
-      params: {
-        sort_by?: string
-        sort_order?: string
-        page?: number
-        page_size?: number
-      } = {}
+      params: { sort_by?: string; sort_order?: string; page?: number; page_size?: number } = {},
     ) =>
-      req<SearchResponse>(
-        `/brands/${slug}/phones${qs(params as Record<string, unknown>)}`
-      ),
+      req<SearchResponse>(`/brands/${slug}/phones${qs(params as Record<string, unknown>)}`),
   },
 
   categories: {
