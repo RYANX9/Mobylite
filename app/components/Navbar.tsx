@@ -18,26 +18,23 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
   const router       = useRouter()
   const pathname     = usePathname()
   const searchParams = useSearchParams()
+  const urlQ         = searchParams.get('q') ?? ''
 
-  // ── sync query with URL ?q= so the search box is never empty after a search ──
-  const [query, setQuery]           = useState(() => searchParams.get('q') || '')
-  const [results, setResults]       = useState<Phone[]>([])
-  const [searching, setSearching]   = useState(false)
-  const [focused, setFocused]       = useState(false)
-  const [brands, setBrands]         = useState<{ brand: string; count: number }[]>([])
-  const [brandsOpen, setBrandsOpen] = useState(false)
+  const [query, setQuery]                   = useState(urlQ)
+  const [results, setResults]               = useState<Phone[]>([])
+  const [searching, setSearching]           = useState(false)
+  const [focused, setFocused]               = useState(false)
+  const [brands, setBrands]                 = useState<{ brand: string; count: number }[]>([])
+  const [brandsOpen, setBrandsOpen]         = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [scrolled, setScrolled]     = useState(false)
+  const [scrolled, setScrolled]             = useState(false)
 
   const inputRef  = useRef<HTMLInputElement>(null)
   const brandsRef = useRef<HTMLDivElement>(null)
   const timerRef  = useRef<ReturnType<typeof setTimeout>>()
 
-  // keep the search box in sync whenever the URL ?q changes
-  useEffect(() => {
-    const q = searchParams.get('q') || ''
-    setQuery(q)
-  }, [searchParams.get('q')])
+  // Sync search box when URL ?q changes (e.g. Navbar submit, back/forward)
+  useEffect(() => { setQuery(urlQ) }, [urlQ])
 
   useEffect(() => {
     api.brands.list().then(d => setBrands(d.brands.slice(0, 24))).catch(() => {})
@@ -51,9 +48,8 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
 
   useEffect(() => {
     const fn = (e: MouseEvent) => {
-      if (brandsRef.current && !brandsRef.current.contains(e.target as Node)) {
+      if (brandsRef.current && !brandsRef.current.contains(e.target as Node))
         setBrandsOpen(false)
-      }
     }
     document.addEventListener('mousedown', fn)
     return () => document.removeEventListener('mousedown', fn)
@@ -63,6 +59,9 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
     setMobileMenuOpen(false)
     setBrandsOpen(false)
   }, [pathname])
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => () => clearTimeout(timerRef.current), [])
 
   const runSearch = useCallback((q: string) => {
     clearTimeout(timerRef.current)
@@ -101,13 +100,9 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
   }
 
   const handleClear = () => {
-    setQuery('')
-    setResults([])
+    handleQueryChange('')
     inputRef.current?.focus()
-    // if we're on the home page, clear the filter too
-    if (pathname === '/') {
-      router.push('/', { scroll: false } as any)
-    }
+    if (pathname === '/') router.push('/', { scroll: false } as any)
   }
 
   const showDropdown = focused && (results.length > 0 || (searching && query.length > 0))
@@ -129,7 +124,6 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
           padding: '0 var(--page-px)', height: '100%',
           display: 'flex', alignItems: 'center', gap: 24,
         }}>
-          {/* Logo */}
           <Link href={ROUTES.home} style={{
             fontFamily: f.serif, fontSize: 22, color: c.primary,
             flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.4px',
@@ -138,7 +132,7 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
             Mobylite
           </Link>
 
-          {/* Search — desktop */}
+          {/* Desktop search */}
           <form onSubmit={handleSubmit} style={{ flex: 1, maxWidth: 520, position: 'relative' }} className="nav-search-wrap">
             <div style={{ position: 'relative' }}>
               <Search size={15} style={{
@@ -164,7 +158,7 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
                 }}
               />
               {query && (
-                <button type="button" onClick={handleClear} style={{
+                <button type="button" onClick={handleClear} aria-label="Clear search" style={{
                   position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
                   color: c.text3, display: 'flex', padding: 2,
                 }}>
@@ -173,7 +167,6 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
               )}
             </div>
 
-            {/* Dropdown */}
             {showDropdown && (
               <div style={{
                 position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
@@ -219,15 +212,18 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
             )}
           </form>
 
-          {/* Nav links — desktop */}
+          {/* Desktop nav links */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }} className="nav-links">
-            {/* Brands dropdown */}
             <div ref={brandsRef} style={{ position: 'relative' }}>
-              <button onClick={() => setBrandsOpen(o => !o)} style={{
-                display: 'flex', alignItems: 'center', gap: 4, padding: '7px 12px',
-                fontSize: 14, fontWeight: 500, color: c.text2, borderRadius: 'var(--r-sm)',
-                transition: 'all 0.15s', background: brandsOpen ? 'rgba(26,26,46,0.05)' : 'transparent',
-              }}
+              <button
+                onClick={() => setBrandsOpen(o => !o)}
+                aria-expanded={brandsOpen}
+                aria-haspopup="true"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4, padding: '7px 12px',
+                  fontSize: 14, fontWeight: 500, color: c.text2, borderRadius: 'var(--r-sm)',
+                  transition: 'all 0.15s', background: brandsOpen ? 'rgba(26,26,46,0.05)' : 'transparent',
+                }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = c.text1; (e.currentTarget as HTMLElement).style.background = 'rgba(26,26,46,0.04)' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = c.text2; (e.currentTarget as HTMLElement).style.background = brandsOpen ? 'rgba(26,26,46,0.05)' : 'transparent' }}
               >
@@ -271,12 +267,14 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
               Help Me Choose
             </Link>
 
-            {/* Compare badge */}
-            <button onClick={onOpenCompare} style={{
-              display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px',
-              fontSize: 14, fontWeight: 500, color: c.primary,
-              border: `1px solid ${c.border}`, borderRadius: 'var(--r-full)', transition: 'all 0.15s',
-            }}
+            <button
+              onClick={onOpenCompare}
+              aria-label={`Compare${compareCount > 0 ? ` (${compareCount} selected)` : ''}`}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px',
+                fontSize: 14, fontWeight: 500, color: c.primary,
+                border: `1px solid ${c.border}`, borderRadius: 'var(--r-full)', transition: 'all 0.15s',
+              }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = c.primary; (e.currentTarget as HTMLElement).style.background = 'rgba(26,26,46,0.04)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = c.border; (e.currentTarget as HTMLElement).style.background = 'transparent' }}
             >
@@ -293,8 +291,10 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
             </button>
           </div>
 
-          {/* Mobile menu button */}
-          <button onClick={() => setMobileMenuOpen(o => !o)}
+          <button
+            onClick={() => setMobileMenuOpen(o => !o)}
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileMenuOpen}
             style={{ color: c.text2, display: 'none', marginLeft: 'auto' }}
             className="nav-mobile-btn"
           >
@@ -305,20 +305,30 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
 
       {/* Mobile drawer */}
       {mobileMenuOpen && (
-        <div style={{ position: 'fixed', inset: 0, top: 'var(--nav-h)', zIndex: 90, background: 'rgba(0,0,0,0.4)' }}
+        <div
+          style={{ position: 'fixed', inset: 0, top: 'var(--nav-h)', zIndex: 90, background: 'rgba(0,0,0,0.4)' }}
           onClick={() => setMobileMenuOpen(false)}
         >
-          <div style={{
-            width: 280, height: '100%', background: c.surface,
-            padding: 20, animation: 'slideIn 0.2s ease', overflowY: 'auto',
-          }} onClick={e => e.stopPropagation()}>
-            {/* Mobile search */}
-            <form onSubmit={e => { e.preventDefault(); setMobileMenuOpen(false); if (query.trim()) router.push(`/?q=${encodeURIComponent(query.trim())}`) }}
-              style={{ position: 'relative', marginBottom: 16 }}>
+          <div
+            style={{
+              width: 280, height: '100%', background: c.surface,
+              padding: 20, animation: 'slideIn 0.2s ease', overflowY: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Mobile search — now triggers live search via handleQueryChange */}
+            <form
+              onSubmit={e => {
+                e.preventDefault()
+                setMobileMenuOpen(false)
+                if (query.trim()) router.push(`/?q=${encodeURIComponent(query.trim())}`)
+              }}
+              style={{ position: 'relative', marginBottom: 16 }}
+            >
               <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: c.text3, pointerEvents: 'none' }} />
               <input
                 value={query}
-                onChange={e => setQuery(e.target.value)}
+                onChange={e => handleQueryChange(e.target.value)}
                 placeholder="Search phones…"
                 style={{
                   width: '100%', height: 40, padding: '0 36px 0 38px',
@@ -327,7 +337,12 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
                 }}
               />
               {query && (
-                <button type="button" onClick={() => setQuery('')} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: c.text3, display: 'flex' }}>
+                <button
+                  type="button"
+                  onClick={() => handleQueryChange('')}
+                  aria-label="Clear search"
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: c.text3, display: 'flex' }}
+                >
                   <X size={13} />
                 </button>
               )}
@@ -341,7 +356,9 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
               Brands
             </div>
             {brands.map(b => (
-              <Link key={b.brand} href={ROUTES.brand(brandSlug(b.brand))}
+              <Link
+                key={b.brand}
+                href={ROUTES.brand(brandSlug(b.brand))}
                 style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 14, color: c.text1, borderBottom: `1px solid ${c.border}` }}
               >
                 <span>{b.brand}</span>
@@ -353,10 +370,14 @@ export default function Navbar({ compareCount = 0, onOpenCompare }: NavbarProps)
       )}
 
       <style>{`
+        @keyframes slideIn {
+          from { transform: translateX(-100%); opacity: 0; }
+          to   { transform: translateX(0);    opacity: 1; }
+        }
         @media (max-width: 768px) {
           .nav-search-wrap { display: none !important; }
-          .nav-links { display: none !important; }
-          .nav-mobile-btn { display: flex !important; }
+          .nav-links       { display: none !important; }
+          .nav-mobile-btn  { display: flex !important; }
         }
       `}</style>
     </>
