@@ -432,7 +432,7 @@ function RankCardGold({
             marginBottom: 8,
           }}>
             <Star size={10} fill="#FF8088" color="#FF8088" />
-            Best {config.title.split(' ')[1]} Phone
+            Best {displayConfig.title.split(' ')[1]} Phone
           </div>
           <div className="rank-gold-name" style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: '#fff', letterSpacing: '-0.5px', marginBottom: 4 }}>
             {phone.model_name}
@@ -469,7 +469,7 @@ function RankCardGold({
             {score.toFixed(1)}
           </div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
-            {config.title.split(' ').slice(1, 3).join(' ')} Score
+            {displayConfig.title.split(' ').slice(1, 3).join(' ')} Score
           </div>
           <div style={{ marginTop: 8, width: 60, height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
             <div style={{ height: '100%', borderRadius: 2, background: '#C9A84C', width: `${(score / 10) * 100}%` }} />
@@ -759,7 +759,7 @@ function MethodologyBox({
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <BarChart3 size={18} color={c.text2} />
           <span style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: c.text1 }}>
-            How We Rank {config.title.split(' ').slice(1, 3).join(' ')}
+            How We Rank {displayConfig.title.split(' ').slice(1, 3).join(' ')}
           </span>
           <span style={{
             padding: '3px 10px', background: c.bg,
@@ -780,10 +780,10 @@ function MethodologyBox({
       {open && (
         <div style={{ padding: 28 }}>
           <p style={{ fontSize: 14, color: c.text2, lineHeight: 1.7, marginBottom: 24, maxWidth: 640 }}>
-            Our {config.title.split(' ').slice(1, 3).join(' ').toLowerCase()} score is computed automatically from each phone's hardware specifications. We don't factor in real-world test results — this is a pure spec-based ranking. Scores are relative: the highest-scoring phone in each run gets normalised to 10, all others are scored against it.
+            Our {displayConfig.title.split(' ').slice(1, 3).join(' ').toLowerCase()} score is computed automatically from each phone's hardware specifications. We don't factor in real-world test results — this is a pure spec-based ranking. Scores are relative: the highest-scoring phone in each run gets normalised to 10, all others are scored against it.
           </p>
           <div className="methodology-weights" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-            {config.weights.map((w, i) => (
+            {displayConfig.weights.map((w, i) => (
               <div key={i} style={{ padding: '14px 16px', background: c.bg, borderRadius: 'var(--r-md)' }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: c.text2, marginBottom: 6 }}>{w.label}</div>
                 <div style={{ height: 4, background: c.border, borderRadius: 2, overflow: 'hidden', marginBottom: 4 }}>
@@ -935,6 +935,10 @@ function CategoryPageContent() {
   const top3       = data?.phones.slice(0, 3) ?? []
   const rest       = data?.phones.slice(3) ?? []
 
+  // Replace hardcoded year with the most recent release year in the fetched data
+  const latestYear    = data?.phones.reduce((max, p) => Math.max(max, p.release_year ?? 0), 0) || new Date().getFullYear()
+  const displayConfig = { ...config, title: config.title.replace(/\d{4}/, String(latestYear)) }
+
   return (
     <div style={{ minHeight: '100vh', background: c.bg }}>
       <Navbar
@@ -959,7 +963,7 @@ function CategoryPageContent() {
             Best Of
           </Link>
           <ChevronRight size={12} color={c.text3} />
-          <span>{config.title}</span>
+          <span>{displayConfig.title}</span>
         </nav>
 
         {/* Category tabs */}
@@ -1004,10 +1008,10 @@ function CategoryPageContent() {
               Category Ranking
             </div>
             <h1 className="category-hero-title" style={{ fontFamily: 'var(--font-serif)', fontSize: 44, color: c.text1, letterSpacing: '-1px', lineHeight: 1.1, marginBottom: 10 }}>
-              {config.title}
+              {displayConfig.title}
             </h1>
             <p style={{ fontSize: 16, color: c.text2, lineHeight: 1.7, maxWidth: 560, marginBottom: 16 }}>
-              {config.desc}
+              {displayConfig.desc}
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: c.text3 }}>
@@ -1063,7 +1067,7 @@ function CategoryPageContent() {
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = c.border; (e.currentTarget as HTMLElement).style.color = c.text2 }}
         >
           <Info size={14} color={c.text3} />
-          {config.scoring}
+          {displayConfig.scoring}
           <ChevronDown size={14} color={c.text3} style={{ transform: methodOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
         </div>
 
@@ -1086,7 +1090,7 @@ function CategoryPageContent() {
                 phone={top3[0]}
                 score={top3[0].category_score}
                 rank={1}
-                config={config}
+                config={displayConfig}
                 slug={slug}
                 onCompare={handleCompare}
                 isCompared={compareIds.includes(top3[0].id)}
@@ -1147,7 +1151,7 @@ function CategoryPageContent() {
 
         {/* Methodology — controlled by scoring pill above */}
         <MethodologyBox
-          config={config}
+          config={displayConfig}
           open={methodOpen}
           onToggle={() => setMethodOpen(v => !v)}
         />
