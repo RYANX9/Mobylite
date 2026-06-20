@@ -1,95 +1,104 @@
-// app/compare/[phones]/page.tsx
 import { notFound } from 'next/navigation'
 import CompareClient from '@/app/components/compare/CompareClient'
 import { api } from '@/lib/api'
-import { c } from '@/lib/tokens'
 import type { Phone } from '@/lib/types'
 
 interface PageProps {
   params: Promise<{ phones: string }>
 }
 
-function CompareSkeleton() {
-  return (
-    <div style={{ minHeight: '100vh', background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-      <div style={{
-        width: 32, height: 32,
-        border: `2px solid ${c.border}`, borderTopColor: 'var(--primary)',
-        borderRadius: '50%', animation: 'spin 1s linear infinite',
-      }} />
-      <p style={{ fontSize: 14, color: c.text3 }}>Resolving phones…</p>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  )
-}
-
-/**
- * Parse compare slug like "galaxy-s25-vs-iphone-16" into parts
- * Split by "-vs-" separator
- */
 function parseCompareSlug(slug: string): string[] {
   return slug.split('-vs-').filter(Boolean)
 }
 
+function toSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
 /**
- * Search for phone by trying multiple strategies
+ * Character-overlap similarity, penalised for length mismatch. Prevents a
+ * short slug like "iphone-16" from outscoring an exact match against a
+ * longer sibling name like "iphone-16-pro".
  */
-async function findPhoneBySlug(slug: string): Promise<Phone | null> {
-  try {
-    // Strategy 1: Search the slug as-is (replace dashes with spaces)
-    const searchTerm = slug.replace(/-/g, ' ')
-    const res = await api.phones.search({ q: searchTerm, page_size: 10 })
-    
-    if (res.results.length > 0) {
-      // Try to find exact match by comparing slugs
-      const slugPattern = slug.toLowerCase()
-      const exactMatch = res.results.find(p => {
-        const phoneSlug = p.model_name.toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-+|-+$/g, '')
-        return phoneSlug === slugPattern || phoneSlug.includes(slugPattern) || slugPattern.includes(phoneSlug)
-      })
-      
-      if (exactMatch) return exactMatch
-      
-      // Fallback: return first result
-      return res.results[0]
-    }
-  } catch (error) {
-    console.error(`Error searching for "${slug}":`, error)
+function similarity(target: string, candidate: string): number {
+  let score = 0
+  let ti = 0
+  for (let ci = 0; ci < candidate.length && ti < target.length; ci++) {
+    if (candidate[ci] === target[ti]) { score++; ti++ }
   }
-  
-  return null
+  return score - Math.abs(candidate.length - target.length) * 0.5
+}
+
+async function searchCandidates(slug: string): Promise<Phone[]> {
+  try {
+    const res = await api.phones.search({ q: slug.replace(/-/g, ' '), page_size: 10 })
+    return res.results
+  } catch (error) {
+    console.error(`Compare slug resolution failed for "${slug}":`, error)
+    return []
+  }
+}
+
+/**
+ * Resolves each slug to a distinct phone. Exact slug matches are claimed
+ * first; any slugs left over fall back to best-effort fuzzy matching among
+ * whatever candidates remain unclaimed.
+ *
+ * Two slugs can never collapse onto the same phone here, which is what
+ * previously made phones near the end of a comparison silently vanish
+ * (e.g. "iphone-16" matching the already-claimed "iPhone 16 Pro" because
+ * its slug is a substring match, then getting deduped away).
+ */
+async function resolvePhones(slugParts: string[]): Promise<Phone[]> {
+  const candidateLists = await Promise.all(slugParts.map(searchCandidates))
+  const claimed = new Set<number>()
+  const resolved: (Phone | null)[] = new Array(slugParts.length).fill(null)
+
+  slugParts.forEach((slug, i) => {
+    const target = slug.toLowerCase()
+    const exact = candidateLists[i].find(p => !claimed.has(p.id) && toSlug(p.model_name) === target)
+    if (exact) {
+      resolved[i] = exact
+      claimed.add(exact.id)
+    }
+  })
+
+  slugParts.forEach((slug, i) => {
+    if (resolved[i]) return
+    const target = slug.toLowerCase()
+    let best: Phone | null = null
+    let bestScore = -Infinity
+    for (const p of candidateLists[i]) {
+      if (claimed.has(p.id)) continue
+      const s = similarity(target, toSlug(p.model_name))
+      if (s > bestScore) { bestScore = s; best = p }
+    }
+    if (best && bestScore > target.length * 0.4) {
+      resolved[i] = best
+      claimed.add(best.id)
+    }
+  })
+
+  return resolved.filter((p): p is Phone => p !== null)
 }
 
 export default async function CompareWithPhonesPage({ params }: PageProps) {
   const { phones: phonesSlug } = await params
-  
-  // Empty state
+
   if (!phonesSlug || phonesSlug.trim() === '') {
     return <CompareClient initialPhones={[]} />
   }
-  
+
   const slugParts = parseCompareSlug(phonesSlug)
-  
   if (slugParts.length === 0) {
     return <CompareClient initialPhones={[]} />
   }
-  
-  // Resolve all phone slugs in parallel for better performance
-  const resolvedPhones = await Promise.all(
-    slugParts.map(slug => findPhoneBySlug(slug))
-  )
-  
-  // Filter out nulls and remove duplicates
-  const validPhones = resolvedPhones
-    .filter((p): p is Phone => p !== null)
-    .filter((p, index, arr) => arr.findIndex(existing => existing.id === p.id) === index)
-  
-  // If no phones found, show 404
+
+  const validPhones = await resolvePhones(slugParts)
+
   if (validPhones.length === 0) {
     notFound()
   }
-  
+
   return <CompareClient initialPhones={validPhones} />
 }
