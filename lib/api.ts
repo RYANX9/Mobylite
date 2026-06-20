@@ -68,6 +68,9 @@ export const api = {
     compare: (ids: number[]) =>
       req<{ phones: Phone[] }>(`/phones/compare?ids=${ids.join(',')}`),
 
+    compareBySlugs: (slugs: string[]) =>
+      req<{ phones: Phone[] }>(`/phones/compare?slugs=${slugs.map(encodeURIComponent).join(',')}`),
+
     recommend: (
       params: { min_price?: number; max_price?: number; priorities: string; limit?: number },
       signal?: AbortSignal,
