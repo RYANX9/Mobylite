@@ -589,7 +589,8 @@ function CompareContent({ initialPhones }: CompareContentProps) {
   // Sync from the URL's ?ids= whenever it changes from outside this
   // component (back/forward navigation, or a fresh ?ids= deep link).
   // Phones resolved server-side via the slug route arrive through
-  // `initialPhones` and skip this fetch entirely.
+  // `initialPhones` and skip this fetch entirely — this is legacy
+  // support for old bookmarked /compare?ids=... links only.
   useEffect(() => {
     if (ownUpdate.current) { ownUpdate.current = false; return }
     if (initialPhones.length > 0) return
@@ -628,9 +629,21 @@ function CompareContent({ initialPhones }: CompareContentProps) {
     return () => { cancelled = true }
   }, [spString, initialPhones.length])
 
-  const navigateToIds = useCallback((updated: Phone[]) => {
+  // Sync from a fresh server resolution on the /compare/[phones] slug
+  // route — fires whenever navigation lands with a different set of
+  // resolved phones (adding/removing via the slug URL, back/forward,
+  // or a pasted link). Since resolution is now an exact slug match
+  // server-side, this is always correct — nothing gets silently dropped.
+  const initialKey = initialPhones.map(p => p.id).join(',')
+  useEffect(() => {
+    if (initialPhones.length === 0) return
+    setPhones(initialPhones)
+    setError(null)
+  }, [initialKey])
+
+  const navigateToSlugs = useCallback((updated: Phone[]) => {
     ownUpdate.current = true
-    router.replace(updated.length ? ROUTES.compareIds(updated.map(p => p.id)) : '/compare', { scroll: false })
+    router.replace(updated.length ? ROUTES.compare(...updated.map(phoneSlug)) : '/compare', { scroll: false })
   }, [router])
 
   const handleAdd = useCallback((phone: Phone) => {
@@ -638,16 +651,16 @@ function CompareContent({ initialPhones }: CompareContentProps) {
     if (phones.length >= MAX_COMPARE) { toast(`Max ${MAX_COMPARE} phones`, 'error'); return }
     const updated = [...phones, phone]
     setPhones(updated)
-    navigateToIds(updated)
+    navigateToSlugs(updated)
     toast('Phone added', 'success')
-  }, [phones, navigateToIds, toast])
+  }, [phones, navigateToSlugs, toast])
 
   const handleRemove = useCallback((id: number) => {
     const updated = phones.filter(p => p.id !== id)
     setPhones(updated)
-    navigateToIds(updated)
+    navigateToSlugs(updated)
     toast('Phone removed', 'info')
-  }, [phones, navigateToIds, toast])
+  }, [phones, navigateToSlugs, toast])
 
   const handleShare = async () => {
     try {
@@ -659,7 +672,7 @@ function CompareContent({ initialPhones }: CompareContentProps) {
 
   const handleClear = () => {
     setPhones([])
-    navigateToIds([])
+    navigateToSlugs([])
     toast('Comparison cleared', 'info')
   }
 
