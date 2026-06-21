@@ -3,6 +3,9 @@ import CompareClient from '@/app/components/compare/CompareClient'
 import { api } from '@/lib/api'
 import type { Phone } from '@/lib/types'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface PageProps {
   params: Promise<{ phones: string }>
 }
