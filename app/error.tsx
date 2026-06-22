@@ -61,8 +61,8 @@ export default function Error({
           gap: 4,
         }}>
           {[
-            { label: 'Browse',          href: '/' },
-            { label: 'Compare',         href: '/compare' },
+            { label: 'Browse',        href: '/' },
+            { label: 'Compare',       href: '/compare' },
             { label: 'Help Me Choose',  href: '/pick' },
           ].map(({ label, href }) => (
             <Link
@@ -219,7 +219,7 @@ export default function Error({
 
           <p style={{ fontSize: 12, color: c.text3, textAlign: 'center' as const }}>
             Problem persisting?{' '}
-            
+            <a
               href="mailto:hello@mobylite.com"
               style={{ color: c.text2, textDecoration: 'underline' }}
             >
