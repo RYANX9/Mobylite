@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChevronDown, ChevronUp, RotateCcw } from 'lucide-react'
 import { api } from '@/lib/api'
 import { c } from '@/lib/tokens'
@@ -31,8 +31,18 @@ function CheckItem({ label, count, checked, onChange }: {
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
     >
       <div
-        style={{ width: 18, height: 18, borderRadius: 4, border: `1.5px solid ${checked ? c.primary : c.border}`, background: checked ? c.primary : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.12s' }}
+        role="checkbox"
+        aria-checked={checked}
+        tabIndex={0}
+        style={{
+          width: 18, height: 18, borderRadius: 4,
+          border: `1.5px solid ${checked ? c.primary : c.border}`,
+          background: checked ? c.primary : 'transparent',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, transition: 'all 0.12s', cursor: 'pointer',
+        }}
         onClick={() => onChange(!checked)}
+        onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onChange(!checked) } }}
       >
         {checked && (
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -46,13 +56,15 @@ function CheckItem({ label, count, checked, onChange }: {
   )
 }
 
-function RangeSelect({ value, options, onChange }: {
+function RangeSelect({ value, options, onChange, label }: {
   value: string | number | undefined
   options: { label: string; value: string | number }[]
   onChange: (v: string | number | undefined) => void
+  label: string
 }) {
   return (
     <select
+      aria-label={label}
       value={value ?? ''}
       onChange={e => onChange(e.target.value === '' ? undefined : e.target.value)}
       style={{
@@ -74,6 +86,8 @@ const DIVIDER = <div style={{ height: 1, background: 'var(--border)', margin: '1
 const CURRENT_YEAR = new Date().getFullYear()
 const YEAR_OPTIONS = Array.from({ length: 7 }, (_, i) => CURRENT_YEAR - i).map(y => ({ label: String(y), value: y }))
 
+const PRICE_DEBOUNCE_MS = 400
+
 export default function FilterPanel({ filters, onChange, onReset, showBrandFilter = true }: FilterPanelProps) {
   const [mode, setMode] = useState<'simple' | 'expert'>('simple')
   const [stats, setStats] = useState<FilterStats | null>(null)
@@ -82,11 +96,53 @@ export default function FilterPanel({ filters, onChange, onReset, showBrandFilte
     filters.brand ? [filters.brand] : []
   )
 
+  // Local state for price inputs — debounced before propagating up
+  const [localMin, setLocalMin] = useState(filters.min_price != null ? String(filters.min_price) : '')
+  const [localMax, setLocalMax] = useState(filters.max_price != null ? String(filters.max_price) : '')
+  const priceTimer = useRef<ReturnType<typeof setTimeout>>()
+
+  // Restore persisted mode on mount (after hydration)
+  useEffect(() => {
+    const saved = localStorage.getItem('mobylite-filter-mode') as 'simple' | 'expert' | null
+    if (saved === 'expert') setMode('expert')
+  }, [])
+
   useEffect(() => {
     api.filters.stats().then(setStats).catch(() => {})
   }, [])
 
+  useEffect(() => () => clearTimeout(priceTimer.current), [])
+
+  // Sync selectedBrands when parent resets filters externally
+  useEffect(() => {
+    setSelectedBrands(filters.brand ? [filters.brand] : [])
+  }, [filters.brand])
+
+  // Sync price locals when parent resets filters externally
+  useEffect(() => {
+    setLocalMin(filters.min_price != null ? String(filters.min_price) : '')
+  }, [filters.min_price])
+
+  useEffect(() => {
+    setLocalMax(filters.max_price != null ? String(filters.max_price) : '')
+  }, [filters.max_price])
+
   const set = (patch: Partial<SearchFilters>) => onChange({ ...filters, ...patch })
+
+  const handleModeChange = (m: 'simple' | 'expert') => {
+    setMode(m)
+    localStorage.setItem('mobylite-filter-mode', m)
+  }
+
+  const handlePriceChange = (key: 'min_price' | 'max_price', raw: string) => {
+    if (key === 'min_price') setLocalMin(raw)
+    else setLocalMax(raw)
+
+    clearTimeout(priceTimer.current)
+    priceTimer.current = setTimeout(() => {
+      set({ [key]: raw === '' ? undefined : Number(raw) })
+    }, PRICE_DEBOUNCE_MS)
+  }
 
   const toggleBrand = (brand: string) => {
     const next = selectedBrands.includes(brand)
@@ -124,7 +180,7 @@ export default function FilterPanel({ filters, onChange, onReset, showBrandFilte
         {(['simple', 'expert'] as const).map(m => (
           <button
             key={m}
-            onClick={() => setMode(m)}
+            onClick={() => handleModeChange(m)}
             style={{
               flex: 1, padding: '7px 0', fontSize: 13, fontWeight: 500,
               borderRadius: 5, textTransform: 'capitalize',
@@ -145,10 +201,16 @@ export default function FilterPanel({ filters, onChange, onReset, showBrandFilte
             <input
               key={key}
               type="number"
+              min={0}
+              aria-label={i === 0 ? 'Minimum price' : 'Maximum price'}
               placeholder={i === 0 ? 'Min $' : 'Max $'}
-              value={filters[key] ?? ''}
-              onChange={e => set({ [key]: e.target.value ? Number(e.target.value) : undefined })}
-              style={{ padding: '8px 10px', borderRadius: 'var(--r-sm)', border: `1px solid ${c.border}`, fontSize: 13, color: c.text1, background: c.surface, width: '100%' }}
+              value={i === 0 ? localMin : localMax}
+              onChange={e => handlePriceChange(key, e.target.value)}
+              style={{
+                padding: '8px 10px', borderRadius: 'var(--r-sm)',
+                border: `1px solid ${c.border}`, fontSize: 13,
+                color: c.text1, background: c.surface, width: '100%',
+              }}
             />
           ))}
         </div>
@@ -185,6 +247,7 @@ export default function FilterPanel({ filters, onChange, onReset, showBrandFilte
       <div>
         <SectionTitle>Release Year</SectionTitle>
         <RangeSelect
+          label="Minimum release year"
           value={filters.min_year}
           options={YEAR_OPTIONS}
           onChange={v => set({ min_year: v ? Number(v) : undefined })}
@@ -195,6 +258,7 @@ export default function FilterPanel({ filters, onChange, onReset, showBrandFilte
       <div>
         <SectionTitle>Min RAM</SectionTitle>
         <RangeSelect
+          label="Minimum RAM"
           value={filters.min_ram}
           options={[4, 6, 8, 12, 16].map(r => ({ label: `${r} GB`, value: r }))}
           onChange={v => set({ min_ram: v ? Number(v) : undefined })}
@@ -205,6 +269,7 @@ export default function FilterPanel({ filters, onChange, onReset, showBrandFilte
       <div>
         <SectionTitle>Min Battery</SectionTitle>
         <RangeSelect
+          label="Minimum battery capacity"
           value={filters.min_battery}
           options={[3000, 4000, 4500, 5000, 6000].map(b => ({ label: `${b.toLocaleString()} mAh`, value: b }))}
           onChange={v => set({ min_battery: v ? Number(v) : undefined })}
@@ -215,6 +280,7 @@ export default function FilterPanel({ filters, onChange, onReset, showBrandFilte
       <div>
         <SectionTitle>Main Camera</SectionTitle>
         <RangeSelect
+          label="Minimum camera megapixels"
           value={filters.min_camera_mp}
           options={[12, 48, 50, 64, 108, 200].map(m => ({ label: `${m}+ MP`, value: m }))}
           onChange={v => set({ min_camera_mp: v ? Number(v) : undefined })}
@@ -226,7 +292,7 @@ export default function FilterPanel({ filters, onChange, onReset, showBrandFilte
           {DIVIDER}
           <div>
             <SectionTitle>
-              Screen Size
+              Screen Size{' '}
               <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: c.accent, background: 'var(--accent-light)', padding: '1px 6px', borderRadius: 'var(--r-full)' }}>Expert</span>
             </SectionTitle>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
@@ -234,6 +300,7 @@ export default function FilterPanel({ filters, onChange, onReset, showBrandFilte
                 <input
                   key={key}
                   type="number" step="0.1"
+                  aria-label={i === 0 ? 'Minimum screen size' : 'Maximum screen size'}
                   placeholder={i === 0 ? 'Min "' : 'Max "'}
                   value={filters[key] ?? ''}
                   onChange={e => set({ [key]: e.target.value ? Number(e.target.value) : undefined })}
@@ -246,15 +313,18 @@ export default function FilterPanel({ filters, onChange, onReset, showBrandFilte
           {DIVIDER}
           <div>
             <SectionTitle>
-              Chipset Tier
+              Chipset Tier{' '}
               <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: c.accent, background: 'var(--accent-light)', padding: '1px 6px', borderRadius: 'var(--r-full)' }}>Expert</span>
             </SectionTitle>
-            {(['flagship', 'mid', 'entry'] as const).map(tier => (
+            {([
+              { id: 'flagship', label: 'Flagship (SD 8 Elite, Dimensity 9xxx)' },
+              { id: 'mid',      label: 'Upper Mid (SD 7xxx, Dimensity 8xxx)' },
+              { id: 'entry',    label: 'Entry / Budget' },
+            ] as const).map(({ id, label }) => (
               <CheckItem
-                key={tier}
-                label={tier === 'flagship' ? 'Flagship (SD 8 Gen, Dimensity 9xxx)' : tier === 'mid' ? 'Upper Mid (SD 7xxx, Dimensity 8xxx)' : 'Entry / Budget'}
-                checked={filters.chipset_tier === tier}
-                onChange={checked => set({ chipset_tier: checked ? tier : undefined })}
+                key={id} label={label}
+                checked={filters.chipset_tier === id}
+                onChange={checked => set({ chipset_tier: checked ? id : undefined })}
               />
             ))}
           </div>
@@ -262,10 +332,11 @@ export default function FilterPanel({ filters, onChange, onReset, showBrandFilte
           {DIVIDER}
           <div>
             <SectionTitle>
-              Fast Charging
+              Fast Charging{' '}
               <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: c.accent, background: 'var(--accent-light)', padding: '1px 6px', borderRadius: 'var(--r-full)' }}>Expert</span>
             </SectionTitle>
             <RangeSelect
+              label="Minimum fast charging wattage"
               value={filters.min_charging_w}
               options={[18, 33, 45, 65, 100, 120].map(w => ({ label: `${w}W+`, value: w }))}
               onChange={v => set({ min_charging_w: v ? Number(v) : undefined })}
@@ -275,10 +346,11 @@ export default function FilterPanel({ filters, onChange, onReset, showBrandFilte
           {DIVIDER}
           <div>
             <SectionTitle>
-              Max Weight
+              Max Weight{' '}
               <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: c.accent, background: 'var(--accent-light)', padding: '1px 6px', borderRadius: 'var(--r-full)' }}>Expert</span>
             </SectionTitle>
             <RangeSelect
+              label="Maximum weight in grams"
               value={filters.max_weight}
               options={[160, 170, 180, 190, 200, 220].map(w => ({ label: `Under ${w}g`, value: w }))}
               onChange={v => set({ max_weight: v ? Number(v) : undefined })}
