@@ -12,13 +12,11 @@ import Footer from './components/Footer'
 import PhoneCard, { PhoneCardSkeleton } from './components/PhoneCard'
 import FilterPanel from './components/FilterPanel'
 import CompareBar from './components/CompareBar'
-import { ToastProvider, useToast } from './components/Toast'
+import { useToast } from './components/Toast'
 import { api } from '@/lib/api'
 import { ROUTES, brandSlug, phoneSlug, PAGE_SIZE, MAX_COMPARE, CATEGORY_META } from '@/lib/config'
-import { c, f } from '@/lib/tokens'
+import { c, f, z, mq } from '@/lib/tokens'
 import type { Phone, SearchFilters } from '@/lib/types'
-
-// ─── constants ────────────────────────────────────────────────────────────────
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   'camera-phones':  <Camera size={22} strokeWidth={1.5} />,
@@ -40,10 +38,8 @@ const SORT_OPTIONS = [
   { label: 'Best Camera',        sort_by: 'main_camera_mp',   sort_order: 'desc' },
 ] as const
 
-const POPULAR = ['Galaxy S25 Ultra', 'iPhone 16 Pro', 'Pixel 9', 'OnePlus 13', 'Xiaomi 15 Pro']
+const POPULAR = ['Galaxy S26 Ultra', 'iPhone 17 Pro', 'Pixel 10 Pro', 'Xiaomi 17 Ultra', 'OnePlus 13']
 const EMPTY_FILTERS: SearchFilters = {}
-
-// ─── URL helpers ──────────────────────────────────────────────────────────────
 
 function parseFiltersFromParams(sp: URLSearchParams): SearchFilters {
   return {
@@ -84,36 +80,52 @@ function buildSearchUrl(f: SearchFilters, p: number, sIdx: number): string {
   return str ? `/?${str}` : '/'
 }
 
-// ─── sub-components ───────────────────────────────────────────────────────────
-
 function FilterChips({ filters, onChange }: { filters: SearchFilters; onChange: (f: SearchFilters) => void }) {
   const chips: { label: string; clear: () => void }[] = []
-  if (filters.q)           chips.push({ label: `"${filters.q}"`, clear: () => onChange({ ...filters, q: undefined }) })
+  if (filters.q) chips.push({ label: `"${filters.q}"`, clear: () => onChange({ ...filters, q: undefined }) })
   if (filters.min_price || filters.max_price) {
     const lo = filters.min_price ? `$${filters.min_price}` : ''
     const hi = filters.max_price ? `$${filters.max_price}` : ''
     chips.push({ label: lo && hi ? `${lo} – ${hi}` : lo ? `From ${lo}` : `Up to ${hi}`, clear: () => onChange({ ...filters, min_price: undefined, max_price: undefined }) })
   }
-  if (filters.brand)           chips.push({ label: filters.brand, clear: () => onChange({ ...filters, brand: undefined }) })
-  if (filters.min_year)        chips.push({ label: `${filters.min_year}+`, clear: () => onChange({ ...filters, min_year: undefined }) })
-  if (filters.min_ram)         chips.push({ label: `${filters.min_ram}GB+ RAM`, clear: () => onChange({ ...filters, min_ram: undefined }) })
-  if (filters.min_battery)     chips.push({ label: `${filters.min_battery.toLocaleString()}+ mAh`, clear: () => onChange({ ...filters, min_battery: undefined }) })
-  if (filters.min_camera_mp)   chips.push({ label: `${filters.min_camera_mp}+ MP`, clear: () => onChange({ ...filters, min_camera_mp: undefined }) })
-  if (filters.chipset_tier)    chips.push({ label: filters.chipset_tier, clear: () => onChange({ ...filters, chipset_tier: undefined }) })
-  if (filters.min_charging_w)  chips.push({ label: `${filters.min_charging_w}W+`, clear: () => onChange({ ...filters, min_charging_w: undefined }) })
-  if (filters.max_weight)      chips.push({ label: `Under ${filters.max_weight}g`, clear: () => onChange({ ...filters, max_weight: undefined }) })
+  if (filters.brand)          chips.push({ label: filters.brand, clear: () => onChange({ ...filters, brand: undefined }) })
+  if (filters.min_year)       chips.push({ label: `${filters.min_year}+`, clear: () => onChange({ ...filters, min_year: undefined }) })
+  if (filters.min_ram)        chips.push({ label: `${filters.min_ram}GB+ RAM`, clear: () => onChange({ ...filters, min_ram: undefined }) })
+  if (filters.min_battery)    chips.push({ label: `${filters.min_battery.toLocaleString()}+ mAh`, clear: () => onChange({ ...filters, min_battery: undefined }) })
+  if (filters.min_camera_mp)  chips.push({ label: `${filters.min_camera_mp}+ MP`, clear: () => onChange({ ...filters, min_camera_mp: undefined }) })
+  if (filters.chipset_tier)   chips.push({ label: filters.chipset_tier, clear: () => onChange({ ...filters, chipset_tier: undefined }) })
+  if (filters.min_charging_w) chips.push({ label: `${filters.min_charging_w}W+`, clear: () => onChange({ ...filters, min_charging_w: undefined }) })
+  if (filters.max_weight)     chips.push({ label: `Under ${filters.max_weight}g`, clear: () => onChange({ ...filters, max_weight: undefined }) })
   if (chips.length === 0) return null
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 16 }}>
       {chips.map(chip => (
-        <div key={chip.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-full)', fontSize: 12, color: c.text2 }}>
+        <div key={chip.label} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px',
+          background: c.surface, border: `1px solid ${c.border}`,
+          borderRadius: 'var(--r-full)', fontSize: 12, color: c.text2,
+        }}>
           {chip.label}
-          <button onClick={chip.clear} style={{ color: c.text3, display: 'flex', transition: 'color 0.1s' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = c.accent }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = c.text3 }}>
+          <button
+            onClick={chip.clear}
+            aria-label={`Remove ${chip.label} filter`}
+            style={{ color: c.text3, display: 'flex', transition: 'color 0.1s' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = c.accent }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = c.text3 }}
+          >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
       ))}
-      <button onClick={() => onChange(EMPTY_FILTERS)} style={{ fontSize: 12, fontWeight: 500, color: c.accent, padding: '4px 8px', borderRadius: 'var(--r-full)', transition: 'background 0.1s' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--accent-light)' }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+      <button
+        onClick={() => onChange(EMPTY_FILTERS)}
+        style={{
+          fontSize: 12, fontWeight: 500, color: c.accent, padding: '4px 8px',
+          borderRadius: 'var(--r-full)', transition: 'background 0.1s',
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--accent-light)' }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+      >
         Clear all
       </button>
     </div>
@@ -142,45 +154,74 @@ function Pagination({ page, total, pageSize, onChange }: { page: number; total: 
   })
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 40 }}>
-      <button style={btn(false, page === 1)} onClick={() => page > 1 && onChange(page - 1)} disabled={page === 1}><ChevronLeft size={16} /></button>
+      <button style={btn(false, page === 1)} onClick={() => page > 1 && onChange(page - 1)} disabled={page === 1} aria-label="Previous page"><ChevronLeft size={16} /></button>
       {pages.map((p, i) =>
-        p === '...' ? <span key={`e${i}`} style={{ width: 36, textAlign: 'center', fontSize: 14, color: c.text3 }}>...</span> : (
-          <button key={p} style={btn(p === page)} onClick={() => onChange(p as number)} onMouseEnter={e => { if (p !== page) (e.currentTarget as HTMLElement).style.background = 'rgba(26,26,46,0.06)' }} onMouseLeave={e => { if (p !== page) (e.currentTarget as HTMLElement).style.background = 'transparent' }}>{p}</button>
-        )
+        p === '...'
+          ? <span key={`e${i}`} style={{ width: 36, textAlign: 'center', fontSize: 14, color: c.text3 }}>...</span>
+          : (
+            <button
+              key={p} style={btn(p === page)} onClick={() => onChange(p as number)}
+              aria-label={`Page ${p}`} aria-current={p === page ? 'page' : undefined}
+              onMouseEnter={e => { if (p !== page) (e.currentTarget as HTMLElement).style.background = 'rgba(26,26,46,0.06)' }}
+              onMouseLeave={e => { if (p !== page) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+            >
+              {p}
+            </button>
+          )
       )}
-      <button style={btn(false, page === totalPages)} onClick={() => page < totalPages && onChange(page + 1)} disabled={page === totalPages}><ChevronRight size={16} /></button>
+      <button style={btn(false, page === totalPages)} onClick={() => page < totalPages && onChange(page + 1)} disabled={page === totalPages} aria-label="Next page"><ChevronRight size={16} /></button>
     </div>
   )
 }
 
 function TrendingScroll({ phones }: { phones: Phone[] }) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const router    = useRouter()
+  const router = useRouter()
   if (phones.length === 0) return null
   return (
     <section style={{ marginBottom: 64 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 24 }}>
-        <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: c.text1 }}>Trending This Week</h2>
+        <h2 style={{ fontFamily: f.serif, fontSize: 28, color: c.text1 }}>Trending This Week</h2>
         <span style={{ fontSize: 14, color: c.text3 }}>Most viewed phones</span>
       </div>
       <div style={{ position: 'relative' }}>
-        <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 60, background: 'linear-gradient(-90deg, var(--bg) 0%, transparent 100%)', pointerEvents: 'none', zIndex: 2 }} />
-        <button onClick={() => scrollRef.current?.scrollBy({ left: -220, behavior: 'smooth' })} style={{ position: 'absolute', top: '50%', left: -14, transform: 'translateY(-50%)', width: 36, height: 36, background: c.surface, border: `1px solid ${c.border}`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.text2, zIndex: 3, boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)' }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)' }}>
+        <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 60, background: 'linear-gradient(-90deg, var(--bg) 0%, transparent 100%)', pointerEvents: 'none', zIndex: z.badge }} />
+        <button
+          onClick={() => scrollRef.current?.scrollBy({ left: -220, behavior: 'smooth' })}
+          aria-label="Scroll left"
+          style={{ position: 'absolute', top: '50%', left: -14, transform: 'translateY(-50%)', width: 36, height: 36, background: c.surface, border: `1px solid ${c.border}`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.text2, zIndex: z.badge, boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)' }}
+        >
           <ChevronLeft size={16} />
         </button>
         <div ref={scrollRef} className="scrollbar-none" style={{ display: 'flex', gap: 14, overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 4 }}>
           {phones.map((phone, i) => (
-            <div key={phone.id} onClick={() => router.push(ROUTES.phone(brandSlug(phone.brand), phoneSlug(phone)))} style={{ flexShrink: 0, width: 148, scrollSnapAlign: 'start', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-lg)', padding: 12, cursor: 'pointer', transition: 'all 0.15s', textAlign: 'center' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)' }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}>
+            <div
+              key={phone.id}
+              onClick={() => router.push(ROUTES.phone(brandSlug(phone.brand), phoneSlug(phone)))}
+              style={{ flexShrink: 0, width: 148, scrollSnapAlign: 'start', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-lg)', padding: 12, cursor: 'pointer', transition: 'all 0.15s', textAlign: 'center' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
+            >
               <div style={{ fontSize: 11, fontWeight: 700, color: c.text3, marginBottom: 8 }}>#{i + 1}</div>
               <div style={{ width: 72, height: 72, margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {phone.main_image_url ? <img src={phone.main_image_url} alt={phone.model_name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <Smartphone size={32} color={c.border} strokeWidth={1} />}
+                {phone.main_image_url
+                  ? <img src={phone.main_image_url} alt={phone.model_name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  : <Smartphone size={32} color={c.border} strokeWidth={1} />}
               </div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 12, color: c.text1, marginBottom: 4, lineHeight: 1.3 }}>{phone.model_name}</div>
+              <div style={{ fontFamily: f.serif, fontSize: 12, color: c.text1, marginBottom: 4, lineHeight: 1.3 }}>{phone.model_name}</div>
               <div style={{ fontSize: 12, fontWeight: 600, color: c.text1 }}>{phone.price_usd ? `$${phone.price_usd.toLocaleString()}` : '—'}</div>
             </div>
           ))}
         </div>
-        <button onClick={() => scrollRef.current?.scrollBy({ left: 220, behavior: 'smooth' })} style={{ position: 'absolute', top: '50%', right: -14, transform: 'translateY(-50%)', width: 36, height: 36, background: c.surface, border: `1px solid ${c.border}`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.text2, zIndex: 3, boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)' }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)' }}>
+        <button
+          onClick={() => scrollRef.current?.scrollBy({ left: 220, behavior: 'smooth' })}
+          aria-label="Scroll right"
+          style={{ position: 'absolute', top: '50%', right: -14, transform: 'translateY(-50%)', width: 36, height: 36, background: c.surface, border: `1px solid ${c.border}`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.text2, zIndex: z.badge, boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)' }}
+        >
           <ChevronRight size={16} />
         </button>
       </div>
@@ -188,82 +229,82 @@ function TrendingScroll({ phones }: { phones: Phone[] }) {
   )
 }
 
-// ─── main ─────────────────────────────────────────────────────────────────────
-
 function HomeContent() {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const { toast }    = useToast()
 
-  // initialise entirely from URL — covers direct links, back/forward, Navbar search
   const [filters, setFilters] = useState<SearchFilters>(() =>
     parseFiltersFromParams(new URLSearchParams(searchParams.toString()))
   )
-  const [page, setPage]       = useState(() => parseInt(searchParams.get('page') || '1'))
-  const [sortIdx, setSortIdx] = useState(() => parseInt(searchParams.get('sort') || '0'))
-
+  const [page, setPage]       = useState(() => parseInt(searchParams.get('page') ?? '1', 10))
+  const [sortIdx, setSortIdx] = useState(() => parseInt(searchParams.get('sort') ?? '0', 10))
   const [phones, setPhones]               = useState<Phone[]>([])
   const [trending, setTrending]           = useState<Phone[]>([])
   const [total, setTotal]                 = useState(0)
   const [loading, setLoading]             = useState(true)
   const [comparePhones, setComparePhones] = useState<Phone[]>([])
-  const [heroQuery, setHeroQuery]         = useState(searchParams.get('q') || '')
+  const [heroQuery, setHeroQuery]         = useState(searchParams.get('q') ?? '')
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
-  // track whether *we* last updated the URL (prevent feedback loop)
   const ownUpdate = useRef(false)
-
   const activeFilterCount = Object.values(filters).filter(v => v !== undefined && v !== '').length
 
-  // sync state when URL changes from OUTSIDE (Navbar search, back/forward)
   const spString = searchParams.toString()
   useEffect(() => {
     if (ownUpdate.current) { ownUpdate.current = false; return }
     const parsed = parseFiltersFromParams(new URLSearchParams(spString))
     setFilters(parsed)
-    setHeroQuery(parsed.q || '')
-    setPage(parseInt(searchParams.get('page') || '1'))
-    setSortIdx(parseInt(searchParams.get('sort') || '0'))
+    setHeroQuery(parsed.q ?? '')
+    setPage(parseInt(searchParams.get('page') ?? '1', 10))
+    setSortIdx(parseInt(searchParams.get('sort') ?? '0', 10))
   }, [spString])
 
-  // write state to URL (called on every user-driven change)
   const commit = useCallback((f: SearchFilters, p: number, s: number) => {
     ownUpdate.current = true
     router.replace(buildSearchUrl(f, p, s), { scroll: false })
   }, [router])
 
-  const fetchPhones = useCallback(async (f: SearchFilters, p: number, sIdx: number) => {
+  const fetchPhones = useCallback(async (f: SearchFilters, p: number, sIdx: number, signal?: AbortSignal) => {
     setLoading(true)
     const { sort_by, sort_order } = SORT_OPTIONS[sIdx]
     try {
-      const data = await api.phones.search({ ...f, sort_by, sort_order: sort_order as 'asc' | 'desc', page: p, page_size: PAGE_SIZE })
+      const data = await api.phones.search(
+        { ...f, sort_by, sort_order: sort_order as 'asc' | 'desc', page: p, page_size: PAGE_SIZE },
+        signal,
+      )
       setPhones(data.results)
       setTotal(data.total)
-    } catch {
-      setPhones([]); setTotal(0)
+    } catch (err) {
+      if (signal?.aborted || (err instanceof Error && err.name === 'AbortError')) return
+      setPhones([])
+      setTotal(0)
+      toast('Failed to load phones', 'error')
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
-  }, [])
+  }, [toast])
 
-  useEffect(() => { fetchPhones(filters, page, sortIdx) }, [filters, page, sortIdx, fetchPhones])
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchPhones(filters, page, sortIdx, controller.signal)
+    return () => controller.abort()
+  }, [filters, page, sortIdx, fetchPhones])
 
   useEffect(() => {
     api.phones.trending(10).then(d => setTrending(d.phones)).catch(() => {})
   }, [])
 
-  const handleFiltersChange = (f: SearchFilters) => {
-    setFilters(f); setPage(1)
-    commit(f, 1, sortIdx)
-  }
-  const handleReset = () => {
-    setFilters(EMPTY_FILTERS); setPage(1); setHeroQuery('')
-    commit(EMPTY_FILTERS, 1, sortIdx)
-  }
-  const handleSortChange = (idx: number) => {
-    setSortIdx(idx); setPage(1)
-    commit(filters, 1, idx)
-  }
+  useEffect(() => {
+    if (!mobileFiltersOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileFiltersOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [mobileFiltersOpen])
+
+  const handleFiltersChange = (f: SearchFilters) => { setFilters(f); setPage(1); commit(f, 1, sortIdx) }
+  const handleReset = () => { setFilters(EMPTY_FILTERS); setPage(1); setHeroQuery(''); commit(EMPTY_FILTERS, 1, sortIdx) }
+  const handleSortChange = (idx: number) => { setSortIdx(idx); setPage(1); commit(filters, 1, idx) }
   const handlePageChange = (p: number) => {
     setPage(p)
     commit(filters, p, sortIdx)
@@ -274,15 +315,13 @@ function HomeContent() {
     e.preventDefault()
     if (!heroQuery.trim()) return
     const f = { ...filters, q: heroQuery.trim() }
-    setFilters(f); setPage(1)
-    commit(f, 1, sortIdx)
+    setFilters(f); setPage(1); commit(f, 1, sortIdx)
     document.getElementById('phone-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const handlePopularTag = (tag: string) => {
     const f = { q: tag }
-    setFilters(f); setHeroQuery(tag); setPage(1)
-    commit(f, 1, sortIdx)
+    setFilters(f); setHeroQuery(tag); setPage(1); commit(f, 1, sortIdx)
     document.getElementById('phone-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -304,9 +343,8 @@ function HomeContent() {
         onOpenCompare={() => comparePhones.length >= 2 && router.push(ROUTES.compare(...comparePhones.map(p => phoneSlug(p))))}
       />
 
-      {/* hero */}
       <section style={{ maxWidth: 720, margin: '0 auto', padding: '72px var(--page-px) 48px', textAlign: 'center' }}>
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(36px, 5vw, 54px)', color: c.text1, letterSpacing: '-0.8px', lineHeight: 1.15, marginBottom: 16 }}>
+        <h1 style={{ fontFamily: f.serif, fontSize: 'clamp(36px, 5vw, 54px)', color: c.text1, letterSpacing: '-0.8px', lineHeight: 1.15, marginBottom: 16 }}>
           Find your next phone.
         </h1>
         <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: c.text2, lineHeight: 1.65, marginBottom: 32, maxWidth: 500, margin: '0 auto 32px' }}>
@@ -318,16 +356,33 @@ function HomeContent() {
             value={heroQuery}
             onChange={e => setHeroQuery(e.target.value)}
             placeholder='Search phones or ask "best camera under $500"'
-            style={{ width: '100%', height: 56, padding: '0 56px 0 22px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-full)', fontSize: 16, color: c.text1, boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s' }}
+            aria-label="Search phones"
+            style={{
+              width: '100%', height: 56, padding: '0 56px 0 22px',
+              background: c.surface, border: `1px solid ${c.border}`,
+              borderRadius: 'var(--r-full)', fontSize: 16, color: c.text1,
+              boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s',
+            }}
             onFocus={e => { e.currentTarget.style.borderColor = c.primary; e.currentTarget.style.boxShadow = '0 0 0 4px rgba(26,26,46,0.07)' }}
             onBlur={e => { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.boxShadow = 'var(--shadow-sm)' }}
           />
           {heroQuery && (
-            <button type="button" onClick={() => { setHeroQuery(''); handleFiltersChange({ ...filters, q: undefined }) }} style={{ position: 'absolute', right: 54, top: '50%', transform: 'translateY(-50%)', color: c.text3, display: 'flex', background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => { setHeroQuery(''); handleFiltersChange({ ...filters, q: undefined }) }}
+              style={{ position: 'absolute', right: 54, top: '50%', transform: 'translateY(-50%)', color: c.text3, display: 'flex', background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
+            >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           )}
-          <button type="submit" style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, background: c.primary, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', border: 'none', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2A2A42' }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = c.primary }}>
+          <button
+            type="submit"
+            aria-label="Search"
+            style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, background: c.primary, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2A2A42' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = c.primary }}
+          >
             <Search size={19} strokeWidth={2} />
           </button>
         </form>
@@ -335,22 +390,56 @@ function HomeContent() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
           <span style={{ fontSize: 13, color: c.text3 }}>Popular:</span>
           {POPULAR.map(tag => (
-            <button key={tag} onClick={() => handlePopularTag(tag)} style={{ fontSize: 13, color: filters.q === tag ? c.primary : c.text2, padding: '4px 12px', background: filters.q === tag ? 'rgba(26,26,46,0.06)' : c.surface, border: `1px solid ${filters.q === tag ? c.primary : c.border}`, borderRadius: 'var(--r-full)', transition: 'all 0.15s', fontWeight: filters.q === tag ? 600 : 400 }} onMouseEnter={e => { if (filters.q !== tag) { (e.currentTarget as HTMLElement).style.borderColor = c.primary; (e.currentTarget as HTMLElement).style.color = c.text1 } }} onMouseLeave={e => { if (filters.q !== tag) { (e.currentTarget as HTMLElement).style.borderColor = c.border; (e.currentTarget as HTMLElement).style.color = c.text2 } }}>
+            <button
+              key={tag}
+              onClick={() => handlePopularTag(tag)}
+              style={{
+                fontSize: 13,
+                color: filters.q === tag ? c.primary : c.text2,
+                padding: '4px 12px',
+                background: filters.q === tag ? 'rgba(26,26,46,0.06)' : c.surface,
+                border: `1px solid ${filters.q === tag ? c.primary : c.border}`,
+                borderRadius: 'var(--r-full)',
+                transition: 'all 0.15s',
+                fontWeight: filters.q === tag ? 600 : 400,
+              }}
+              onMouseEnter={e => {
+                if (filters.q !== tag) {
+                  (e.currentTarget as HTMLElement).style.borderColor = c.primary
+                  ;(e.currentTarget as HTMLElement).style.color = c.text1
+                }
+              }}
+              onMouseLeave={e => {
+                if (filters.q !== tag) {
+                  (e.currentTarget as HTMLElement).style.borderColor = c.border
+                  ;(e.currentTarget as HTMLElement).style.color = c.text2
+                }
+              }}
+            >
               {tag}
             </button>
           ))}
         </div>
 
-        <Link href={ROUTES.pick} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 500, color: c.accent, transition: 'gap 0.15s' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.gap = '10px' }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.gap = '6px' }}>
+        <Link
+          href={ROUTES.pick}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 500, color: c.accent, transition: 'gap 0.15s' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.gap = '10px' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.gap = '6px' }}
+        >
           Not sure? Help Me Choose <ArrowRight size={16} strokeWidth={2} />
         </Link>
       </section>
 
-      {/* category quick links */}
       <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto', padding: '0 var(--page-px)', marginBottom: 48 }}>
         <div className="scrollbar-none" style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4 }}>
           {Object.entries(CATEGORY_META).map(([slug, meta]) => (
-            <Link key={slug} href={ROUTES.category(slug)} style={{ flexShrink: 0, width: 138, padding: '18px 14px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-lg)', textAlign: 'center', transition: 'all 0.15s', display: 'block' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)' }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}>
+            <Link
+              key={slug} href={ROUTES.category(slug)}
+              style={{ flexShrink: 0, width: 138, padding: '18px 14px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-lg)', textAlign: 'center', transition: 'all 0.15s', display: 'block' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
+            >
               <div style={{ color: c.text2, display: 'flex', justifyContent: 'center', marginBottom: 8 }}>{CATEGORY_ICONS[slug]}</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: c.text1, marginBottom: 2 }}>{meta.title}</div>
               <div style={{ fontSize: 11, color: c.text3 }}>{meta.desc}</div>
@@ -359,7 +448,6 @@ function HomeContent() {
         </div>
       </div>
 
-      {/* filter + grid */}
       <div id="phone-grid" style={{ maxWidth: 'var(--max-w)', margin: '0 auto', padding: '0 var(--page-px) 64px', display: 'grid', gridTemplateColumns: 'var(--sidebar-w) 1fr', gap: 32, alignItems: 'start' }}>
         <div className="filter-sidebar">
           <FilterPanel filters={filters} onChange={handleFiltersChange} onReset={handleReset} />
@@ -368,17 +456,30 @@ function HomeContent() {
         <div>
           <FilterChips filters={filters} onChange={handleFiltersChange} />
 
-          {/* sort bar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <button onClick={() => setMobileFiltersOpen(true)} style={{ display: 'none', alignItems: 'center', gap: 6, padding: '7px 14px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-sm)', fontSize: 13, fontWeight: 500, color: c.text1 }} className="mobile-filter-btn">
+              <button
+                onClick={() => setMobileFiltersOpen(true)}
+                style={{ display: 'none', alignItems: 'center', gap: 6, padding: '7px 14px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-sm)', fontSize: 13, fontWeight: 500, color: c.text1 }}
+                className="mobile-filter-btn"
+                aria-label="Open filters"
+              >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
                 Filters
-                {activeFilterCount > 0 && <span style={{ background: c.accent, color: '#fff', fontSize: 10, fontWeight: 700, width: 16, height: 16, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{activeFilterCount}</span>}
+                {activeFilterCount > 0 && (
+                  <span style={{ background: c.accent, color: '#fff', fontSize: 10, fontWeight: 700, width: 16, height: 16, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {activeFilterCount}
+                  </span>
+                )}
               </button>
 
               <div style={{ position: 'relative' }}>
-                <select value={sortIdx} onChange={e => handleSortChange(Number(e.target.value))} style={{ appearance: 'none', padding: '7px 30px 7px 12px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-sm)', fontSize: 13, fontWeight: 500, color: c.text1, cursor: 'pointer' }}>
+                <select
+                  value={sortIdx}
+                  onChange={e => handleSortChange(Number(e.target.value))}
+                  aria-label="Sort phones"
+                  style={{ appearance: 'none', padding: '7px 30px 7px 12px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-sm)', fontSize: 13, fontWeight: 500, color: c.text1, cursor: 'pointer' }}
+                >
                   {SORT_OPTIONS.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
                 </select>
                 <ChevronRight size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%) rotate(90deg)', color: c.text3, pointerEvents: 'none' }} />
@@ -402,9 +503,14 @@ function HomeContent() {
           ) : (
             <div style={{ textAlign: 'center', padding: '80px 0' }}>
               <Smartphone size={56} color={c.border} strokeWidth={1.5} style={{ margin: '0 auto 16px' }} />
-              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: c.text1, marginBottom: 8 }}>No phones found</h3>
+              <h3 style={{ fontFamily: f.serif, fontSize: 22, color: c.text1, marginBottom: 8 }}>No phones found</h3>
               <p style={{ fontSize: 14, color: c.text3, marginBottom: 20 }}>Try adjusting your filters or search terms.</p>
-              <button onClick={handleReset} style={{ padding: '9px 22px', background: c.primary, color: '#fff', borderRadius: 'var(--r-full)', fontSize: 14, fontWeight: 500, border: 'none', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2A2A42' }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = c.primary }}>
+              <button
+                onClick={handleReset}
+                style={{ padding: '9px 22px', background: c.primary, color: '#fff', borderRadius: 'var(--r-full)', fontSize: 14, fontWeight: 500, border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2A2A42' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = c.primary }}
+              >
                 Clear all filters
               </button>
             </div>
@@ -412,7 +518,6 @@ function HomeContent() {
         </div>
       </div>
 
-      {/* trending */}
       <div style={{ maxWidth: 'var(--max-w)', margin: '0 auto', padding: '0 var(--page-px)' }}>
         <TrendingScroll phones={trending} />
       </div>
@@ -426,14 +531,25 @@ function HomeContent() {
       />
 
       {mobileFiltersOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.45)' }} onClick={() => setMobileFiltersOpen(false)}>
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: c.surface, borderRadius: 'var(--r-xl) var(--r-xl) 0 0', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: 'slideUp 0.25s ease' }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '10px 0 0', display: 'flex', justifyContent: 'center' }}><div style={{ width: 36, height: 4, background: c.border, borderRadius: 2 }} /></div>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Filters"
+          style={{ position: 'fixed', inset: 0, zIndex: z.drawer, background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => setMobileFiltersOpen(false)}
+        >
+          <div
+            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: c.surface, borderRadius: 'var(--r-xl) var(--r-xl) 0 0', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: 'slideUp 0.25s ease' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ padding: '10px 0 0', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ width: 36, height: 4, background: c.border, borderRadius: 2 }} />
+            </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 20px' }}>
-              <FilterPanel filters={filters} onChange={f => { handleFiltersChange(f) }} onReset={() => { handleReset(); setMobileFiltersOpen(false) }} />
+              <FilterPanel filters={filters} onChange={handleFiltersChange} onReset={() => { handleReset(); setMobileFiltersOpen(false) }} />
             </div>
             <div style={{ padding: '12px 16px', borderTop: `1px solid ${c.border}`, display: 'flex', gap: 10 }}>
-              <button onClick={handleReset} style={{ flex: 1, padding: '11px 0', background: 'var(--bg)', border: `1px solid ${c.border}`, borderRadius: 'var(--r-md)', fontSize: 14, fontWeight: 600, color: c.text1, cursor: 'pointer' }}>Reset</button>
+              <button onClick={() => { handleReset(); setMobileFiltersOpen(false) }} style={{ flex: 1, padding: '11px 0', background: c.bg, border: `1px solid ${c.border}`, borderRadius: 'var(--r-md)', fontSize: 14, fontWeight: 600, color: c.text1, cursor: 'pointer' }}>Reset</button>
               <button onClick={() => setMobileFiltersOpen(false)} style={{ flex: 2, padding: '11px 0', background: c.primary, borderRadius: 'var(--r-md)', fontSize: 14, fontWeight: 600, color: '#fff', border: 'none', cursor: 'pointer' }}>Apply Filters</button>
             </div>
           </div>
@@ -442,14 +558,14 @@ function HomeContent() {
 
       <style>{`
         .phone-grid-layout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-        @media (max-width: 1024px) {
+        ${mq.lg} {
           #phone-grid { grid-template-columns: 1fr !important; }
           .filter-sidebar { display: none !important; }
           .mobile-filter-btn { display: flex !important; }
           .phone-grid-layout { grid-template-columns: repeat(4, 1fr); gap: 12px; }
         }
         @media (max-width: 860px) { .phone-grid-layout { grid-template-columns: repeat(3, 1fr); gap: 10px; } }
-        @media (max-width: 600px) { .phone-grid-layout { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
+        ${mq.sm} { .phone-grid-layout { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
       `}</style>
     </div>
   )
@@ -457,10 +573,8 @@ function HomeContent() {
 
 export default function HomePage() {
   return (
-    <ToastProvider>
-      <Suspense fallback={null}>
-        <HomeContent />
-      </Suspense>
-    </ToastProvider>
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   )
 }
