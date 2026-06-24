@@ -2,20 +2,20 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter, useSearchParams } from 'next/navigation' 
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import {
   ChevronRight, ChevronLeft, ArrowUpDown,
   LayoutGrid, List, GitCompare,
   Smartphone, ChevronDown,
 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { ROUTES, brandSlug, phoneSlug } from '@/lib/config'
-import { c, f } from '@/lib/tokens'
+import { ROUTES, brandSlug, phoneSlug, MAX_COMPARE } from '@/lib/config'
+import { c, f, z, mq } from '@/lib/tokens'
 import type { Phone, SearchFilters } from '@/lib/types'
 import { getBrandInfo, getBrandInitial, type BrandInfo } from '@/lib/brandData'
 import Navbar from '@/app/components/Navbar'
 import Footer from '@/app/components/Footer'
-import { ToastProvider, useToast } from '@/app/components/Toast'
+import { useToast } from '@/app/components/Toast'
 import CompareBar from '@/app/components/CompareBar'
 import FilterPanel from '@/app/components/FilterPanel'
 import PhoneCard, { PhoneCardSkeleton } from '@/app/components/PhoneCard'
@@ -43,7 +43,6 @@ const SORT_OPTIONS: SortOption[] = [
 
 const PAGE_SIZE = 24
 const EMPTY_FILTERS: SearchFilters = {}
-const CURRENT_YEAR = new Date().getFullYear()
 
 function parseFiltersFromParams(sp: URLSearchParams): SearchFilters {
   return {
@@ -74,15 +73,16 @@ function buildUrl(base: string, filters: SearchFilters, page: number, sortIdx: n
   if (filters.max_weight)      p.set('max_weight',      String(filters.max_weight))
   if (filters.min_charging_w)  p.set('min_charging_w',  String(filters.min_charging_w))
   if (filters.chipset_tier)    p.set('chipset_tier',    filters.chipset_tier)
-  if (page > 1)    p.set('page',    String(page))
-  if (sortIdx > 0) p.set('sort',    String(sortIdx))
+  if (page > 1)    p.set('page', String(page))
+  if (sortIdx > 0) p.set('sort', String(sortIdx))
   const str = p.toString()
   return str ? `${base}?${str}` : base
 }
 
 function isRecentRelease(phone: Phone): boolean {
   if (!phone.release_year) return false
-  const diff = (Date.now() - new Date(phone.release_year, (phone.release_month ?? 1) - 1, phone.release_day ?? 1).getTime())
+  const released = new Date(phone.release_year, (phone.release_month ?? 1) - 1, phone.release_day ?? 1)
+  const diff = Date.now() - released.getTime()
   return diff >= 0 && diff <= 60 * 24 * 60 * 60 * 1000
 }
 
@@ -103,7 +103,14 @@ function BrandLogoImg({ info, name }: { info: BrandInfo | null; name: string }) 
   if (info?.logo && !err) {
     return (
       <div style={{ ...wrap, padding: 10 }}>
-        <img src={info.logo} alt={name} onError={() => setErr(true)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+        <img
+          src={info.logo}
+          alt={name}
+          loading="lazy"
+          decoding="async"
+          onError={() => setErr(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+        />
       </div>
     )
   }
@@ -139,11 +146,11 @@ function MiniPhoneCard({ phone }: { phone: Phone }) {
       onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = c.border; el.style.transform = 'none'; el.style.boxShadow = 'none' }}
     >
       {isNew && (
-        <span style={{ position: 'absolute', top: 8, right: 8, background: 'var(--accent)', color: 'white', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', padding: '2px 6px', borderRadius: 'var(--r-full)' }}>New</span>
+        <span style={{ position: 'absolute', top: 8, right: 8, background: c.accent, color: '#fff', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', padding: '2px 6px', borderRadius: 'var(--r-full)' }}>New</span>
       )}
       <div style={{ width: '100%', aspectRatio: '1', background: c.bg, borderRadius: 'var(--r-sm)', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {phone.main_image_url && !imgErr
-          ? <img src={phone.main_image_url} alt={phone.model_name} onError={() => setImgErr(true)} style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
+          ? <img src={phone.main_image_url} alt={phone.model_name} loading="lazy" decoding="async" onError={() => setImgErr(true)} style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
           : <Smartphone size={32} color={c.border} strokeWidth={1} />}
       </div>
       <div style={{ fontFamily: f.serif, fontSize: 13, color: c.text1, lineHeight: 1.3, marginBottom: 6 }}>{phone.model_name}</div>
@@ -167,7 +174,7 @@ function PhoneListRow({ phone, inCompare, onCompareToggle }: { phone: Phone; inC
     >
       <div style={{ width: 56, height: 56, flexShrink: 0, background: c.bg, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {phone.main_image_url && !imgErr
-          ? <img src={phone.main_image_url} alt="" onError={() => setImgErr(true)} style={{ width: 44, height: 44, objectFit: 'contain' }} />
+          ? <img src={phone.main_image_url} alt="" loading="lazy" decoding="async" onError={() => setImgErr(true)} style={{ width: 44, height: 44, objectFit: 'contain' }} />
           : <Smartphone size={24} color={c.border} strokeWidth={1} />}
       </div>
       <Link href={ROUTES.phone(brandSlug(phone.brand), phoneSlug(phone))} style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}>
@@ -185,8 +192,9 @@ function PhoneListRow({ phone, inCompare, onCompareToggle }: { phone: Phone; inC
       <div style={{ fontSize: 16, fontWeight: 600, color: c.text1, flexShrink: 0 }}>{phone.price_usd ? `$${Math.round(phone.price_usd).toLocaleString()}` : '—'}</div>
       <button
         onClick={e => { e.preventDefault(); e.stopPropagation(); onCompareToggle(phone) }}
-        style={{ width: 32, height: 32, borderRadius: 'var(--r-sm)', flexShrink: 0, border: `1px solid ${inCompare ? 'var(--accent)' : c.border}`, background: inCompare ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: inCompare ? 'white' : c.text3, cursor: 'pointer', transition: 'all 0.15s' }}
-        title={inCompare ? 'Remove' : 'Add to compare'}
+        aria-pressed={inCompare}
+        aria-label={inCompare ? `Remove ${phone.model_name} from compare` : `Add ${phone.model_name} to compare`}
+        style={{ width: 32, height: 32, borderRadius: 'var(--r-sm)', flexShrink: 0, border: `1px solid ${inCompare ? c.accent : c.border}`, background: inCompare ? c.accent : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: inCompare ? '#fff' : c.text3, cursor: 'pointer', transition: 'all 0.15s' }}
       >
         <GitCompare size={13} />
       </button>
@@ -210,19 +218,19 @@ function Pagination({ page, total, pageSize, onChange }: { page: number; total: 
   }
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 64 }}>
-      <button disabled={page === 1} onClick={() => onChange(page - 1)} style={{ minWidth: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--r-sm)', border: 'none', cursor: page === 1 ? 'default' : 'pointer', color: page === 1 ? c.border : c.text2, background: 'transparent' }}>
+      <button disabled={page === 1} onClick={() => onChange(page - 1)} aria-label="Previous page" style={{ minWidth: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--r-sm)', border: 'none', cursor: page === 1 ? 'default' : 'pointer', color: page === 1 ? c.border : c.text2, background: 'transparent' }}>
         <ChevronLeft size={16} />
       </button>
       {pages.map((p, i) =>
         p === '…'
           ? <span key={`e${i}`} style={{ width: 36, textAlign: 'center', color: c.text3, fontSize: 14 }}>…</span>
           : (
-            <button key={p} onClick={() => onChange(p as number)} style={{ minWidth: 36, height: 36, padding: '0 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: p === page ? c.primary : 'transparent', color: p === page ? '#fff' : c.text2, fontWeight: p === page ? 600 : 400 }}>
+            <button key={p} onClick={() => onChange(p as number)} aria-label={`Page ${p}`} aria-current={p === page ? 'page' : undefined} style={{ minWidth: 36, height: 36, padding: '0 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: p === page ? c.primary : 'transparent', color: p === page ? '#fff' : c.text2, fontWeight: p === page ? 600 : 400 }}>
               {p}
             </button>
           )
       )}
-      <button disabled={page === Math.ceil(total / pageSize)} onClick={() => onChange(page + 1)} style={{ minWidth: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--r-sm)', border: 'none', cursor: page === totalPages ? 'default' : 'pointer', color: page === Math.ceil(total / pageSize) ? c.border : c.text2, background: 'transparent' }}>
+      <button disabled={page === Math.ceil(total / pageSize)} onClick={() => onChange(page + 1)} aria-label="Next page" style={{ minWidth: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--r-sm)', border: 'none', cursor: page === totalPages ? 'default' : 'pointer', color: page === Math.ceil(total / pageSize) ? c.border : c.text2, background: 'transparent' }}>
         <ChevronRight size={16} />
       </button>
     </div>
@@ -249,7 +257,7 @@ function FilterChips({ filters, onChange }: { filters: SearchFilters; onChange: 
       {chips.map(chip => (
         <div key={chip.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-full)', fontSize: 12, color: c.text2 }}>
           {chip.label}
-          <button onClick={chip.clear} style={{ color: c.text3, display: 'flex', transition: 'color 0.1s' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = c.accent }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = c.text3 }}>
+          <button onClick={chip.clear} aria-label={`Remove ${chip.label} filter`} style={{ color: c.text3, display: 'flex', transition: 'color 0.1s' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = c.accent }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = c.text3 }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -286,8 +294,8 @@ function BrandPageContent() {
   const [filters, setFilters] = useState<SearchFilters>(() =>
     parseFiltersFromParams(new URLSearchParams(searchParams.toString()))
   )
-  const [page, setPage]       = useState(() => parseInt(searchParams.get('page') || '1'))
-  const [sortIdx, setSortIdx] = useState(() => parseInt(searchParams.get('sort') || '0'))
+  const [page, setPage]       = useState(() => parseInt(searchParams.get('page') ?? '1', 10))
+  const [sortIdx, setSortIdx] = useState(() => parseInt(searchParams.get('sort') ?? '0', 10))
 
   const scrollRef  = useRef<HTMLDivElement>(null)
   const gridRef    = useRef<HTMLDivElement>(null)
@@ -296,11 +304,27 @@ function BrandPageContent() {
 
   const activeFilterCount = Object.values(filters).filter(v => v !== undefined && v !== '').length
 
+  // Close sort dropdown on Escape
+  useEffect(() => {
+    if (!sortOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSortOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [sortOpen])
+
+  // Close mobile filters on Escape
+  useEffect(() => {
+    if (!mobileFiltersOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileFiltersOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [mobileFiltersOpen])
+
   useEffect(() => {
     if (ownUpdate.current) { ownUpdate.current = false; return }
     setFilters(parseFiltersFromParams(new URLSearchParams(searchParams.toString())))
-    setPage(parseInt(searchParams.get('page') || '1'))
-    setSortIdx(parseInt(searchParams.get('sort') || '0'))
+    setPage(parseInt(searchParams.get('page') ?? '1', 10))
+    setSortIdx(parseInt(searchParams.get('sort') ?? '0', 10))
   }, [searchParams.toString()])
 
   const commit = (f: SearchFilters, p: number, s: number) => {
@@ -327,7 +351,7 @@ function BrandPageContent() {
     return () => { cancelled = true }
   }, [slug])
 
-  const loadPhones = useCallback(async () => {
+  const loadPhones = useCallback(async (signal: AbortSignal) => {
     if (!slug) return
     setPhonesLoading(true)
     const sort = SORT_OPTIONS[sortIdx]
@@ -339,17 +363,22 @@ function BrandPageContent() {
         sort_order: sort.order,
         page,
         page_size: PAGE_SIZE,
-      })
+      }, signal)
       setPhones(res.results)
       setTotal(res.total)
-    } catch {
+    } catch (err) {
+      if (signal.aborted || (err instanceof Error && err.name === 'AbortError')) return
       toast('Failed to load phones', 'error')
     } finally {
-      setPhonesLoading(false)
+      if (!signal.aborted) setPhonesLoading(false)
     }
-  }, [slug, brandName, page, sortIdx, filters])
+  }, [slug, brandName, page, sortIdx, filters, toast])
 
-  useEffect(() => { loadPhones() }, [loadPhones])
+  useEffect(() => {
+    const controller = new AbortController()
+    loadPhones(controller.signal)
+    return () => controller.abort()
+  }, [loadPhones])
 
   const handleFiltersChange = (f: SearchFilters) => { setFilters(f); setPage(1); commit(f, 1, sortIdx) }
   const handleReset = () => { setFilters(EMPTY_FILTERS); setPage(1); commit(EMPTY_FILTERS, 1, sortIdx) }
@@ -363,13 +392,15 @@ function BrandPageContent() {
   const handleCompareToggle = (phone: Phone) => {
     setComparePhones(prev => {
       if (prev.find(p => p.id === phone.id)) { toast('Removed from compare', 'info'); return prev.filter(p => p.id !== phone.id) }
-      if (prev.length >= 4) { toast('Maximum 4 phones', 'error'); return prev }
+      if (prev.length >= MAX_COMPARE) { toast(`Maximum ${MAX_COMPARE} phones`, 'error'); return prev }
       toast('Added to compare', 'success')
       return [...prev, phone]
     })
   }
 
   const compareIds = comparePhones.map(p => p.id)
+
+  const displayBrandName = brandName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: c.bg }}>
@@ -399,7 +430,7 @@ function BrandPageContent() {
         <Smartphone size={64} color={c.border} strokeWidth={1} style={{ margin: '0 auto 20px' }} />
         <h1 style={{ fontFamily: f.serif, fontSize: 28, color: c.text1, marginBottom: 10 }}>Brand not found</h1>
         <p style={{ fontSize: 15, color: c.text2, lineHeight: 1.6, marginBottom: 24 }}>
-          We don't have <strong>{brandName}</strong> in our database yet.
+          We don't have <strong>{displayBrandName}</strong> in our database yet.
         </p>
         <Link href={ROUTES.home} style={{ padding: '10px 24px', background: c.primary, color: '#fff', borderRadius: 'var(--r-full)', fontSize: 14, fontWeight: 600 }}>
           Browse All Phones
@@ -420,7 +451,6 @@ function BrandPageContent() {
       />
 
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 24px 80px' }}>
-
         <nav style={{ padding: '16px 0 0', fontSize: 13, color: c.text3, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <Link href={ROUTES.home} style={{ color: c.text2 }}>Home</Link>
           <ChevronRight size={12} />
@@ -474,13 +504,13 @@ function BrandPageContent() {
               </button>
             </div>
             <div style={{ position: 'relative' }}>
-              <button onClick={() => scrollRef.current?.scrollBy({ left: -360, behavior: 'smooth' })} className="scroll-arrow-btn" style={{ position: 'absolute', left: -16, top: '50%', transform: 'translateY(-50%)', width: 36, height: 36, borderRadius: '50%', background: c.surface, border: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.text2, cursor: 'pointer', zIndex: 2, boxShadow: 'var(--shadow-md)' }}>
+              <button onClick={() => scrollRef.current?.scrollBy({ left: -360, behavior: 'smooth' })} aria-label="Scroll left" className="scroll-arrow-btn" style={{ position: 'absolute', left: -16, top: '50%', transform: 'translateY(-50%)', width: 36, height: 36, borderRadius: '50%', background: c.surface, border: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.text2, cursor: 'pointer', zIndex: z.badge, boxShadow: 'var(--shadow-md)' }}>
                 <ChevronLeft size={16} />
               </button>
               <div ref={scrollRef} className="scrollbar-none" style={{ display: 'flex', gap: 14, overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 4 }}>
                 {latest.map(p => <MiniPhoneCard key={p.id} phone={p} />)}
               </div>
-              <button onClick={() => scrollRef.current?.scrollBy({ left: 360, behavior: 'smooth' })} className="scroll-arrow-btn" style={{ position: 'absolute', right: -16, top: '50%', transform: 'translateY(-50%)', width: 36, height: 36, borderRadius: '50%', background: c.surface, border: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.text2, cursor: 'pointer', zIndex: 2, boxShadow: 'var(--shadow-md)' }}>
+              <button onClick={() => scrollRef.current?.scrollBy({ left: 360, behavior: 'smooth' })} aria-label="Scroll right" className="scroll-arrow-btn" style={{ position: 'absolute', right: -16, top: '50%', transform: 'translateY(-50%)', width: 36, height: 36, borderRadius: '50%', background: c.surface, border: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.text2, cursor: 'pointer', zIndex: z.badge, boxShadow: 'var(--shadow-md)' }}>
                 <ChevronRight size={16} />
               </button>
               <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 48, background: `linear-gradient(-90deg, ${c.bg} 0%, transparent 100%)`, pointerEvents: 'none' }} />
@@ -488,15 +518,9 @@ function BrandPageContent() {
           </div>
         )}
 
-        <div ref={gridRef} id="brand-grid" style={{ display: 'grid', gridTemplateColumns: 'var(--sidebar-w) 1fr', gap: 32, alignItems: 'start' }} className="brand-grid-layout">
-
+        <div ref={gridRef} id="brand-grid" style={{ display: 'grid', gap: 32, alignItems: 'start' }} className="brand-grid-layout">
           <div className="brand-filter-sidebar">
-            <FilterPanel
-              filters={filters}
-              onChange={handleFiltersChange}
-              onReset={handleReset}
-              showBrandFilter={false}
-            />
+            <FilterPanel filters={filters} onChange={handleFiltersChange} onReset={handleReset} showBrandFilter={false} />
           </div>
 
           <div>
@@ -504,11 +528,11 @@ function BrandPageContent() {
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-
                 <button
                   onClick={() => setMobileFiltersOpen(true)}
                   style={{ display: 'none', alignItems: 'center', gap: 6, padding: '7px 14px', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-sm)', fontSize: 13, fontWeight: 500, color: c.text1 }}
                   className="brand-mobile-filter-btn"
+                  aria-label="Open filters"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
                   Filters
@@ -520,6 +544,8 @@ function BrandPageContent() {
                 <div style={{ position: 'relative' }}>
                   <button
                     onClick={() => setSortOpen(o => !o)}
+                    aria-expanded={sortOpen}
+                    aria-haspopup="listbox"
                     style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', fontSize: 13, fontWeight: 500, color: c.text1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-sm)', cursor: 'pointer', fontFamily: 'inherit' }}
                   >
                     <ArrowUpDown size={14} color={c.text3} />
@@ -528,10 +554,10 @@ function BrandPageContent() {
                   </button>
                   {sortOpen && (
                     <>
-                      <div style={{ position: 'fixed', inset: 0, zIndex: 29 }} onClick={() => setSortOpen(false)} />
-                      <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-md)', overflow: 'hidden', boxShadow: 'var(--shadow-md)', zIndex: 30, minWidth: 190 }}>
+                      <div style={{ position: 'fixed', inset: 0, zIndex: z.dropdown - 1 }} onClick={() => setSortOpen(false)} />
+                      <div role="listbox" aria-label="Sort options" style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-md)', overflow: 'hidden', boxShadow: 'var(--shadow-md)', zIndex: z.dropdown, minWidth: 190 }}>
                         {SORT_OPTIONS.map((opt, i) => (
-                          <button key={i} onClick={() => handleSortChange(i)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 16px', fontSize: 13, fontFamily: 'inherit', color: i === sortIdx ? c.primary : c.text2, fontWeight: i === sortIdx ? 600 : 400, background: i === sortIdx ? `rgba(26,26,46,0.04)` : 'transparent', border: 'none', cursor: 'pointer' }}>
+                          <button key={i} role="option" aria-selected={i === sortIdx} onClick={() => handleSortChange(i)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 16px', fontSize: 13, fontFamily: 'inherit', color: i === sortIdx ? c.primary : c.text2, fontWeight: i === sortIdx ? 600 : 400, background: i === sortIdx ? 'rgba(26,26,46,0.04)' : 'transparent', border: 'none', cursor: 'pointer' }}>
                             {opt.label}
                           </button>
                         ))}
@@ -546,11 +572,22 @@ function BrandPageContent() {
               </div>
 
               <div style={{ display: 'flex', gap: 2, background: c.bg, border: `1px solid ${c.border}`, borderRadius: 'var(--r-sm)', padding: 3 }}>
-                {([{ icon: <LayoutGrid size={14} />, isGrid: true }, { icon: <List size={14} />, isGrid: false }] as const).map(({ icon, isGrid }) => (
-                  <button key={String(isGrid)} onClick={() => setGridView(isGrid)} style={{ width: 32, height: 32, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: gridView === isGrid ? c.text1 : c.text3, background: gridView === isGrid ? c.surface : 'transparent', border: 'none', cursor: 'pointer', transition: 'all 0.15s', boxShadow: gridView === isGrid ? 'var(--shadow-sm)' : 'none' }}>
-                    {icon}
-                  </button>
-                ))}
+                <button
+                  onClick={() => setGridView(true)}
+                  aria-label="Grid view"
+                  aria-pressed={gridView}
+                  style={{ width: 32, height: 32, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: gridView ? c.text1 : c.text3, background: gridView ? c.surface : 'transparent', border: 'none', cursor: 'pointer', transition: 'all 0.15s', boxShadow: gridView ? 'var(--shadow-sm)' : 'none' }}
+                >
+                  <LayoutGrid size={14} />
+                </button>
+                <button
+                  onClick={() => setGridView(false)}
+                  aria-label="List view"
+                  aria-pressed={!gridView}
+                  style={{ width: 32, height: 32, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: !gridView ? c.text1 : c.text3, background: !gridView ? c.surface : 'transparent', border: 'none', cursor: 'pointer', transition: 'all 0.15s', boxShadow: !gridView ? 'var(--shadow-sm)' : 'none' }}
+                >
+                  <List size={14} />
+                </button>
               </div>
             </div>
 
@@ -590,14 +627,20 @@ function BrandPageContent() {
       />
 
       {mobileFiltersOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.45)' }} onClick={() => setMobileFiltersOpen(false)}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Filters"
+          style={{ position: 'fixed', inset: 0, zIndex: z.drawer, background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => setMobileFiltersOpen(false)}
+        >
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: c.surface, borderRadius: 'var(--r-xl) var(--r-xl) 0 0', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: 'slideUp 0.25s ease' }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '10px 0 0', display: 'flex', justifyContent: 'center' }}><div style={{ width: 36, height: 4, background: c.border, borderRadius: 2 }} /></div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 20px' }}>
               <FilterPanel filters={filters} onChange={f => { handleFiltersChange(f); setMobileFiltersOpen(false) }} onReset={() => { handleReset(); setMobileFiltersOpen(false) }} showBrandFilter={false} />
             </div>
             <div style={{ padding: '12px 16px', borderTop: `1px solid ${c.border}`, display: 'flex', gap: 10 }}>
-              <button onClick={() => { handleReset(); setMobileFiltersOpen(false) }} style={{ flex: 1, padding: '11px 0', background: 'var(--bg)', border: `1px solid ${c.border}`, borderRadius: 'var(--r-md)', fontSize: 14, fontWeight: 600, color: c.text1, cursor: 'pointer' }}>Reset</button>
+              <button onClick={() => { handleReset(); setMobileFiltersOpen(false) }} style={{ flex: 1, padding: '11px 0', background: c.bg, border: `1px solid ${c.border}`, borderRadius: 'var(--r-md)', fontSize: 14, fontWeight: 600, color: c.text1, cursor: 'pointer' }}>Reset</button>
               <button onClick={() => setMobileFiltersOpen(false)} style={{ flex: 2, padding: '11px 0', background: c.primary, borderRadius: 'var(--r-md)', fontSize: 14, fontWeight: 600, color: '#fff', border: 'none', cursor: 'pointer' }}>Apply Filters</button>
             </div>
           </div>
@@ -608,29 +651,18 @@ function BrandPageContent() {
         .scrollbar-none { scrollbar-width: none; }
         .scrollbar-none::-webkit-scrollbar { display: none; }
         @media (max-width: 768px) { .scroll-arrow-btn { display: none !important; } }
-
         .brand-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-
-        /* Desktop: 4 columns — smaller cards, better proportion with sidebar */
         .brand-phone-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
         .brand-grid-layout { grid-template-columns: var(--sidebar-w) 1fr; }
-
-        /* Tablet wide: sidebar collapses, 4 columns still fit */
-        @media (max-width: 1280px) {
-          .brand-phone-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        }
-
-        /* Tablet narrow: sidebar gone, 3 columns */
-        @media (max-width: 1023px) {
+        ${mq.xl} { .brand-phone-grid { grid-template-columns: repeat(3, 1fr); } }
+        ${mq.lg} {
           .brand-stats-grid { grid-template-columns: repeat(2, 1fr); }
           .brand-grid-layout { grid-template-columns: 1fr !important; }
           .brand-filter-sidebar { display: none !important; }
           .brand-mobile-filter-btn { display: flex !important; }
           .brand-phone-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
         }
-
-        /* Mobile: 2 columns */
-        @media (max-width: 767px) {
+        ${mq.md} {
           .brand-phone-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
           .brand-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         }
@@ -641,10 +673,8 @@ function BrandPageContent() {
 
 export default function BrandPage() {
   return (
-    <ToastProvider>
-      <Suspense fallback={null}>
-        <BrandPageContent />
-      </Suspense>
-    </ToastProvider>
+    <Suspense fallback={null}>
+      <BrandPageContent />
+    </Suspense>
   )
 }
