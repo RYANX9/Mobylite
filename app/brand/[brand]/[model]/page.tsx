@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import {
   ChevronRight, Share2, GitCompare, ShoppingCart,
-  Check, ChevronDown, Camera, Battery, Cpu, Monitor,
+  Check, Camera, Battery, Cpu, Monitor,
   Weight, Zap, Smartphone, ArrowRight,
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -28,12 +28,17 @@ function stripHtml(raw: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, ' ')
     .replace(/&deg;/g, '°')
     .replace(/&mdash;/g, '—')
     .replace(/&ndash;/g, '–')
     .replace(/&times;/g, '×')
+    .replace(/&copy;/g, '©')
+    .replace(/&reg;/g, '®')
+    .replace(/&trade;/g, '™')
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
@@ -89,6 +94,31 @@ function getSpecGroups(phone: Phone): Array<[string, Record<string, string>]> {
   return groups
 }
 
+// ─── spec group ordering ──────────────────────────────────────────────────────
+
+// Lower index = rendered first. Partial substring match against lowercased group name.
+const SPEC_GROUP_ORDER = [
+  'launch', 'availability', 'status',
+  'network', 'sim',
+  'display', 'screen',
+  'platform', 'performance', 'chipset', 'processor',
+  'memory', 'storage',
+  'main camera', 'rear camera', 'camera',
+  'selfie', 'front camera', 'secondary camera',
+  'sound', 'audio',
+  'comms', 'connectivity', 'wlan', 'bluetooth', 'nfc',
+  'sensors', 'features',
+  'battery',
+  'body', 'build', 'design', 'dimensions',
+  'tests', 'misc', 'other',
+]
+
+function rankSpecGroup(name: string): number {
+  const lower = name.toLowerCase()
+  const idx = SPEC_GROUP_ORDER.findIndex(k => lower.includes(k))
+  return idx === -1 ? 998 : idx
+}
+
 // ─── slug resolution — first two searches run in parallel ─────────────────────
 
 function pickBest(phones: Phone[], targetSlug: string): Phone | null {
@@ -112,7 +142,6 @@ async function resolvePhone(brand: string, model: string, signal: AbortSignal): 
   const brandName  = brand.replace(/-/g, ' ')
   const modelWords = model.replace(/-/g, ' ')
 
-  // Run two most-targeted searches in parallel to reduce cold-path latency
   const [withBrand, withoutBrand] = await Promise.allSettled([
     api.phones.search({ q: modelWords, brand: brandName, page_size: 10 }, signal),
     api.phones.search({ q: modelWords, page_size: 10 }, signal),
@@ -128,7 +157,6 @@ async function resolvePhone(brand: string, model: string, signal: AbortSignal): 
     if (match) return api.phones.detail(match.id, signal)
   }
 
-  // Strip brand tokens from model words to handle "samsung-galaxy-s26-ultra" slugs
   const brandTokens = brandName.toLowerCase().split(' ')
   let queryTokens = modelWords.toLowerCase().split(' ')
   for (const bt of brandTokens) {
@@ -144,7 +172,6 @@ async function resolvePhone(brand: string, model: string, signal: AbortSignal): 
     } catch { /* continue */ }
   }
 
-  // Last resort: brand catalog scan
   try {
     const res = await api.phones.search({ brand: brandName, page_size: 50 }, signal)
     const match = pickBest(res.results, model)
@@ -181,7 +208,7 @@ function SpecRow({ label, value, alt }: { label: string; value: string; alt: boo
       background: alt ? 'rgba(248,248,245,0.6)' : 'transparent',
       alignItems: 'flex-start',
     }}>
-      <div style={{ width: 120, minWidth: 120, flexShrink: 0, fontSize: 12, color: c.text3, fontWeight: 500, paddingTop: 1, paddingRight: 10, lineHeight: 1.4 }}>
+      <div style={{ width: 130, minWidth: 130, flexShrink: 0, fontSize: 12, color: c.text3, fontWeight: 500, paddingTop: 1, paddingRight: 12, lineHeight: 1.4 }}>
         {label}
       </div>
       <div style={{ flex: 1, fontSize: 13, color: c.text1, lineHeight: 1.5 }}>
@@ -194,30 +221,25 @@ function SpecRow({ label, value, alt }: { label: string; value: string; alt: boo
   )
 }
 
-// defaultOpen prop lets caller control first-group behaviour
-function SpecGroup({ title, specs, defaultOpen = false }: { title: string; specs: Record<string, string>; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen)
+// Always open — no collapse toggle
+function SpecGroup({ title, specs }: { title: string; specs: Record<string, string> }) {
   const entries = Object.entries(specs)
   if (!entries.length) return null
   return (
     <div style={{ marginBottom: 6, borderRadius: 'var(--r-md)', overflow: 'hidden', border: `1px solid ${c.border}` }}>
-      <button onClick={() => setOpen(o => !o)} style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-        padding: '10px 14px', background: c.surface,
-        textAlign: 'left', cursor: 'pointer',
-        border: 'none', borderBottom: open ? `1px solid ${c.border}` : 'none',
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 14px', background: c.bg,
+        borderBottom: `1px solid ${c.border}`,
       }}>
-        <span style={{ flex: 1, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: c.text1 }}>
+        <span style={{ flex: 1, fontSize: 12, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.6px', color: c.text1 }}>
           {title}
         </span>
-        <span style={{ fontSize: 11, color: c.text3, marginRight: 6 }}>{entries.length} specs</span>
-        <ChevronDown size={14} color={c.text3} style={{ transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none', flexShrink: 0 }} />
-      </button>
-      {open && (
-        <div style={{ background: c.surface }}>
-          {entries.map(([k, v], i) => <SpecRow key={k} label={k} value={v} alt={i % 2 === 1} />)}
-        </div>
-      )}
+        <span style={{ fontSize: 11, color: c.text3 }}>{entries.length} specs</span>
+      </div>
+      <div style={{ background: c.surface }}>
+        {entries.map(([k, v], i) => <SpecRow key={k} label={k} value={v} alt={i % 2 === 1} />)}
+      </div>
     </div>
   )
 }
@@ -227,7 +249,7 @@ function QuickSpecCard({ icon, value, label }: { icon: React.ReactNode; value: s
     <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 'var(--r-md)', padding: '16px 12px', textAlign: 'center' }}>
       <div style={{ color: c.text3, display: 'flex', justifyContent: 'center', marginBottom: 8 }}>{icon}</div>
       <div style={{ fontSize: 16, fontWeight: 600, color: c.text1, marginBottom: 3, lineHeight: 1.2 }}>{value}</div>
-      <div style={{ fontSize: 11, color: c.text3, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{label}</div>
+      <div style={{ fontSize: 11, color: c.text3, textTransform: 'uppercase' as const, letterSpacing: '0.3px' }}>{label}</div>
     </div>
   )
 }
@@ -264,7 +286,7 @@ function SimilarCard({ phone }: { phone: Phone }) {
           ? <img src={phone.main_image_url} alt={phone.model_name} loading="lazy" decoding="async" onError={() => setImgErr(true)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           : <Smartphone size={32} color={c.border} strokeWidth={1} />}
       </div>
-      <div style={{ fontSize: 10, color: c.text3, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>{phone.brand}</div>
+      <div style={{ fontSize: 10, color: c.text3, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 2 }}>{phone.brand}</div>
       <div style={{ fontSize: 12, fontWeight: 600, color: c.text1, lineHeight: 1.3, marginBottom: 6, fontFamily: f.serif }}>{phone.model_name}</div>
       <div style={{ fontSize: 13, fontWeight: 700, color: c.text1 }}>
         {phone.price_usd ? `$${Math.round(phone.price_usd).toLocaleString()}` : '—'}
@@ -274,6 +296,45 @@ function SimilarCard({ phone }: { phone: Phone }) {
       )}
     </Link>
   )
+}
+
+// ─── JSON-LD builders ─────────────────────────────────────────────────────────
+
+function buildProductJsonLd(phone: Phone, brand: string, model: string): object {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: `${phone.brand} ${phone.model_name}`,
+    brand: { '@type': 'Brand', name: phone.brand },
+    description: [
+      phone.main_camera_mp ? `${phone.main_camera_mp}MP main camera` : null,
+      phone.battery_capacity ? `${phone.battery_capacity.toLocaleString()}mAh battery` : null,
+      phone.chipset ? phone.chipset : null,
+      phone.screen_size ? `${phone.screen_size}" display` : null,
+    ].filter(Boolean).join(', '),
+    ...(phone.price_usd != null && {
+      offers: {
+        '@type': 'Offer',
+        price: phone.price_usd,
+        priceCurrency: 'USD',
+        availability: 'https://schema.org/InStock',
+        url: `https://mobylite.vercel.app/brand/${brandSlug(phone.brand)}/${phoneSlug(phone)}`,
+      },
+    }),
+    ...(phone.main_image_url && { image: phone.main_image_url }),
+  }
+}
+
+function buildBreadcrumbJsonLd(phone: Phone): object {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://mobylite.vercel.app' },
+      { '@type': 'ListItem', position: 2, name: phone.brand, item: `https://mobylite.vercel.app/brand/${brandSlug(phone.brand)}` },
+      { '@type': 'ListItem', position: 3, name: phone.model_name, item: `https://mobylite.vercel.app/brand/${brandSlug(phone.brand)}/${phoneSlug(phone)}` },
+    ],
+  }
 }
 
 // ─── main page component ──────────────────────────────────────────────────────
@@ -296,20 +357,20 @@ function PhoneDetailContent() {
     const t = searchParams.get('tab')
     return (t === 'specs' || t === 'compare') ? t : 'overview'
   })
-  const [imgErr, setImgErr]           = useState(false)
-  const [copied, setCopied]           = useState(false)
+  const [imgErr, setImgErr]               = useState(false)
+  const [copied, setCopied]               = useState(false)
   const [comparePhones, setComparePhones] = useState<Phone[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const handleTabChange = (newTab: TabType) => {
     setTab(newTab)
-    const params = new URLSearchParams(searchParams.toString())
+    const p = new URLSearchParams(searchParams.toString())
     if (newTab === 'overview') {
-      params.delete('tab')
+      p.delete('tab')
     } else {
-      params.set('tab', newTab)
+      p.set('tab', newTab)
     }
-    const str = params.toString()
+    const str = p.toString()
     router.replace(str ? `?${str}` : window.location.pathname, { scroll: false })
   }
 
@@ -362,7 +423,7 @@ function PhoneDetailContent() {
       toast('Link copied!', 'success')
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      toast('Failed to copy link', 'error')
+      toast('Could not copy link — try copying from the address bar', 'error')
     }
   }
 
@@ -420,6 +481,7 @@ function PhoneDetailContent() {
   ].filter(Boolean) as { icon: React.ReactNode; value: string; label: string }[]
 
   const specGroups  = getSpecGroups(phone)
+  const sortedSpecGroups = [...specGroups].sort(([a], [b]) => rankSpecGroup(a) - rankSpecGroup(b))
   const valueScore  = (phone as any).value_score as number | null
   const fs          = phone.full_specifications as any
 
@@ -449,8 +511,7 @@ function PhoneDetailContent() {
         phone.ram_options?.length ? { label: 'RAM', value: phone.ram_options!.map(r => `${r}GB`).join(' / ') } : null,
         phone.storage_options?.length
           ? { label: 'Storage', value: phone.storage_options!.map(s => s >= 1000 ? `${s/1000}TB` : `${s}GB`).join(' / ') } : null,
-        phone.antutu_score    ? { label: 'AnTuTu Score',     value: phone.antutu_score.toLocaleString() }    : null,
-        phone.geekbench_multi ? { label: 'GeekBench Multi',  value: phone.geekbench_multi.toLocaleString() } : null,
+        phone.antutu_score ? { label: 'AnTuTu Score', value: phone.antutu_score.toLocaleString() } : null,
       ].filter(Boolean) as { label: string; value: string }[],
     },
     {
@@ -472,6 +533,16 @@ function PhoneDetailContent() {
   // ── render ───────────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: c.bg }}>
+      {/* Structured data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildProductJsonLd(phone, brand, model)) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildBreadcrumbJsonLd(phone)) }}
+      />
+
       <Navbar
         compareCount={comparePhones.length}
         onOpenCompare={() => {
@@ -508,7 +579,7 @@ function PhoneDetailContent() {
           </div>
 
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', color: c.text3, marginBottom: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.6px', color: c.text3, marginBottom: 6 }}>
               {phone.brand}
             </div>
             <h1 style={{ fontFamily: f.serif, fontSize: 'clamp(24px,3vw,36px)', color: c.text1, letterSpacing: '-0.4px', lineHeight: 1.15, marginBottom: 10 }}>
@@ -562,17 +633,22 @@ function PhoneDetailContent() {
               </button>
 
               {phone.amazon_link && (
-                <a
-                  href={phone.amazon_link}
-                  target="_blank"
-                  rel="noopener noreferrer sponsored"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px', fontSize: 14, fontWeight: 600, color: '#fff', background: c.primary, borderRadius: 'var(--r-full)', flex: 1, textDecoration: 'none', justifyContent: 'center' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2A2A42' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = c.primary }}
-                >
-                  <ShoppingCart size={15} strokeWidth={2} />
-                  Buy on Amazon
-                </a>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <a
+                    href={phone.amazon_link}
+                    target="_blank"
+                    rel="noopener noreferrer sponsored"
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px', fontSize: 14, fontWeight: 600, color: '#fff', background: c.primary, borderRadius: 'var(--r-full)', textDecoration: 'none', justifyContent: 'center' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2A2A42' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = c.primary }}
+                  >
+                    <ShoppingCart size={15} strokeWidth={2} />
+                    Buy on Amazon
+                  </a>
+                  <span style={{ fontSize: 10, color: c.text3, textAlign: 'center' }}>
+                    Affiliate link — we may earn a commission
+                  </span>
+                </div>
               )}
             </div>
 
@@ -609,9 +685,9 @@ function PhoneDetailContent() {
 
         {tab === 'specs' && (
           <div style={{ marginBottom: 48 }}>
-            {specGroups.length > 0
-              ? specGroups.map(([name, specs], i) => (
-                  <SpecGroup key={name} title={name} specs={specs} defaultOpen={i === 0} />
+            {sortedSpecGroups.length > 0
+              ? sortedSpecGroups.map(([name, specs]) => (
+                  <SpecGroup key={name} title={name} specs={specs} />
                 ))
               : (
                 <div style={{ textAlign: 'center', padding: '48px 0', color: c.text3 }}>
